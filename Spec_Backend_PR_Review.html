@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Sp��cification Backend ��� PR Review Power BI (v1.2)</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.5rem;line-height:1.55;color:#1c1812}
+h1,h2,h3{color:#322A26;margin-top:1.8em}
+h1{border-bottom:3px solid #677DB7;padding-bottom:.3em}
+h2{border-bottom:1px solid #e2e8f0;padding-bottom:.2em}
+code{background:#f4f4f2;padding:.1em .35em;border-radius:4px;font-size:.9em}
+pre{background:#1c1812;color:#e2e8f0;padding:1em;border-radius:8px;overflow-x:auto;font-size:.82em;line-height:1.4}
+pre code{background:none;color:inherit;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92em}
+th,td{border:1px solid #e2e8f0;padding:.5em .7em;text-align:left}
+th{background:#f6f5f2;color:#322A26}
+blockquote{border-left:4px solid #9CA3DB;background:#f6f5fb;margin:1em 0;padding:.5em 1em;color:#454B66}
+#TOC{background:#f6f5f2;padding:1em 1.5em;border-radius:8px;font-size:.9em}
+a{color:#677DB7}
+</style></head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Sp��cification Backend ��� PR Review Power BI
+(v1.2)</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#spécification-backend-plateforme-de-peer-review-power-bi"
+id="toc-spécification-backend-plateforme-de-peer-review-power-bi">Spécification
+Backend — Plateforme de Peer Review Power BI</a>
+<ul>
+<li><a href="#objet-du-document" id="toc-objet-du-document">1. Objet du
+document</a></li>
+<li><a href="#décisions-darchitecture"
+id="toc-décisions-darchitecture">2. Décisions d’architecture</a></li>
+<li><a href="#modèle-de-données" id="toc-modèle-de-données">3. Modèle de
+données</a></li>
+<li><a href="#schéma-sql-postgresql" id="toc-schéma-sql-postgresql">4.
+Schéma SQL (PostgreSQL)</a></li>
+<li><a href="#api-rest" id="toc-api-rest">5. API REST</a></li>
+<li><a href="#connecteur-de-correspondance-matching-et-ia"
+id="toc-connecteur-de-correspondance-matching-et-ia">6. Connecteur de
+correspondance (matching) et IA</a></li>
+<li><a href="#connecteur-sharepoint-excel-en-ligne"
+id="toc-connecteur-sharepoint-excel-en-ligne">7. Connecteur SharePoint /
+Excel en ligne</a></li>
+<li><a
+href="#bis.-connecteur-de-stockage-pluggable-configurable-par-ladmin"
+id="toc-bis.-connecteur-de-stockage-pluggable-configurable-par-ladmin">7bis.
+Connecteur de stockage (pluggable, configurable par l’admin)</a></li>
+<li><a href="#modèle-de-permissions-rbac"
+id="toc-modèle-de-permissions-rbac">8. Modèle de permissions
+(RBAC)</a></li>
+<li><a href="#sécurité" id="toc-sécurité">9. Sécurité</a></li>
+<li><a href="#feuille-de-route-de-livraison"
+id="toc-feuille-de-route-de-livraison">10. Feuille de route de
+livraison</a></li>
+<li><a href="#décisions-arrêtées" id="toc-décisions-arrêtées">11.
+Décisions arrêtées</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1
+id="spécification-backend-plateforme-de-peer-review-power-bi">Spécification
+Backend — Plateforme de Peer Review Power BI</h1>
+<p><strong>Version 1.2 · Document de conception technique</strong>
+Destiné à l’équipe de développement. À versionner dans le dépôt, à côté
+du code.</p>
+<p><strong>Contexte arrêté (v1.2)</strong> : outil
+<strong>interne</strong> hébergé sur <strong>Azure</strong>, identité
+via <strong>Microsoft Entra ID (SSO)</strong>, <strong>type d’IA ET type
+de stockage configurables par l’admin</strong> (couches d’abstraction
+pluggables, changement à chaud sans redéploiement), IA par défaut
+<strong>Mistral (EU)</strong> avec bascule possible vers une <strong>IA
+interne d’entreprise</strong>, rétention des fichiers <strong>1 mois par
+défaut, modifiable par l’admin</strong>, visibilité reviewer
+<strong>strictement limitée aux revues partagées/soumises</strong>.</p>
+<p><strong>Nouveautés v1.2</strong> (par rapport à v1.1) : vue complète
+d’une revue pour les reviewers/admins (y compris les points non
+renseignés) · journal d’activité du référentiel avec attribution
+multi-admins · retrait/restauration de règles avec historique conservé ·
+recherche (revues, référentiel, file de validation) · <strong>stockage
+pluggable configurable par l’admin</strong> (Azure Blob / S3 / stockage
+interne).</p>
+<hr />
+<h2 id="objet-du-document">1. Objet du document</h2>
+<p>Ce document décrit l’architecture serveur complète de la plateforme
+de Peer Review Power BI dont le prototype front a validé les parcours.
+Il couvre : le modèle de données, le schéma SQL exécutable, l’API REST,
+le modèle de permissions, les connecteurs (moteur de correspondance /
+IA, import SharePoint), la sécurité, et une feuille de route de
+livraison.</p>
+<p>Le principe fondateur, hérité du prototype, reste <strong>le
+versionnement immuable des règles</strong> : une revue référence
+toujours la <em>version</em> d’une règle telle qu’elle existait au
+moment de l’évaluation, jamais la règle mutable. C’est ce qui permet
+d’exploiter l’historique des revues même quand le référentiel
+évolue.</p>
+<hr />
+<h2 id="décisions-darchitecture">2. Décisions d’architecture</h2>
+<h3 id="stack-retenue">2.1 Stack retenue</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Couche</th>
+<th>Choix</th>
+<th>Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Langage / framework API</td>
+<td><strong>Python 3.12 + FastAPI</strong></td>
+<td>Écosystème idéal pour l’Excel (<code>openpyxl</code>), la similarité
+(<code>rapidfuzz</code>), et l’appel de modèles d’IA ; typage via
+Pydantic ; OpenAPI généré automatiquement.</td>
+</tr>
+<tr class="even">
+<td>Base de données</td>
+<td><strong>PostgreSQL 16</strong></td>
+<td>Intégrité relationnelle (clés étrangères, transactions),
+indispensable pour le versionnement et l’audit.</td>
+</tr>
+<tr class="odd">
+<td>ORM / migrations</td>
+<td><strong>SQLAlchemy 2.x + Alembic</strong></td>
+<td>Migrations versionnées, requêtes paramétrées (anti-injection).</td>
+</tr>
+<tr class="even">
+<td>Auth</td>
+<td><strong>Microsoft Entra ID (SSO, OIDC)</strong> en principal,
+email/mot de passe (Argon2id) en repli optionnel</td>
+<td>Outil interne : l’identité d’entreprise est la source de vérité. Une
+seule identité pour l’app, SharePoint et l’IA interne.</td>
+</tr>
+<tr class="odd">
+<td>File d’attente asynchrone</td>
+<td><strong>Celery + Redis</strong> (ou <code>arq</code>)</td>
+<td>Import Excel, appels IA et synchro SharePoint sont des tâches
+longues → hors requête HTTP.</td>
+</tr>
+<tr class="even">
+<td>Stockage fichiers</td>
+<td><strong>Pluggable</strong> — Azure Blob (défaut), S3, ou stockage
+interne, <strong>choisi par l’admin</strong></td>
+<td>Interface commune (§7bis) ; l’admin change de backend de stockage
+sans redéploiement.</td>
+</tr>
+<tr class="odd">
+<td>Secrets</td>
+<td><strong>Azure Key Vault</strong></td>
+<td>Clés IA, secrets Graph, chaînes de connexion stockage, jamais en
+base ni dans le code.</td>
+</tr>
+<tr class="even">
+<td>Front</td>
+<td>React + TypeScript (le prototype)</td>
+<td>Consomme l’API via TanStack Query.</td>
+</tr>
+<tr class="odd">
+<td>Déploiement</td>
+<td><strong>Azure</strong> (Container Apps / AKS) + reverse-proxy
+TLS</td>
+<td>Cohérent avec Entra ID + SharePoint ; secrets via Key Vault.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vue-densemble-des-composants">2.2 Vue d’ensemble des
+composants</h3>
+<pre><code>┌─────────────┐      HTTPS/JSON      ┌──────────────────────┐
+│  Front React│ ───────────────────► │   API FastAPI        │
+└─────────────┘                      │  - Auth / RBAC       │
+                                     │  - CRUD référentiel  │
+                                     │  - Revues            │
+                                     │  - Validation        │
+                                     └───────┬──────────────┘
+                                             │
+                        ┌────────────────────┼────────────────────┐
+                        ▼                     ▼                    ▼
+                 ┌────────────┐        ┌────────────┐       ┌────────────┐
+                 │ PostgreSQL │        │  Redis +   │       │ Stockage   │
+                 │            │        │  Celery    │       │ pluggable  │
+                 └────────────┘        └─────┬──────┘       └────────────┘
+                                             │ tâches asynchrones
+                        ┌────────────────────┼────────────────────┐
+                        ▼                     ▼                    ▼
+                 ┌────────────┐        ┌────────────┐       ┌────────────┐
+                 │ Moteur de  │        │ Connecteur │       │ Connecteur │
+                 │ matching   │        │ IA (LLM)   │       │ SharePoint │
+                 │ (local)    │        │ pluggable  │       │ (Graph API)│
+                 └────────────┘        └────────────┘       └────────────┘</code></pre>
+<p>Le <strong>moteur de matching local</strong> (le moteur sémantique du
+prototype, porté en Python) reste le comportement par défaut, gratuit et
+sans réseau. Le <strong>connecteur IA</strong> est optionnel et
+configurable par l’admin ; il n’est appelé que si activé. Le
+<strong>connecteur SharePoint</strong> récupère automatiquement les
+fichiers selon des règles définies par l’admin.</p>
+<hr />
+<h2 id="modèle-de-données">3. Modèle de données</h2>
+<h3 id="entités-et-relations">3.1 Entités et relations</h3>
+<p>Le schéma comprend onze tables principales. Les relations clés :</p>
+<ul>
+<li>Un <strong>référentiel</strong> est identifié par
+<code>checklist_type</code> (<code>powerbi</code> / <code>appbi</code> /
+<code>build</code>). Chaque type possède ses propres catégories et
+règles.</li>
+<li>Une <strong>règle</strong> (<code>rules</code>) est une identité
+stable ; son <strong>contenu</strong> vit dans
+<code>rule_versions</code>, immuable. Une seule version est
+<code>is_current</code> par règle.</li>
+<li>Une <strong>revue</strong> (<code>reviews</code>) fige, à sa
+création, un ensemble de <code>review_items</code>, chacun pointant vers
+une <code>rule_version_id</code> précise (le snapshot).</li>
+<li>Une <strong>validation</strong> tierce (<code>validations</code>)
+enregistre la décision d’un reviewer/admin, avec des commentaires par
+point (<code>validation_item_comments</code>).</li>
+<li>Un <strong>lien de partage</strong> (<code>share_links</code>)
+permet à un tiers d’accéder à une revue.</li>
+<li>Toute action sensible est tracée dans <code>audit_log</code>
+(technique, global). Les actions sur le <strong>référentiel</strong>
+(création, proposition, révision, approbation, rejet, retrait,
+restauration d’une règle) sont en plus enregistrées dans
+<code>rule_activity</code>, le <strong>journal d’activité</strong>
+présenté aux admins, avec attribution (« qui a fait quoi »).</li>
+<li>Le retrait d’une règle est <strong>réversible</strong> : la règle
+passe <code>status = retired</code> (sortie du référentiel actif) mais
+reste consultable et <strong>restaurable</strong> ; son historique de
+versions n’est jamais détruit.</li>
+</ul>
+<h3 id="cycle-de-vie">3.2 Cycle de vie</h3>
+<p><strong>Règle</strong> : <code>pending</code> → (admin) →
+<code>approved</code> | <code>rejected</code>. Une modification d’une
+règle <code>approved</code> crée une nouvelle version
+<code>approved</code> et bascule l’ancienne
+<code>is_current = false</code>. Une règle approuvée peut être
+<strong>retirée</strong> (<code>status = retired</code>, sortie du
+référentiel actif) puis <strong>restaurée</strong>
+(<code>status = active</code>) par un admin — l’historique est toujours
+conservé.</p>
+<p><strong>Revue</strong> : <code>draft</code> →
+<code>in_progress</code> → <code>submitted</code> →
+(<code>validated</code> | <code>changes_requested</code>). Depuis
+<code>changes_requested</code>, l’auteur corrige et repasse en
+<code>submitted</code>.</p>
+<p><strong>Point de remédiation</strong> (<code>review_items</code> en
+KO/Partiel) : <code>todo</code> → <code>in_progress</code> →
+<code>done</code>.</p>
+<hr />
+<h2 id="schéma-sql-postgresql">4. Schéma SQL (PostgreSQL)</h2>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Extensions ==========</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> <span class="ot">&quot;pgcrypto&quot;</span>;      <span class="co">-- gen_random_uuid()</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> EXTENSION <span class="cf">IF</span> <span class="kw">NOT</span> <span class="kw">EXISTS</span> <span class="ot">&quot;pg_trgm&quot;</span>;       <span class="co">-- similarité trigramme (fallback matching)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Énumérations ==========</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> checklist_type <span class="kw">AS</span> ENUM (<span class="st">&#39;powerbi&#39;</span>, <span class="st">&#39;appbi&#39;</span>, <span class="st">&#39;build&#39;</span>);</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> user_role       <span class="kw">AS</span> ENUM (<span class="st">&#39;user&#39;</span>, <span class="st">&#39;reviewer&#39;</span>, <span class="st">&#39;admin&#39;</span>);</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> criticality     <span class="kw">AS</span> ENUM (<span class="st">&#39;blocking&#39;</span>, <span class="st">&#39;recommended&#39;</span>, <span class="st">&#39;optional&#39;</span>);</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> lifecycle_state <span class="kw">AS</span> ENUM (<span class="st">&#39;pending&#39;</span>, <span class="st">&#39;approved&#39;</span>, <span class="st">&#39;rejected&#39;</span>);</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> item_status     <span class="kw">AS</span> ENUM (<span class="st">&#39;ok&#39;</span>, <span class="st">&#39;ko&#39;</span>, <span class="st">&#39;partial&#39;</span>, <span class="st">&#39;na&#39;</span>, <span class="st">&#39;unset&#39;</span>);</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> progress_state  <span class="kw">AS</span> ENUM (<span class="st">&#39;todo&#39;</span>, <span class="st">&#39;in_progress&#39;</span>, <span class="st">&#39;done&#39;</span>);</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TYPE</span> review_status   <span class="kw">AS</span> ENUM (<span class="st">&#39;draft&#39;</span>,<span class="st">&#39;in_progress&#39;</span>,<span class="st">&#39;submitted&#39;</span>,<span class="st">&#39;validated&#39;</span>,<span class="st">&#39;changes_requested&#39;</span>);</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Utilisateurs ==========</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> users (</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    email         CITEXT <span class="kw">UNIQUE</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,           <span class="co">-- CITEXT : unicité insensible à la casse</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    password_hash TEXT   <span class="kw">NOT</span> <span class="kw">NULL</span>,                  <span class="co">-- Argon2id</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    display_name  TEXT   <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">role</span>          user_role <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;user&#39;</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    is_active     <span class="dt">BOOLEAN</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="kw">TRUE</span>,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    email_verified <span class="dt">BOOLEAN</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    created_at    TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    updated_at    TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Catégories (par référentiel) ==========</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> categories (</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    checklist_type checklist_type <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    name           TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    order_index    <span class="dt">INT</span>  <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="dv">0</span>,</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNIQUE</span> (checklist_type, name)</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Règles : identité stable ==========</span></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> rules (</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    checklist_type checklist_type <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>    category_id    UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> categories(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span>,</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>    status         TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;active&#39;</span> <span class="kw">CHECK</span> (status <span class="kw">IN</span> (<span class="st">&#39;active&#39;</span>,<span class="st">&#39;retired&#39;</span>)),</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>    created_by     UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>    created_at     TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_rules_type      <span class="kw">ON</span> rules(checklist_type);</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_rules_category  <span class="kw">ON</span> rules(category_id);</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Versions de règles : contenu IMMUABLE ==========</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> rule_versions (</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    rule_id        UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> rules(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>    version_number <span class="dt">INT</span>  <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>    text           TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>    subs           JSONB <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;[]&#39;</span>,      <span class="co">-- sous-points (les &quot;-&gt;&quot;)</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>    criticality    criticality <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;recommended&#39;</span>,</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>    is_current     <span class="dt">BOOLEAN</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="kw">TRUE</span>,</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>    lifecycle      lifecycle_state <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;pending&#39;</span>,</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>    proposed_by    UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>    reviewed_by    UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>    review_comment TEXT,</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>    created_at     TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">UNIQUE</span> (rule_id, version_number)</span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a><span class="co">-- Une seule version courante par règle :</span></span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">UNIQUE</span> <span class="kw">INDEX</span> uniq_current_version</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> rule_versions(rule_id) <span class="kw">WHERE</span> is_current;</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_rv_lifecycle <span class="kw">ON</span> rule_versions(lifecycle) <span class="kw">WHERE</span> is_current;</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a><span class="co">-- Recherche floue sur le texte (fallback local du matching) :</span></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_rv_text_trgm <span class="kw">ON</span> rule_versions <span class="kw">USING</span> gin (text gin_trgm_ops);</span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Revues ==========</span></span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> reviews (</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>    report_name    TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>    checklist_type checklist_type <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>    author_id      UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>    status         review_status <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;in_progress&#39;</span>,</span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>    compliance_score <span class="dt">INT</span>,                            <span class="co">-- recalculé au fil de l&#39;eau, mis en cache</span></span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>    created_at     TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>    submitted_at   TIMESTAMPTZ,</span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>    validated_at   TIMESTAMPTZ</span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_reviews_author <span class="kw">ON</span> reviews(author_id);</span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_reviews_status <span class="kw">ON</span> reviews(status);</span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Items de revue (snapshot immuable) ==========</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> review_items (</span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>               UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>    review_id        UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> reviews(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>    rule_version_id  UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> rule_versions(<span class="kw">id</span>),  <span class="co">-- snapshot</span></span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>    status           item_status <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;unset&#39;</span>,</span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>    progress         progress_state <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;todo&#39;</span>,</span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>    <span class="kw">comment</span>          TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a>    risk             TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a>    risk_comment     TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>    proposed_solution TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>    estimated_days   TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a>    target_date      <span class="dt">DATE</span>,</span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a>    definition_of_done TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a>    priority         TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>    responsible      TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;&#39;</span>,</span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>    last_update      TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_items_review <span class="kw">ON</span> review_items(review_id);</span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Validations tierces ==========</span></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> validations (</span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a>    review_id     UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> reviews(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a>    reviewer_id   UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a>    decision      TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (decision <span class="kw">IN</span> (<span class="st">&#39;approved&#39;</span>,<span class="st">&#39;rejected&#39;</span>)),</span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a>    global_comment TEXT,</span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a>    created_at    TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> validation_item_comments (</span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>             UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true" tabindex="-1"></a>    validation_id  UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> validations(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true" tabindex="-1"></a>    review_item_id UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> review_items(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true" tabindex="-1"></a>    <span class="kw">comment</span>        TEXT <span class="kw">NOT</span> <span class="kw">NULL</span></span>
+<span id="cb2-120"><a href="#cb2-120" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-121"><a href="#cb2-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-122"><a href="#cb2-122" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Liens de partage ==========</span></span>
+<span id="cb2-123"><a href="#cb2-123" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> share_links (</span>
+<span id="cb2-124"><a href="#cb2-124" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>          UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-125"><a href="#cb2-125" aria-hidden="true" tabindex="-1"></a>    review_id   UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> reviews(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-126"><a href="#cb2-126" aria-hidden="true" tabindex="-1"></a>    token       TEXT <span class="kw">UNIQUE</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,                <span class="co">-- aléatoire, 256 bits, base64url</span></span>
+<span id="cb2-127"><a href="#cb2-127" aria-hidden="true" tabindex="-1"></a>    created_by  UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-128"><a href="#cb2-128" aria-hidden="true" tabindex="-1"></a>    expires_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-129"><a href="#cb2-129" aria-hidden="true" tabindex="-1"></a>    revoked     <span class="dt">BOOLEAN</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-130"><a href="#cb2-130" aria-hidden="true" tabindex="-1"></a>    created_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-131"><a href="#cb2-131" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-132"><a href="#cb2-132" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_share_token <span class="kw">ON</span> share_links(token) <span class="kw">WHERE</span> <span class="kw">NOT</span> revoked;</span>
+<span id="cb2-133"><a href="#cb2-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-134"><a href="#cb2-134" aria-hidden="true" tabindex="-1"></a><span class="co">-- Reviewers explicitement ciblés par un partage (un partage peut viser plusieurs</span></span>
+<span id="cb2-135"><a href="#cb2-135" aria-hidden="true" tabindex="-1"></a><span class="co">-- reviewers ; c&#39;est ce qui ouvre la visibilité — jamais un accès de large périmètre).</span></span>
+<span id="cb2-136"><a href="#cb2-136" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> share_targets (</span>
+<span id="cb2-137"><a href="#cb2-137" aria-hidden="true" tabindex="-1"></a>    share_link_id UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> share_links(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-138"><a href="#cb2-138" aria-hidden="true" tabindex="-1"></a>    reviewer_id   UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> users(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb2-139"><a href="#cb2-139" aria-hidden="true" tabindex="-1"></a>    <span class="kw">PRIMARY</span> <span class="kw">KEY</span> (share_link_id, reviewer_id)</span>
+<span id="cb2-140"><a href="#cb2-140" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-141"><a href="#cb2-141" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_share_targets_reviewer <span class="kw">ON</span> share_targets(reviewer_id);</span>
+<span id="cb2-142"><a href="#cb2-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-143"><a href="#cb2-143" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Paramètres applicatifs (modifiables par l&#39;admin) ==========</span></span>
+<span id="cb2-144"><a href="#cb2-144" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> app_settings (</span>
+<span id="cb2-145"><a href="#cb2-145" aria-hidden="true" tabindex="-1"></a>    <span class="kw">key</span>         TEXT <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,                    <span class="co">-- ex. &#39;retention_days&#39;</span></span>
+<span id="cb2-146"><a href="#cb2-146" aria-hidden="true" tabindex="-1"></a>    <span class="fu">value</span>       JSONB <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-147"><a href="#cb2-147" aria-hidden="true" tabindex="-1"></a>    updated_by  UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-148"><a href="#cb2-148" aria-hidden="true" tabindex="-1"></a>    updated_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-149"><a href="#cb2-149" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-150"><a href="#cb2-150" aria-hidden="true" tabindex="-1"></a><span class="co">-- Valeur par défaut de rétention : 1 mois (modifiable par l&#39;admin).</span></span>
+<span id="cb2-151"><a href="#cb2-151" aria-hidden="true" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> app_settings(<span class="kw">key</span>, <span class="fu">value</span>) <span class="kw">VALUES</span> (<span class="st">&#39;retention_days&#39;</span>, <span class="st">&#39;30&#39;</span>);</span>
+<span id="cb2-152"><a href="#cb2-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-153"><a href="#cb2-153" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Config des connecteurs (admin) ==========</span></span>
+<span id="cb2-154"><a href="#cb2-154" aria-hidden="true" tabindex="-1"></a><span class="co">-- Un même &#39;kind&#39; peut avoir plusieurs lignes (fournisseurs configurés) mais un</span></span>
+<span id="cb2-155"><a href="#cb2-155" aria-hidden="true" tabindex="-1"></a><span class="co">-- seul is_active à la fois — c&#39;est ce qui permet à l&#39;admin de BASCULER le type</span></span>
+<span id="cb2-156"><a href="#cb2-156" aria-hidden="true" tabindex="-1"></a><span class="co">-- d&#39;IA ou de stockage à chaud, sans redéploiement.</span></span>
+<span id="cb2-157"><a href="#cb2-157" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> integration_config (</span>
+<span id="cb2-158"><a href="#cb2-158" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-159"><a href="#cb2-159" aria-hidden="true" tabindex="-1"></a>    kind          TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (kind <span class="kw">IN</span> (<span class="st">&#39;matching&#39;</span>,<span class="st">&#39;storage&#39;</span>,<span class="st">&#39;sharepoint&#39;</span>)),</span>
+<span id="cb2-160"><a href="#cb2-160" aria-hidden="true" tabindex="-1"></a>    provider      TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,                     <span class="co">-- matching: &#39;local&#39;|&#39;mistral&#39;|&#39;enterprise&#39;|&#39;openai&#39;|&#39;azure&#39;</span></span>
+<span id="cb2-161"><a href="#cb2-161" aria-hidden="true" tabindex="-1"></a>                                                     <span class="co">-- storage : &#39;azure_blob&#39;|&#39;s3&#39;|&#39;internal&#39;</span></span>
+<span id="cb2-162"><a href="#cb2-162" aria-hidden="true" tabindex="-1"></a>    settings      JSONB <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;{}&#39;</span>,       <span class="co">-- endpoints, régions, buckets, patterns (JAMAIS de secret ici)</span></span>
+<span id="cb2-163"><a href="#cb2-163" aria-hidden="true" tabindex="-1"></a>    secret_ref    TEXT,                              <span class="co">-- référence vers le coffre à secrets (clé/chaîne de connexion)</span></span>
+<span id="cb2-164"><a href="#cb2-164" aria-hidden="true" tabindex="-1"></a>    is_active     <span class="dt">BOOLEAN</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="kw">FALSE</span>,</span>
+<span id="cb2-165"><a href="#cb2-165" aria-hidden="true" tabindex="-1"></a>    updated_by    UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-166"><a href="#cb2-166" aria-hidden="true" tabindex="-1"></a>    updated_at    TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-167"><a href="#cb2-167" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-168"><a href="#cb2-168" aria-hidden="true" tabindex="-1"></a><span class="co">-- Un seul fournisseur actif par type (matching / storage / sharepoint) :</span></span>
+<span id="cb2-169"><a href="#cb2-169" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">UNIQUE</span> <span class="kw">INDEX</span> uniq_active_integration</span>
+<span id="cb2-170"><a href="#cb2-170" aria-hidden="true" tabindex="-1"></a>    <span class="kw">ON</span> integration_config(kind) <span class="kw">WHERE</span> is_active;</span>
+<span id="cb2-171"><a href="#cb2-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-172"><a href="#cb2-172" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Jobs d&#39;import (traçabilité asynchrone) ==========</span></span>
+<span id="cb2-173"><a href="#cb2-173" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> import_jobs (</span>
+<span id="cb2-174"><a href="#cb2-174" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-175"><a href="#cb2-175" aria-hidden="true" tabindex="-1"></a>    review_id     UUID <span class="kw">REFERENCES</span> reviews(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">SET</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-176"><a href="#cb2-176" aria-hidden="true" tabindex="-1"></a>    <span class="kw">source</span>        TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (<span class="kw">source</span> <span class="kw">IN</span> (<span class="st">&#39;upload&#39;</span>,<span class="st">&#39;sharepoint&#39;</span>)),</span>
+<span id="cb2-177"><a href="#cb2-177" aria-hidden="true" tabindex="-1"></a>    file_ref      TEXT,                              <span class="co">-- clé S3/Blob</span></span>
+<span id="cb2-178"><a href="#cb2-178" aria-hidden="true" tabindex="-1"></a>    status        TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;queued&#39;</span></span>
+<span id="cb2-179"><a href="#cb2-179" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">CHECK</span> (status <span class="kw">IN</span> (<span class="st">&#39;queued&#39;</span>,<span class="st">&#39;running&#39;</span>,<span class="st">&#39;done&#39;</span>,<span class="st">&#39;failed&#39;</span>)),</span>
+<span id="cb2-180"><a href="#cb2-180" aria-hidden="true" tabindex="-1"></a>    result        JSONB,                             <span class="co">-- {matched, ambiguous, filled, details[]}</span></span>
+<span id="cb2-181"><a href="#cb2-181" aria-hidden="true" tabindex="-1"></a>    error         TEXT,</span>
+<span id="cb2-182"><a href="#cb2-182" aria-hidden="true" tabindex="-1"></a>    created_by    UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-183"><a href="#cb2-183" aria-hidden="true" tabindex="-1"></a>    created_at    TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb2-184"><a href="#cb2-184" aria-hidden="true" tabindex="-1"></a>    finished_at   TIMESTAMPTZ</span>
+<span id="cb2-185"><a href="#cb2-185" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-186"><a href="#cb2-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-187"><a href="#cb2-187" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Journal d&#39;audit (immuable) ==========</span></span>
+<span id="cb2-188"><a href="#cb2-188" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> audit_log (</span>
+<span id="cb2-189"><a href="#cb2-189" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>          BIGINT <span class="kw">GENERATED</span> ALWAYS <span class="kw">AS</span> IDENTITY <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb2-190"><a href="#cb2-190" aria-hidden="true" tabindex="-1"></a>    user_id     UUID <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-191"><a href="#cb2-191" aria-hidden="true" tabindex="-1"></a>    action      TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,                       <span class="co">-- &#39;rule.approve&#39;, &#39;review.validate&#39;, ...</span></span>
+<span id="cb2-192"><a href="#cb2-192" aria-hidden="true" tabindex="-1"></a>    entity      TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-193"><a href="#cb2-193" aria-hidden="true" tabindex="-1"></a>    entity_id   UUID,</span>
+<span id="cb2-194"><a href="#cb2-194" aria-hidden="true" tabindex="-1"></a>    metadata    JSONB,</span>
+<span id="cb2-195"><a href="#cb2-195" aria-hidden="true" tabindex="-1"></a>    ip          INET,</span>
+<span id="cb2-196"><a href="#cb2-196" aria-hidden="true" tabindex="-1"></a>    created_at  TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-197"><a href="#cb2-197" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-198"><a href="#cb2-198" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_audit_entity <span class="kw">ON</span> audit_log(entity, entity_id);</span>
+<span id="cb2-199"><a href="#cb2-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-200"><a href="#cb2-200" aria-hidden="true" tabindex="-1"></a><span class="co">-- ========== Journal d&#39;activité du référentiel (visible par les admins) ==========</span></span>
+<span id="cb2-201"><a href="#cb2-201" aria-hidden="true" tabindex="-1"></a><span class="co">-- Distinct de audit_log (technique/global) : celui-ci est présenté dans l&#39;UF admin</span></span>
+<span id="cb2-202"><a href="#cb2-202" aria-hidden="true" tabindex="-1"></a><span class="co">-- du référentiel, filtrable, avec attribution multi-admins (« qui a fait quoi »).</span></span>
+<span id="cb2-203"><a href="#cb2-203" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> rule_activity (</span>
+<span id="cb2-204"><a href="#cb2-204" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>              UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb2-205"><a href="#cb2-205" aria-hidden="true" tabindex="-1"></a>    action          TEXT <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">CHECK</span> (action <span class="kw">IN</span></span>
+<span id="cb2-206"><a href="#cb2-206" aria-hidden="true" tabindex="-1"></a>                      (<span class="st">&#39;rule_created&#39;</span>,<span class="st">&#39;rule_proposed&#39;</span>,<span class="st">&#39;rule_revised&#39;</span>,</span>
+<span id="cb2-207"><a href="#cb2-207" aria-hidden="true" tabindex="-1"></a>                       <span class="st">&#39;rule_approved&#39;</span>,<span class="st">&#39;rule_rejected&#39;</span>,<span class="st">&#39;rule_retired&#39;</span>,<span class="st">&#39;rule_restored&#39;</span>)),</span>
+<span id="cb2-208"><a href="#cb2-208" aria-hidden="true" tabindex="-1"></a>    rule_id         UUID <span class="kw">REFERENCES</span> rules(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">SET</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-209"><a href="#cb2-209" aria-hidden="true" tabindex="-1"></a>    rule_version_id UUID <span class="kw">REFERENCES</span> rule_versions(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">SET</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-210"><a href="#cb2-210" aria-hidden="true" tabindex="-1"></a>    actor_id        UUID <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">REFERENCES</span> users(<span class="kw">id</span>),</span>
+<span id="cb2-211"><a href="#cb2-211" aria-hidden="true" tabindex="-1"></a>    rule_text       TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,                     <span class="co">-- libellé figé au moment de l&#39;action (lisibilité)</span></span>
+<span id="cb2-212"><a href="#cb2-212" aria-hidden="true" tabindex="-1"></a>    checklist_type  checklist_type <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb2-213"><a href="#cb2-213" aria-hidden="true" tabindex="-1"></a>    detail          TEXT,                              <span class="co">-- ex. &#39;v2 → v3&#39;, motif de rejet…</span></span>
+<span id="cb2-214"><a href="#cb2-214" aria-hidden="true" tabindex="-1"></a>    created_at      TIMESTAMPTZ <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> now()</span>
+<span id="cb2-215"><a href="#cb2-215" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb2-216"><a href="#cb2-216" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_activity_type  <span class="kw">ON</span> rule_activity(checklist_type, created_at <span class="kw">DESC</span>);</span>
+<span id="cb2-217"><a href="#cb2-217" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_activity_rule  <span class="kw">ON</span> rule_activity(rule_id);</span>
+<span id="cb2-218"><a href="#cb2-218" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">INDEX</span> idx_activity_actor <span class="kw">ON</span> rule_activity(actor_id);</span></code></pre></div>
+<h3 id="règle-dor-applicative-invariant">4.1 Règle d’or applicative
+(invariant)</h3>
+<p>Toute écriture qui « modifie » une règle <strong>n’écrase
+jamais</strong> <code>rule_versions</code>. Le service crée une nouvelle
+ligne (<code>version_number + 1</code>, <code>is_current = true</code>)
+et met l’ancienne à <code>is_current = false</code> dans <strong>la même
+transaction</strong>. Les <code>review_items</code> existants ne bougent
+pas : ils continuent de pointer vers l’ancienne version. C’est
+l’invariant qui garantit la comparabilité historique.</p>
+<hr />
+<h2 id="api-rest">5. API REST</h2>
+<p>Base : <code>/api/v1</code>. Format JSON. Auth par
+<code>Authorization: Bearer &lt;access_token&gt;</code> sauf endpoints
+publics explicitement marqués. Toutes les réponses d’erreur suivent
+<code>{ "error": { "code": "...", "message": "..." } }</code>.</p>
+<h3 id="authentification">5.1 Authentification</h3>
+<p>L’authentification principale se fait via <strong>Microsoft Entra
+ID</strong> (OpenID Connect). L’email/mot de passe reste disponible en
+repli (comptes de service, tests) mais n’est pas le chemin nominal.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GET</td>
+<td><code>/auth/login</code></td>
+<td>public</td>
+<td>Redirige vers Entra ID (OIDC authorization code + PKCE).</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/auth/callback</code></td>
+<td>public</td>
+<td>Callback OIDC : valide le jeton Entra, crée/rapproche le compte,
+émet les jetons applicatifs.</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/auth/refresh</code></td>
+<td>public (cookie)</td>
+<td>Renouvelle l’access token.</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/auth/logout</code></td>
+<td>auth</td>
+<td>Révoque le refresh token + déconnexion Entra (front-channel
+logout).</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/auth/login/local</code></td>
+<td>public</td>
+<td><strong>Repli</strong> email/mot de passe (si activé). Retourne
+<code>access_token</code> (15 min) + <code>refresh_token</code>.</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/auth/password/*</code></td>
+<td>public</td>
+<td>Réinitialisation mot de passe (uniquement pour les comptes locaux de
+repli).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Provisioning des comptes</strong> : au premier login Entra,
+le compte est créé automatiquement (JIT provisioning) à partir des
+claims (email, nom). Le <strong>rôle</strong> applicatif
+(<code>user</code>/<code>reviewer</code>/<code>admin</code>) n’est
+<strong>pas</strong> dérivé aveuglément d’Entra : il est attribué par un
+admin dans l’app, ou mappé depuis des groupes Entra selon une
+correspondance définie par l’admin (ex. groupe <code>BI-Reviewers</code>
+→ rôle <code>reviewer</code>). Ce mapping est configurable et
+auditée.</p>
+<blockquote>
+<p>Avantage de tout adosser à Entra : la même identité d’entreprise sert
+à l’application, au connecteur SharePoint (§7) et, le cas échéant, à
+l’IA interne (§6.3). Un seul point d’identité, une seule
+gouvernance.</p>
+</blockquote>
+<h3 id="profil-utilisateurs">5.2 Profil / utilisateurs</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GET</td>
+<td><code>/me</code></td>
+<td>auth</td>
+<td>Profil courant.</td>
+</tr>
+<tr class="even">
+<td>PATCH</td>
+<td><code>/me</code></td>
+<td>auth</td>
+<td>Modifier nom, prénom, e-mail (re-vérification si e-mail
+change).</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/me/password</code></td>
+<td>auth</td>
+<td>Changer son mot de passe (ancien requis).</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/users</code></td>
+<td>admin</td>
+<td>Lister les utilisateurs.</td>
+</tr>
+<tr class="odd">
+<td>PATCH</td>
+<td><code>/users/{id}</code></td>
+<td>admin</td>
+<td>Modifier le rôle / activer / désactiver un utilisateur.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Le changement de <strong>rôle</strong> est réservé à l’admin (au-delà
+du prototype où l’on simule les rôles). Un utilisateur ne peut pas
+s’auto-promouvoir.</p>
+</blockquote>
+<h3 id="référentiel">5.3 Référentiel</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GET</td>
+<td><code>/referentials/{type}</code></td>
+<td>auth</td>
+<td>Référentiel actif. Paramètres : <code>?q=</code> (recherche texte
+sur libellé + sous-points),
+<code>?sort=category\|recent\|criticality</code>.</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/referentials/{type}/export</code></td>
+<td>auth</td>
+<td>Export Excel formaté du référentiel.</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/rules</code></td>
+<td>auth</td>
+<td>Proposer une règle. Admin → <code>approved</code> direct ; sinon
+<code>pending</code>.</td>
+</tr>
+<tr class="even">
+<td>PATCH</td>
+<td><code>/rules/{id}</code></td>
+<td>admin</td>
+<td>Reformuler → <strong>crée une nouvelle version</strong> (jamais
+d’écrasement).</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/rules/{id}/retire</code></td>
+<td>admin</td>
+<td>Retirer une règle (les revues passées restent intactes ;
+réversible).</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/rules/{id}/restore</code></td>
+<td>admin</td>
+<td>Restaurer une règle retirée.</td>
+</tr>
+<tr class="odd">
+<td>GET</td>
+<td><code>/rules/retired?type=</code></td>
+<td>admin</td>
+<td>Lister les règles retirées (historique consultable).</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/rules/{id}/versions</code></td>
+<td>auth</td>
+<td>Historique des versions d’une règle (navigable, triable).</td>
+</tr>
+<tr class="odd">
+<td>GET</td>
+<td><code>/referentials/{type}/activity</code></td>
+<td>admin</td>
+<td><strong>Journal d’activité</strong> du référentiel : qui a créé /
+proposé / révisé / approuvé / rejeté / retiré / restauré. Filtrable par
+<code>?action=</code> et <code>?actor=</code>.</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/rules/pending</code></td>
+<td>admin</td>
+<td>File d’attente des propositions. Paramètre <code>?q=</code>
+(recherche).</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/rules/{versionId}/approve</code></td>
+<td>admin</td>
+<td>Approuver une proposition → entre au référentiel.</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/rules/{versionId}/reject</code></td>
+<td>admin</td>
+<td>Rejeter (avec motif).</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/referentials/{type}/import</code></td>
+<td>auth</td>
+<td>Importer un fichier de <strong>règles</strong> (fuzzy matching,
+cf. §6).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="revues">5.4 Revues</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GET</td>
+<td><code>/reviews</code></td>
+<td>auth</td>
+<td><code>user</code> → les siennes ;
+<code>reviewer</code>/<code>admin</code> → visibles selon droits.
+Paramètres : <code>?q=</code> (recherche par nom de rapport ou type),
+<code>?status=</code>, <code>?type=</code>.</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/reviews</code></td>
+<td>auth</td>
+<td>Créer une revue (fige le snapshot des versions courantes).</td>
+</tr>
+<tr class="odd">
+<td>GET</td>
+<td><code>/reviews/{id}</code></td>
+<td>auth+accès</td>
+<td>Détail d’une revue. Renvoie <strong>tous</strong> les items groupés
+par catégorie, y compris ceux laissés <code>unset</code> par l’auteur,
+avec un compteur <code>unset_count</code>. Un reviewer/admin voit ainsi
+l’intégralité, même ce que l’auteur n’a pas renseigné.</td>
+</tr>
+<tr class="even">
+<td>PATCH</td>
+<td><code>/reviews/{id}</code></td>
+<td>auteur</td>
+<td>Renommer, changer le statut (<code>submitted</code>…).</td>
+</tr>
+<tr class="odd">
+<td>DELETE</td>
+<td><code>/reviews/{id}</code></td>
+<td>auteur/admin</td>
+<td>Supprimer.</td>
+</tr>
+<tr class="even">
+<td>PATCH</td>
+<td><code>/reviews/{id}/items/{itemId}</code></td>
+<td>auteur</td>
+<td>Mettre à jour statut / progress / bloc remédiation.</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/reviews/{id}/import-answers</code></td>
+<td>auteur</td>
+<td><strong>Pré-remplir les statuts</strong> depuis un fichier
+(cf. §6.2). Asynchrone → renvoie un <code>import_job</code>.</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/reviews/{id}/export</code></td>
+<td>auth+accès</td>
+<td>Export Excel formaté de la revue (colonnes OK/KO/… cochées).</td>
+</tr>
+<tr class="odd">
+<td>GET</td>
+<td><code>/import-jobs/{jobId}</code></td>
+<td>auth</td>
+<td>Suivi d’un job d’import (statut + résultat).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="validation-tierce">5.5 Validation tierce</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>POST</td>
+<td><code>/reviews/{id}/share</code></td>
+<td>auteur</td>
+<td>Génère un <code>share_link</code> (token, expiration).</td>
+</tr>
+<tr class="even">
+<td>DELETE</td>
+<td><code>/share/{id}</code></td>
+<td>auteur/admin</td>
+<td>Révoque un lien.</td>
+</tr>
+<tr class="odd">
+<td>GET</td>
+<td><code>/share/{token}</code></td>
+<td>public</td>
+<td>Métadonnées de la revue partagée (lecture seule limitée).</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/share/{token}/validate</code></td>
+<td>reviewer/admin authentifié</td>
+<td>Approuver ou refuser (+ commentaires par point).</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Sécurité clé</strong> : le endpoint de validation exige un
+<strong>compte authentifié</strong> avec le rôle <code>reviewer</code>
+ou <code>admin</code>. L’écran « Qui êtes-vous ? » du front ne fait
+qu’orienter l’affichage ; il ne confère aucun droit. L’autorisation
+réelle est vérifiée côté serveur à partir du JWT.</p>
+</blockquote>
+<h3 id="monitoring">5.6 Monitoring</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GET</td>
+<td><code>/monitoring/portfolio</code></td>
+<td>auth</td>
+<td>Agrégats portefeuille (scores, bloquants, avancement)
+filtrables.</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/monitoring/reviews/{id}</code></td>
+<td>auth+accès</td>
+<td>Détail d’avancement d’un projet (par catégorie, par
+remédiation).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="configuration-des-connecteurs-admin">5.7 Configuration des
+connecteurs (admin)</h3>
+<p>Ces endpoints alimentent l’écran <strong>Paramètres → section
+admin</strong>, d’où l’admin choisit à la fois le <strong>type
+d’IA</strong> et le <strong>type de stockage</strong>, et bascule de
+l’un à l’autre à chaud.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Méthode</th>
+<th>Chemin</th>
+<th>Rôle</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GET</td>
+<td><code>/admin/integrations</code></td>
+<td>admin</td>
+<td>État de tous les connecteurs (matching, storage, SharePoint) :
+fournisseur actif + fournisseurs configurés.</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/admin/integrations/matching/providers</code></td>
+<td>admin</td>
+<td>Liste des fournisseurs d’IA disponibles (<code>local</code>,
+<code>mistral</code>, <code>enterprise</code>, <code>openai</code>,
+<code>azure</code>) + leur état.</td>
+</tr>
+<tr class="odd">
+<td>PUT</td>
+<td><code>/admin/integrations/matching</code></td>
+<td>admin</td>
+<td><strong>Choisir/basculer le type d’IA</strong>
+(<code>provider</code>), régler les paramètres (endpoint, modèle) ;
+secret via coffre. Prend effet immédiatement.</td>
+</tr>
+<tr class="even">
+<td>POST</td>
+<td><code>/admin/integrations/matching/test</code></td>
+<td>admin</td>
+<td>Tester la connexion au fournisseur d’IA avant de l’activer.</td>
+</tr>
+<tr class="odd">
+<td>GET</td>
+<td><code>/admin/integrations/storage/providers</code></td>
+<td>admin</td>
+<td>Liste des backends de stockage disponibles (<code>azure_blob</code>,
+<code>s3</code>, <code>internal</code>) + leur état.</td>
+</tr>
+<tr class="even">
+<td>PUT</td>
+<td><code>/admin/integrations/storage</code></td>
+<td>admin</td>
+<td><strong>Choisir/basculer le type de stockage</strong>
+(<code>provider</code>), régler les paramètres (compte,
+conteneur/bucket, région) ; chaîne de connexion via coffre.</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/admin/integrations/storage/test</code></td>
+<td>admin</td>
+<td>Tester l’accès au stockage (lecture/écriture d’un objet témoin)
+avant de l’activer.</td>
+</tr>
+<tr class="even">
+<td>PUT</td>
+<td><code>/admin/integrations/sharepoint</code></td>
+<td>admin</td>
+<td>Définir les sources et motifs de fichiers.</td>
+</tr>
+<tr class="odd">
+<td>POST</td>
+<td><code>/admin/integrations/sharepoint/sync</code></td>
+<td>admin</td>
+<td>Déclencher une synchro manuelle.</td>
+</tr>
+<tr class="even">
+<td>GET</td>
+<td><code>/admin/settings</code></td>
+<td>admin</td>
+<td>Lire les paramètres applicatifs (dont
+<code>retention_days</code>).</td>
+</tr>
+<tr class="odd">
+<td>PUT</td>
+<td><code>/admin/settings/retention</code></td>
+<td>admin</td>
+<td>Modifier la durée de rétention des fichiers (jours). Défaut :
+30.</td>
+</tr>
+<tr class="even">
+<td>PUT</td>
+<td><code>/admin/settings/role-mapping</code></td>
+<td>admin</td>
+<td>Mapper des groupes Entra ID vers des rôles applicatifs.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Bascule à chaud (IA et stockage)</strong> : changer de
+fournisseur écrit une nouvelle configuration active dans
+<code>integration_config</code> (un seul <code>is_active</code> par
+<code>kind</code>, garanti par l’index unique). Le service lit
+dynamiquement le fournisseur actif à chaque opération — <strong>aucun
+redéploiement</strong>. Il est recommandé de lancer le endpoint
+<code>/test</code> correspondant avant d’activer, et de conserver
+l’ancienne configuration (désactivée) pour un retour arrière
+immédiat.</p>
+<p><strong>Note sur le changement de stockage</strong> : basculer de
+backend de stockage n’entraîne pas de migration automatique des fichiers
+existants (les anciens fichiers restent lisibles depuis leur backend
+d’origine tant qu’ils ne sont pas purgés par la rétention). Une tâche de
+migration optionnelle peut être déclenchée si l’admin souhaite déplacer
+l’existant.</p>
+</blockquote>
+<hr />
+<h2 id="connecteur-de-correspondance-matching-et-ia">6. Connecteur de
+correspondance (matching) et IA</h2>
+<p>C’est le cœur du besoin exprimé : comprendre des fichiers Excel
+hétérogènes et associer chaque ligne à la bonne règle, même quand la
+phrase change ou comporte des fautes, et détecter le statut
+(OK/KO/Partiel/N/A) même exprimé autrement. Le connecteur est
+<strong>pluggable</strong> : un fournisseur par défaut <em>local</em>
+(gratuit, sans réseau) et des fournisseurs <em>IA</em> optionnels
+activables par l’admin.</p>
+<h3 id="interface-commune">6.1 Interface commune</h3>
+<p>Tous les fournisseurs implémentent la même interface, ce qui permet
+de les interchanger sans toucher au reste du code :</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MatchProvider(Protocol):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> match_rules(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>        imported_texts: <span class="bu">list</span>[<span class="bu">str</span>],</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>        referential: <span class="bu">list</span>[RuleRef],   <span class="co"># (rule_version_id, text)</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    ) <span class="op">-&gt;</span> <span class="bu">list</span>[MatchResult]:</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        <span class="co">&quot;&quot;&quot;Associe chaque texte importé à la règle la plus proche + un score [0,1].&quot;&quot;&quot;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> detect_status(<span class="va">self</span>, raw: <span class="bu">str</span>) <span class="op">-&gt;</span> ItemStatus <span class="op">|</span> <span class="va">None</span>:</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        <span class="co">&quot;&quot;&quot;Déduit OK/KO/Partiel/N/A d&#39;une valeur cellule, même formulée librement.&quot;&quot;&quot;</span></span></code></pre></div>
+<p><code>MatchResult = { imported_index, rule_version_id | None, confidence, verdict }</code>
+où <code>verdict ∈ {identical, probable, new}</code> selon les
+seuils.</p>
+<h3 id="fournisseur-local-défaut-porté-depuis-le-prototype">6.2
+Fournisseur local (défaut) — porté depuis le prototype</h3>
+<p>Le moteur sémantique du prototype est réimplémenté en Python. Étapes
+:</p>
+<ol type="1">
+<li><strong>Normalisation</strong> : minuscules, suppression des
+accents, ponctuation, mots-vides français/anglais.</li>
+<li><strong>Canonicalisation par synonymes métier</strong> : un
+dictionnaire de familles de sens (Power BI / DAX / Power Query) réduit
+les variantes à un terme canonique (« measures » → « mesure », « cacher
+» → « masquer »…).</li>
+<li><strong>Pondération IDF</strong> : les tokens rares et distinctifs
+(« bidirectionnelle », « explicite ») pèsent davantage que les tokens
+fréquents (« dax », « rapport »), ce qui limite les faux positifs.</li>
+<li><strong>Score</strong> : combinaison Jaccard pondéré + couverture du
+sens de la règle de référence.</li>
+<li><strong>Robustesse d’entrée Excel</strong> : détection dynamique de
+la colonne de texte (chaînes les plus longues), gestion des booléens
+stockés en texte (<code>'True'</code>, <code>x</code>,
+<code>oui</code>…), colonnes de statut détectées où qu’elles
+soient.</li>
+</ol>
+<p>En Python, on s’appuie sur <strong><code>rapidfuzz</code></strong>
+(distances rapides) et un lexique de synonymes maintenable en base ou en
+fichier de config.</p>
+<p><strong>Seuils par défaut</strong> (ajustables) : <code>≥ 0.95</code>
+identique · <code>0.70–0.95</code> à confirmer par l’utilisateur ·
+<code>&lt; 0.70</code> nouvelle règle. Pour le <em>pré-remplissage de
+statuts</em>, on retient le meilleur match s’il dépasse un seuil bas
+<strong>et</strong> se détache nettement du second candidat.</p>
+<h3 id="fournisseur-ia-optionnel-activable-par-ladmin">6.3 Fournisseur
+IA (optionnel, activable par l’admin)</h3>
+<p>Quand l’admin sélectionne un fournisseur IA, l’appel se fait
+<strong>côté serveur, dans un worker asynchrone</strong>, jamais depuis
+le navigateur. Le connecteur envoie au modèle : la liste des règles du
+référentiel + les lignes importées, avec une consigne de correspondance
+stricte, et attend un JSON structuré
+(<code>imported_index → rule_version_id + statut + confiance</code>).</p>
+<p><strong>Fournisseur par défaut : Mistral (EU)</strong> — retenu pour
+la souveraineté des données. L’architecture pluggable permet à l’admin
+de <strong>basculer à tout moment, par simple configuration (sans
+redéploiement)</strong>, vers un autre fournisseur, en particulier
+<strong>l’IA interne de l’entreprise</strong>.</p>
+<p>Points de conception :</p>
+<ul>
+<li><strong>Fournisseurs supportés</strong> :
+<ul>
+<li><code>mistral</code> — <strong>par défaut</strong>, endpoint
+EU.</li>
+<li><code>enterprise</code> — <strong>IA interne de
+l’entreprise</strong> : n’importe quel endpoint privé exposant une API
+compatible (souvent OpenAI-compatible). L’admin fournit l’URL de
+l’endpoint interne et la référence du secret. Idéal quand l’entreprise
+dispose de son propre modèle hébergé — les données ne quittent jamais le
+réseau interne.</li>
+<li><code>openai</code>, <code>azure</code> — disponibles si
+besoin.</li>
+<li>Chaque fournisseur est un adaptateur derrière l’interface
+<code>MatchProvider</code> ; <strong>changer de fournisseur = changer
+une ligne de configuration</strong>, rien d’autre.</li>
+</ul></li>
+<li><strong>Secrets</strong> : la clé / le jeton d’accès n’est
+<strong>jamais</strong> stocké dans
+<code>integration_config.settings</code> ni renvoyé au front. Il vit
+dans <strong>Azure Key Vault</strong>, référencé par
+<code>secret_ref</code>.</li>
+<li><strong>Confidentialité</strong> : n’envoyer au modèle
+<strong>que</strong> les libellés de règles et de lignes, jamais de
+données d’entreprise sensibles. Avec le fournisseur
+<code>enterprise</code>, les données restent intégralement sur le réseau
+interne. Journaliser les appels (sans le contenu) pour l’audit et le
+coût.</li>
+<li><strong>Repli</strong> : si l’appel IA échoue ou dépasse un délai,
+on retombe automatiquement sur le fournisseur local. L’import n’échoue
+jamais totalement.</li>
+<li><strong>Coût maîtrisé</strong> : batching des lignes, cache des
+correspondances déjà vues, limite de débit.</li>
+</ul>
+<h3 id="flux-dimport-de-réponses-pré-remplissage">6.4 Flux d’import de
+réponses (pré-remplissage)</h3>
+<pre><code>Front (upload .xlsx)
+   → POST /reviews/{id}/import-answers        (fichier → stockage S3, crée import_job=queued)
+   → 202 Accepted { job_id }
+
+Worker Celery
+   1. Télécharge le fichier, le parse (openpyxl) de façon robuste
+   2. Pour chaque item de la revue : match via le provider actif (local ou IA)
+   3. Détecte le statut de chaque ligne importée
+   4. Applique les statuts au-dessus du seuil ; marque les cas ambigus
+   5. Écrit le résultat dans import_jobs.result, statut=done
+
+Front (polling GET /import-jobs/{job_id})
+   → affiche « N statuts pré-remplis, M à vérifier »</code></pre>
+<p>Les cas <em>ambigus</em> (score intermédiaire) ne sont pas appliqués
+silencieusement : ils sont retournés au front pour confirmation par
+l’utilisateur, comme dans le prototype.</p>
+<hr />
+<h2 id="connecteur-sharepoint-excel-en-ligne">7. Connecteur SharePoint /
+Excel en ligne</h2>
+<p>Permet de récupérer automatiquement des fichiers de revue depuis
+SharePoint / OneDrive selon des règles définies par l’admin, puis de
+pré-remplir les revues correspondantes.</p>
+<h3 id="authentification-microsoft">7.1 Authentification Microsoft</h3>
+<ul>
+<li><strong>Microsoft Graph API</strong> avec <strong>OAuth 2.0 client
+credentials</strong> (application enregistrée dans Entra ID) ou
+<strong>on-behalf-of</strong> si l’accès doit être au nom de
+l’utilisateur.</li>
+<li>Permissions Graph minimales : <code>Sites.Read.All</code> /
+<code>Files.Read.All</code> (lecture seule), accordées par un admin
+Microsoft du tenant.</li>
+<li>Jetons stockés côté serveur, chiffrés ; jamais exposés au
+front.</li>
+</ul>
+<h3 id="configuration-par-ladmin">7.2 Configuration (par l’admin)</h3>
+<p>Dans <code>integration_config</code> (kind=<code>sharepoint</code>),
+l’admin définit une liste de sources :</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;sources&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span> <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;Revues Power BI&quot;</span><span class="fu">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;site&quot;</span><span class="fu">:</span> <span class="st">&quot;https://contoso.sharepoint.com/sites/BI&quot;</span><span class="fu">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;drive&quot;</span><span class="fu">:</span> <span class="st">&quot;Documents&quot;</span><span class="fu">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;folder&quot;</span><span class="fu">:</span> <span class="st">&quot;/Revues&quot;</span><span class="fu">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;pattern&quot;</span><span class="fu">:</span> <span class="st">&quot;PR_*.xlsx&quot;</span><span class="fu">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;target_checklist&quot;</span><span class="fu">:</span> <span class="st">&quot;powerbi&quot;</span> <span class="fu">}</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<h3 id="flux-de-synchronisation">7.3 Flux de synchronisation</h3>
+<pre><code>Déclencheur (manuel ou planifié)
+   → Worker liste les fichiers correspondant au pattern via Graph
+   → Pour chaque fichier nouveau/modifié :
+        - télécharge le contenu
+        - parse + match (réutilise le connecteur §6)
+        - crée ou met à jour la revue cible, pré-remplit les statuts
+        - trace un import_job (source=&#39;sharepoint&#39;)
+   → Notifie les utilisateurs concernés</code></pre>
+<p>La logique de parsing et de matching est <strong>partagée</strong>
+avec l’import manuel : un seul moteur, deux sources d’entrée.</p>
+<hr />
+<h2
+id="bis.-connecteur-de-stockage-pluggable-configurable-par-ladmin">7bis.
+Connecteur de stockage (pluggable, configurable par l’admin)</h2>
+<p>Comme le connecteur d’IA, le stockage des fichiers (Excel importés,
+exports générés) passe par une <strong>interface commune</strong> avec
+plusieurs implémentations interchangeables. L’admin choisit et bascule
+le backend depuis ses paramètres, à chaud, sans redéploiement.</p>
+<h3 id="bis.1-interface-commune">7bis.1 Interface commune</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> StorageProvider(Protocol):</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> put(<span class="va">self</span>, key: <span class="bu">str</span>, data: <span class="bu">bytes</span>, content_type: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:  <span class="co"># retourne une référence</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        ...</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> get(<span class="va">self</span>, ref: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">bytes</span>:</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>        ...</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> delete(<span class="va">self</span>, ref: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        ...</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> presigned_url(<span class="va">self</span>, ref: <span class="bu">str</span>, ttl_seconds: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span>:</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        ...   <span class="co"># URL temporaire de téléchargement direct, si le backend le permet</span></span></code></pre></div>
+<p>Tout le code applicatif manipule des <strong>références
+opaques</strong> (<code>ref</code>) et ne connaît jamais le backend
+concret. Changer de fournisseur ne change pas le reste du code.</p>
+<h3 id="bis.2-backends-supportés">7bis.2 Backends supportés</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Provider</th>
+<th>Usage</th>
+<th>Paramètres (<code>settings</code>)</th>
+<th>Secret (<code>secret_ref</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>azure_blob</code></td>
+<td><strong>Défaut</strong> ; cohérent avec l’hébergement Azure</td>
+<td>compte, conteneur</td>
+<td>chaîne de connexion / identité managée</td>
+</tr>
+<tr class="even">
+<td><code>s3</code></td>
+<td>Compatibilité AWS ou S3-compatible (MinIO…)</td>
+<td>région, bucket, endpoint</td>
+<td>clés d’accès</td>
+</tr>
+<tr class="odd">
+<td><code>internal</code></td>
+<td>Stockage interne on-prem / volume monté</td>
+<td>chemin de base, URL de service</td>
+<td>jeton éventuel</td>
+</tr>
+</tbody>
+</table>
+<h3 id="bis.3-bascule-et-sécurité">7bis.3 Bascule et sécurité</h3>
+<ul>
+<li>Un seul backend <code>is_active</code> à la fois (index unique sur
+<code>integration_config</code> où <code>kind='storage'</code>).</li>
+<li>Le service résout le fournisseur actif <strong>à chaque
+opération</strong> → bascule immédiate.</li>
+<li>Le endpoint <code>POST /admin/integrations/storage/test</code> écrit
+puis relit un objet témoin pour valider la configuration
+<strong>avant</strong> activation.</li>
+<li>Les chaînes de connexion / clés vivent dans <strong>Key
+Vault</strong>, jamais en base ni renvoyées au front.</li>
+<li><strong>Rétention</strong> : la purge (§9) appelle
+<code>delete()</code> via l’interface, quel que soit le backend — la
+logique de rétention est indépendante du stockage choisi.</li>
+<li><strong>Migration</strong> : changer de backend n’impose pas de
+déplacer l’existant (les anciens <code>ref</code> restent résolus par
+leur backend d’origine jusqu’à purge). Une tâche de migration
+optionnelle est disponible si l’admin veut consolider.</li>
+</ul>
+<hr />
+<h2 id="modèle-de-permissions-rbac">8. Modèle de permissions (RBAC)</h2>
+<p>L’autorisation est vérifiée <strong>côté serveur à chaque
+endpoint</strong>, à partir du rôle porté par le JWT. Le rôle n’est
+jamais décidé par le client.</p>
+<table>
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 27%" />
+<col style="width: 27%" />
+<col style="width: 27%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Capacité</th>
+<th style="text-align: center;">user</th>
+<th style="text-align: center;">reviewer</th>
+<th style="text-align: center;">admin</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Créer / remplir ses revues</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="even">
+<td>Voir ses propres revues</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="odd">
+<td>Voir les revues qui lui sont partagées ou soumises</td>
+<td style="text-align: center;">✔ (lecture)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="even">
+<td>Voir <strong>toutes</strong> les revues (accès global)</td>
+<td style="text-align: center;">✘</td>
+<td style="text-align: center;">✘</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="odd">
+<td>Proposer une règle</td>
+<td style="text-align: center;">✔ (→ pending)</td>
+<td style="text-align: center;">✔ (→ pending)</td>
+<td style="text-align: center;">✔ (→ approuvée)</td>
+</tr>
+<tr class="even">
+<td>Voir une revue <strong>en entier</strong>, y compris points non
+renseignés</td>
+<td style="text-align: center;">✔ (les siennes)</td>
+<td style="text-align: center;">✔ (partagées)</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="odd">
+<td>Approuver / rejeter une règle</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="even">
+<td>Reformuler une règle (nouvelle version)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="odd">
+<td>Retirer / restaurer une règle</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="even">
+<td>Consulter le journal d’activité du référentiel</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="odd">
+<td>Valider / refuser une revue</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="even">
+<td>Gérer les utilisateurs / rôles</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr class="odd">
+<td>Configurer les connecteurs (<strong>type d’IA, type de
+stockage</strong>, SharePoint)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">✔</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>L’admin a <strong>tous les droits partout</strong> (conformément à la
+décision produit). Le reviewer valide les revues qui lui sont partagées
+ou soumises. L’utilisateur agit sur ses propres revues et peut proposer
+des règles.</p>
+</blockquote>
+<p><strong>Politique de visibilité reviewer (arrêtée)</strong> : un
+reviewer accède <strong>uniquement</strong> aux revues qui lui ont été
+<strong>explicitement partagées ou soumises</strong>. Un même partage
+peut cibler plusieurs reviewers, mais il n’existe <strong>aucun accès de
+large périmètre</strong> (pas de « toutes les revues de l’équipe », pas
+d’accès global). Techniquement, la visibilité d’une revue pour un
+reviewer découle de l’existence d’un <code>share_link</code> le ciblant
+ou d’une soumission le désignant — vérifiée à chaque requête. Seul
+l’admin dispose d’un accès global.</p>
+<hr />
+<h2 id="sécurité">9. Sécurité</h2>
+<p>Exigences non négociables, en plus du RBAC :</p>
+<ul>
+<li><strong>Mots de passe</strong> : hachage <strong>Argon2id</strong>
+(paramètres coût mémoire/temps adaptés) ; jamais en clair, jamais
+journalisés.</li>
+<li><strong>Jetons</strong> : access token JWT court (15 min), refresh
+token en cookie
+<code>httpOnly</code>+<code>Secure</code>+<code>SameSite=Strict</code>,
+révocable. Rotation des refresh tokens.</li>
+<li><strong>Injection SQL</strong> : exclusivement via requêtes
+paramétrées / ORM. Aucune concaténation de SQL.</li>
+<li><strong>Uploads Excel</strong> : validation type MIME + extension +
+taille max + nombre de lignes max ; parsing dans un worker isolé ;
+fichiers stockés hors du webroot.</li>
+<li><strong>Injection de formule Excel (à l’export)</strong> : préfixer
+d’une apostrophe toute cellule commençant par <code>= + - @</code> (déjà
+appliqué dans le prototype).</li>
+<li><strong>Liens de partage</strong> : token aléatoire 256 bits,
+expiration obligatoire, révocable ; l’accès au contenu exige tout de
+même l’authentification pour toute action d’écriture.</li>
+<li><strong>Rate limiting</strong> : sur <code>/auth/login</code>,
+<code>/auth/register</code>, les imports et les appels IA.</li>
+<li><strong>CORS</strong> restreint aux origines connues ;
+<strong>CSRF</strong> géré pour les flux cookie.</li>
+<li><strong>Secrets</strong> : dans un coffre, jamais en base
+applicative ni dans le code ni renvoyés au front.</li>
+<li><strong>Audit</strong> : <code>audit_log</code> immuable pour toute
+action sensible (validation, approbation de règle, changement de rôle,
+configuration de connecteur), avec IP et horodatage.</li>
+<li><strong>TLS partout</strong>, HSTS activé.</li>
+<li><strong>RGPD</strong> : les appels IA n’envoient que des libellés de
+règles ; fournisseur <strong>Mistral (EU)</strong> par défaut, ou
+<strong>IA interne</strong> (données jamais sorties du réseau) ; droit à
+l’effacement des comptes.</li>
+<li><strong>Rétention</strong> : les fichiers Excel importés et les
+<code>import_jobs</code> associés sont purgés automatiquement après
+<strong><code>retention_days</code> jours (défaut 30, modifiable par
+l’admin</strong> via <code>/admin/settings/retention</code>). Une
+<strong>tâche planifiée quotidienne</strong> (Celery beat) appelle
+<code>StorageProvider.delete()</code> (quel que soit le backend actif)
+et supprime les enregistrements associés. Les revues et leur contenu ne
+sont pas concernés par cette purge — seule la matière première d’import
+l’est.</li>
+</ul>
+<hr />
+<h2 id="feuille-de-route-de-livraison">10. Feuille de route de
+livraison</h2>
+<p>Découpage en incréments livrables, chacun testable
+indépendamment.</p>
+<p><strong>Lot 1 — Fondations (2–3 sem.)</strong> Schéma SQL +
+migrations Alembic · <strong>Auth Microsoft Entra ID (OIDC) +
+provisioning JIT + mapping groupes→rôles</strong> · repli email/mot de
+passe optionnel · CRUD utilisateurs &amp; profil · RBAC de base · tests
+d’intégration.</p>
+<p><strong>Lot 2 — Référentiel versionné (2 sem.)</strong> Import du
+seed (v2 + v3) · CRUD règles avec versionnement immuable · file
+d’attente d’approbation admin · <strong>retrait/restauration de
+règles</strong> · <strong>journal d’activité
+(<code>rule_activity</code>) avec attribution</strong> ·
+<strong>recherche + tri</strong> · export Excel du référentiel.</p>
+<p><strong>Lot 3 — Revues (2–3 sem.)</strong> Création avec snapshot ·
+remplissage items (statut, progress, remédiation) · score de conformité
+· <strong>vue complète (points non renseignés inclus)</strong> ·
+<strong>recherche de revues</strong> · export Excel formaté (colonnes
+cochées) · suppression.</p>
+<p><strong>Lot 4 — Validation tierce (1–2 sem.)</strong> Liens de
+partage <strong>ciblant des reviewers précis
+(<code>share_targets</code>)</strong> · endpoint de validation
+authentifié · commentaires par point · cycle
+<code>changes_requested</code>.</p>
+<p><strong>Lot 5 — Import intelligent + stockage pluggable (2–3
+sem.)</strong> Worker asynchrone · parsing Excel robuste · connecteur de
+matching local (port du moteur sémantique) · pré-remplissage des statuts
+· gestion des cas ambigus · <strong>connecteur de stockage pluggable
+(Azure Blob / S3 / interne) + config admin + test de
+connexion</strong>.</p>
+<p><strong>Lot 6 — Connecteur IA (1–2 sem.)</strong> Interface pluggable
+· adaptateurs <strong>Mistral (défaut) / entreprise / OpenAI /
+Azure</strong> · <strong>bascule du type d’IA par l’admin (à
+chaud)</strong> · configuration + coffre à secrets · repli automatique
+sur le local.</p>
+<p><strong>Lot 7 — SharePoint (2 sem.)</strong> Intégration Graph API ·
+configuration des sources · synchro planifiée · réutilisation du moteur
+d’import.</p>
+<p><strong>Lot 8 — Monitoring &amp; durcissement (2 sem.)</strong>
+Endpoints d’agrégation · rate limiting · audit complet · revue de
+sécurité · charge et performances.</p>
+<hr />
+<h2 id="décisions-arrêtées">11. Décisions arrêtées</h2>
+<p>Les points laissés ouverts en v1.0 sont désormais tranchés et
+intégrés au document :</p>
+<ol type="1">
+<li><strong>Visibilité reviewer</strong> — strictement limitée aux
+revues <strong>explicitement partagées ou soumises</strong>. Un partage
+peut cibler plusieurs reviewers (table <code>share_targets</code>) mais
+aucun accès de large périmètre n’existe. Seul l’admin a un accès global.
+(§8)</li>
+<li><strong>Identité</strong> — outil <strong>interne</strong> →
+<strong>Microsoft Entra ID (SSO OIDC)</strong> dès le Lot 1, avec
+provisioning automatique et mapping groupes Entra → rôles applicatifs.
+Email/mot de passe en repli optionnel. (§2.1, §5.1)</li>
+<li><strong>IA — configurable par l’admin</strong> — <strong>Mistral
+(EU) par défaut</strong> ; l’admin peut <strong>basculer le type d’IA à
+chaud</strong> (vers l’<strong>IA interne de l’entreprise</strong> ou un
+autre fournisseur), <strong>sans redéploiement</strong>. (§5.7,
+§6.3)</li>
+<li><strong>Stockage — configurable par l’admin</strong> — <strong>Azure
+Blob par défaut</strong> ; l’admin peut <strong>basculer le type de
+stockage</strong> (S3, stockage interne) depuis ses paramètres, via une
+couche d’abstraction commune, avec test de connexion avant activation.
+(§5.7, §7bis)</li>
+<li><strong>Hébergement</strong> — <strong>Azure</strong> (Container
+Apps / AKS), aligné avec Entra ID et SharePoint ; secrets dans
+<strong>Key Vault</strong>. (§2.1)</li>
+<li><strong>Rétention</strong> — fichiers importés purgés après
+<strong>30 jours par défaut, modifiable par l’admin</strong> ; tâche
+planifiée quotidienne indépendante du backend de stockage ; les revues
+ne sont jamais purgées. (§5.7, §9)</li>
+</ol>
+<p>Fonctionnalités du prototype désormais reflétées dans la conception :
+<strong>vue complète d’une revue</strong> pour reviewers/admins (points
+non renseignés inclus, §5.4), <strong>journal d’activité</strong> du
+référentiel avec attribution (<code>rule_activity</code>, §4/§5.3),
+<strong>retrait/restauration</strong> de règles avec historique conservé
+(§3.2, §5.3), <strong>recherche</strong> dans
+revues/référentiel/validation (§5.3, §5.4).</p>
+<h3 id="prochaines-étapes-proposées">Prochaines étapes proposées</h3>
+<p>Le document de conception est complet et cohérent. Pour démarrer le
+développement, deux options concrètes :</p>
+<ul>
+<li><strong>Générer les migrations Alembic du Lot 1</strong> (schéma
+exécutable prêt à lancer) accompagnées du squelette FastAPI (auth Entra,
+RBAC, modèles SQLAlchemy).</li>
+<li><strong>Coder le connecteur de matching local en Python</strong>
+(port fidèle du moteur sémantique du prototype, avec
+<code>rapidfuzz</code>), directement réutilisable dans le worker
+d’import.</li>
+</ul>
+<hr />
+<p><em>Fin du document — v1.2.</em></p>
+</body>
+</html>
