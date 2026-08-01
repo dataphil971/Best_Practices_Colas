@@ -1,4 +1,4 @@
-````markdown
+
 <div align="center">
 
 # Best Practices Colas
@@ -463,4 +463,4 @@ Projet développé et documenté par **[dataphil971](https://github.com/dataphil
 - Licence : aucune licence open source n'est actuellement définie.
 
 En l'absence de fichier `LICENSE`, tous les droits restent réservés à l'auteur du dépôt. Toute réutilisation ou diffusion doit respecter le contexte du projet et les règles de confidentialité applicables.
-````
+
