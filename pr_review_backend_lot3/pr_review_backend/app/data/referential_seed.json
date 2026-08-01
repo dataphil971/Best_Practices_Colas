@@ -1,0 +1,662 @@
+{
+ "powerbi": [
+  {
+   "name": "Power query",
+   "rules": [
+    {
+     "text": "Poussez les transformations en amont, vers la source de données (dataflows / gold) lorsque cela est possible.",
+     "criticality": "recommended",
+     "subs": [
+      "Utiliser le SQL à la carte lors d'une connexion à Databricks",
+      "Inclure les étapes les plus simples dans le SQL à la carte (renommage, suppression de colonnes, colonnes ajoutées, jointure avec une autre table Databricks)"
+     ]
+    },
+    {
+     "text": "Vérifiez les types de données et la précision des décimales.",
+     "criticality": "blocking",
+     "subs": [
+      "Mettre toutes les données décimales en fixed decimal, les nombres en format nombre entier et les pourcentage en pourcentage"
+     ]
+    },
+    {
+     "text": "Paramétrez les valeurs répétées et les sources dans Power Query",
+     "criticality": "recommended",
+     "subs": [
+      "SharePoint : utiliser un paramètre pour chaque source Excel et chaque nom de fichier",
+      "Databricks : utiliser un paramètre pour le HTTP_Path, le Hostname et chaque catalogue utilisé (onecolasdata)",
+      "Serveur SQL : utiliser un paramètre pour le serveur et la base"
+     ]
+    },
+    {
+     "text": "Faites attention à la cardinalité des colonnes. Cherchez à réduire le nombre de valeurs uniques.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactivez le chargement des sources de données intermédiaires dans Power Query.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "En cas d'un direct query sur Databricks, s'assurer du pointage vers un endpoint dédié (consulter Data Ingénieur)",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Vérifiez s'il est possible d'appliquer un filtre dynamique (via paramètre) pour restreindre la profondeur des données",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Renommez les étapes power query qui ne sont pas simples",
+     "criticality": "recommended",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Modèle",
+   "rules": [
+    {
+     "text": "Assurez-vous que chaque rapport inclut une table de dates correctement marquée.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Désactiver la synthèse (summarization) automatique (∑) sur les colonnes des valeurs (désactiver les mesures implicites).",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Masquer les champs techniques, numériques ou ceux non utilisés dans les rapports pour ne pas surcharger la liste des champs.",
+     "criticality": "blocking",
+     "subs": [
+      "Si toutes les colonnes de la table de fait sont masquées, masquer la table directement"
+     ]
+    },
+    {
+     "text": "Évitez les relations bidirectionnelles et les relations many-to-many. Utilisez one-to-many et le modèle en etoile.",
+     "criticality": "blocking",
+     "subs": [
+      "Eviter les relations plusieurs à plusieurs",
+      "Eviter les relations bidirectionnelles"
+     ]
+    },
+    {
+     "text": "Nommer correctement les objets du modèles",
+     "criticality": "recommended",
+     "subs": [
+      "Assurez-vous que les noms soient concis, cohérents et logiques.",
+      "Ne pas mettre d'abréviation dans les noms de tables, colonnes et mesures",
+      "Mettre \"D_\" devant les tables de dimensions, \"F_\" devant les tables de fait et \"T_\" pour les tables techniques"
+     ]
+    },
+    {
+     "text": "Organiser les mesures",
+     "criticality": "recommended",
+     "subs": [
+      "Regrouper les mesures dans des tables dédiées.",
+      "Organiser les formules DAX et les champs dans des dossiers spécifiques."
+     ]
+    },
+    {
+     "text": "Ajouter des descriptions aux champs qui ne sont pas évidents dans le modèle.",
+     "criticality": "recommended",
+     "subs": [
+      "Pour les datasets de build, toutes les descriptions fonctionelles longues doivent être remplies"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "DAX",
+   "rules": [
+    {
+     "text": "Utiliser uniquement des mesures explicites pour plus de contrôle, de réutilisabilité et de clarté.",
+     "criticality": "recommended",
+     "subs": [
+      "Assurez-vous que chaque mesure DAX a un objectif précis et évitez de créer des mesures excessives ou redondantes qui compliquent inutilement le modèle.",
+      "Mettre dans des mesures à part les parties de code qui se répètent"
+     ]
+    },
+    {
+     "text": "Formater le code DAX dans le modèle pour en améliorer la lisibilité, (Revenir à la ligne et indenter les lignes) (Dax formatter)",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Utiliser des variables DAX pour améliorer la lisibilité du code.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Ajouter des commentaires utiles aux codes complexes (DAX, M).",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Envisager d’utiliser des groupes de calcul (calculation groups) pour réduire le nombre de mesures",
+     "criticality": "optional",
+     "subs": []
+    },
+    {
+     "text": "Supprimer les parties de codes inutiles mis en commentaire",
+     "criticality": "recommended",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Général",
+   "rules": [
+    {
+     "text": "Éliminez les champs et données inutiles.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactivez l’option Auto Date/Time : Fichier > Options et paramètres > Options > Chargement des données - Time Intelligence (Date/heure automatique pour les nouveaux fichiers).",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Limitez les logiques métier complexes dans la couche de rapport afin de maintenir la simplicité, la facilité de maintenance et les performances du modèle.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Choisissez le bon niveau d'agrégation pour répondre aux besoins actuels et futurs des rapports, en évitant la granularité maximale.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Vérifier l'intégrité référentielle des relations.",
+     "criticality": "blocking",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Mise en page & Design",
+   "rules": [
+    {
+     "text": "Bien respecter le template CDS si utilisé",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Visualiser et tester le rapport sur différents écrans, navigateurs et contextes.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Organiser et regrouper les visuels et les signets dans le volet Sélection pour une meilleure structure.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Eliminer les interactions inutiles entre les visuels pour améliorer la clarté.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Configurer et tester toutes les interactions et filtres (cross-filtrage, slicers, etc)",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Synchroniser les slicers là où c'est nécessaire",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Éliminer les visuels inutiles ou redondants.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactiver les en-têtes des visuels si non nécessaires.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Ajouter le bandeau de notification",
+     "criticality": "optional",
+     "subs": []
+    },
+    {
+     "text": "Définir la landing page sur la bonne page (\"landingpage\" visible dans le report .json)",
+     "criticality": "optional",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Modèle de données conséquent (> 1Go)",
+   "rules": [
+    {
+     "text": "Exploitez le query folding lorsque possible pour maximiser l'efficacité des transformations.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Évitez les fusions (merge) et les ajouts (append) - réservez les étapes “coûteuses” qui lisent l'ensemble des données pour la fin.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Appliquez un filtre précoce et paramétré pour limiter les données lors de l’étape de développement.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Configurez l'actualisation incremental si vous devez actualiser uniquement les données modifiées ou récentes.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Évaluer les performances du DAX avec DAX Studio.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Vérifier si des boutons « Appliquer » sont nécessaires pour les Slicers et le volet de filtres.",
+     "criticality": "blocking",
+     "subs": []
+    }
+   ]
+  }
+ ],
+ "appbi": [
+  {
+   "name": "Modèle",
+   "rules": [
+    {
+     "text": "Assurez-vous que chaque rapport inclut une table de dates correctement marquée.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Désactiver la synthèse (summarization) automatique (∑) sur les colonnes des valeurs (désactiver les mesures implicites).",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Masquer les champs techniques, numériques ou ceux non utilisés dans les rapports pour ne pas surcharger la liste des champs.",
+     "criticality": "blocking",
+     "subs": [
+      "Si toutes les colonnes de la table de fait sont masquées, masquer la table directement"
+     ]
+    },
+    {
+     "text": "Évitez les relations bidirectionnelles et les relations many-to-many. Utilisez one-to-many et le modèle en etoile.",
+     "criticality": "blocking",
+     "subs": [
+      "Eviter les relations plusieurs à plusieurs",
+      "Eviter les relations bidirectionnelles"
+     ]
+    },
+    {
+     "text": "Nommer correctement les objets du modèles",
+     "criticality": "recommended",
+     "subs": [
+      "Assurez-vous que les noms soient concis, cohérents et logiques.",
+      "Ne pas mettre d'abréviation dans les noms de tables, colonnes et mesures",
+      "Mettre \"D_\" devant les tables de dimensions, \"F_\" devant les tables de fait et \"T_\" pour les tables techniques"
+     ]
+    },
+    {
+     "text": "Organiser les mesures",
+     "criticality": "recommended",
+     "subs": [
+      "Regrouper les mesures dans des tables dédiées.",
+      "Organiser les formules DAX et les champs dans des dossiers spécifiques."
+     ]
+    },
+    {
+     "text": "Ajouter des descriptions aux champs qui ne sont pas évidents dans le modèle.",
+     "criticality": "recommended",
+     "subs": [
+      "Pour les datasets de build, toutes les descriptions fonctionelles longues doivent être remplies"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "DAX",
+   "rules": [
+    {
+     "text": "Utiliser uniquement des mesures explicites pour plus de contrôle, de réutilisabilité et de clarté.",
+     "criticality": "recommended",
+     "subs": [
+      "Assurez-vous que chaque mesure DAX a un objectif précis et évitez de créer des mesures excessives ou redondantes qui compliquent inutilement le modèle.",
+      "Mettre dans des mesures à part les parties de code qui se répètent"
+     ]
+    },
+    {
+     "text": "Formater le code DAX dans le modèle pour en améliorer la lisibilité, (Revenir à la ligne et indenter les lignes) (Dax formatter)",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Utiliser des variables DAX pour améliorer la lisibilité du code.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Ajouter des commentaires utiles aux codes complexes (DAX, M).",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Envisager d’utiliser des groupes de calcul (calculation groups) pour réduire le nombre de mesures",
+     "criticality": "optional",
+     "subs": []
+    },
+    {
+     "text": "Supprimer les parties de codes inutiles mis en commentaire",
+     "criticality": "recommended",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Général",
+   "rules": [
+    {
+     "text": "Éliminez les champs et données inutiles.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactivez l’option Auto Date/Time : Fichier > Options et paramètres > Options > Chargement des données - Time Intelligence (Date/heure automatique pour les nouveaux fichiers).",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Limitez les logiques métier complexes dans la couche de rapport afin de maintenir la simplicité, la facilité de maintenance et les performances du modèle.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Choisissez le bon niveau d'agrégation pour répondre aux besoins actuels et futurs des rapports, en évitant la granularité maximale.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Vérifier l'intégrité référentielle des relations.",
+     "criticality": "blocking",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Mise en page & Design",
+   "rules": [
+    {
+     "text": "Bien respecter le template CDS si utilisé",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Visualiser et tester le rapport sur différents écrans, navigateurs et contextes.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Organiser et regrouper les visuels et les signets dans le volet Sélection pour une meilleure structure.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Eliminer les interactions inutiles entre les visuels pour améliorer la clarté.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Configurer et tester toutes les interactions et filtres (cross-filtrage, slicers, etc)",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Synchroniser les slicers là où c'est nécessaire",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Éliminer les visuels inutiles ou redondants.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactiver les en-têtes des visuels si non nécessaires.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Ajouter le bandeau de notification",
+     "criticality": "optional",
+     "subs": []
+    },
+    {
+     "text": "Définir la landing page sur la bonne page (\"landingpage\" visible dans le report .json)",
+     "criticality": "optional",
+     "subs": []
+    }
+   ]
+  }
+ ],
+ "build": [
+  {
+   "name": "Power query",
+   "rules": [
+    {
+     "text": "Poussez les transformations en amont, vers la source de données (dataflows / gold) lorsque cela est possible.",
+     "criticality": "recommended",
+     "subs": [
+      "Utiliser le SQL à la carte lors d'une connexion à Databricks",
+      "Inclure les étapes les plus simples dans le SQL à la carte (renommage, suppression de colonnes, colonnes ajoutées, jointure avec une autre table Databricks)"
+     ]
+    },
+    {
+     "text": "Vérifiez les types de données et la précision des décimales.",
+     "criticality": "blocking",
+     "subs": [
+      "Mettre toutes les données décimales en fixed decimal, les nombres en format nombre entier et les pourcentage en pourcentage"
+     ]
+    },
+    {
+     "text": "Paramétrez les valeurs répétées et les sources dans Power Query",
+     "criticality": "recommended",
+     "subs": [
+      "SharePoint : utiliser un paramètre pour chaque source Excel et chaque nom de fichier",
+      "Databricks : utiliser un paramètre pour le HTTP_Path, le Hostname et chaque catalogue utilisé (onecolasdata)",
+      "Serveur SQL : utiliser un paramètre pour le serveur et la base"
+     ]
+    },
+    {
+     "text": "Faites attention à la cardinalité des colonnes. Cherchez à réduire le nombre de valeurs uniques.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactivez le chargement des sources de données intermédiaires dans Power Query.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "En cas d'un direct query sur Databricks, s'assurer du pointage vers un endpoint dédié (consulter Data Ingénieur)",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Vérifiez s'il est possible d'appliquer un filtre dynamique (via paramètre) pour restreindre la profondeur des données",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Renommez les étapes power query qui ne sont pas simples",
+     "criticality": "recommended",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Modèle",
+   "rules": [
+    {
+     "text": "Assurez-vous que chaque rapport inclut une table de dates correctement marquée.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Désactiver la synthèse (summarization) automatique (∑) sur les colonnes des valeurs (désactiver les mesures implicites).",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Masquer les champs techniques, numériques ou ceux non utilisés dans les rapports pour ne pas surcharger la liste des champs.",
+     "criticality": "blocking",
+     "subs": [
+      "Si toutes les colonnes de la table de fait sont masquées, masquer la table directement"
+     ]
+    },
+    {
+     "text": "Évitez les relations bidirectionnelles et les relations many-to-many. Utilisez one-to-many et le modèle en etoile.",
+     "criticality": "blocking",
+     "subs": [
+      "Eviter les relations plusieurs à plusieurs",
+      "Eviter les relations bidirectionnelles"
+     ]
+    },
+    {
+     "text": "Nommer correctement les objets du modèles",
+     "criticality": "recommended",
+     "subs": [
+      "Assurez-vous que les noms soient concis, cohérents et logiques.",
+      "Ne pas mettre d'abréviation dans les noms de tables, colonnes et mesures",
+      "Mettre \"D_\" devant les tables de dimensions, \"F_\" devant les tables de fait et \"T_\" pour les tables techniques"
+     ]
+    },
+    {
+     "text": "Organiser les mesures",
+     "criticality": "recommended",
+     "subs": [
+      "Regrouper les mesures dans des tables dédiées.",
+      "Organiser les formules DAX et les champs dans des dossiers spécifiques."
+     ]
+    },
+    {
+     "text": "Ajouter des descriptions aux champs qui ne sont pas évidents dans le modèle.",
+     "criticality": "recommended",
+     "subs": [
+      "Pour les datasets de build, toutes les descriptions fonctionelles longues doivent être remplies"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "DAX",
+   "rules": [
+    {
+     "text": "Utiliser uniquement des mesures explicites pour plus de contrôle, de réutilisabilité et de clarté.",
+     "criticality": "recommended",
+     "subs": [
+      "Assurez-vous que chaque mesure DAX a un objectif précis et évitez de créer des mesures excessives ou redondantes qui compliquent inutilement le modèle.",
+      "Mettre dans des mesures à part les parties de code qui se répètent"
+     ]
+    },
+    {
+     "text": "Formater le code DAX dans le modèle pour en améliorer la lisibilité, (Revenir à la ligne et indenter les lignes) (Dax formatter)",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Utiliser des variables DAX pour améliorer la lisibilité du code.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Ajouter des commentaires utiles aux codes complexes (DAX, M).",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Envisager d’utiliser des groupes de calcul (calculation groups) pour réduire le nombre de mesures",
+     "criticality": "optional",
+     "subs": []
+    },
+    {
+     "text": "Supprimer les parties de codes inutiles mis en commentaire",
+     "criticality": "recommended",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Général",
+   "rules": [
+    {
+     "text": "Éliminez les champs et données inutiles.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Désactivez l’option Auto Date/Time : Fichier > Options et paramètres > Options > Chargement des données - Time Intelligence (Date/heure automatique pour les nouveaux fichiers).",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Limitez les logiques métier complexes dans la couche de rapport afin de maintenir la simplicité, la facilité de maintenance et les performances du modèle.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Choisissez le bon niveau d'agrégation pour répondre aux besoins actuels et futurs des rapports, en évitant la granularité maximale.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Vérifier l'intégrité référentielle des relations.",
+     "criticality": "blocking",
+     "subs": []
+    }
+   ]
+  },
+  {
+   "name": "Modèle de données conséquent (> 1Go)",
+   "rules": [
+    {
+     "text": "Exploitez le query folding lorsque possible pour maximiser l'efficacité des transformations.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Évitez les fusions (merge) et les ajouts (append) - réservez les étapes “coûteuses” qui lisent l'ensemble des données pour la fin.",
+     "criticality": "blocking",
+     "subs": []
+    },
+    {
+     "text": "Appliquez un filtre précoce et paramétré pour limiter les données lors de l’étape de développement.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Configurez l'actualisation incremental si vous devez actualiser uniquement les données modifiées ou récentes.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Évaluer les performances du DAX avec DAX Studio.",
+     "criticality": "recommended",
+     "subs": []
+    },
+    {
+     "text": "Vérifier si des boutons « Appliquer » sont nécessaires pour les Slicers et le volet de filtres.",
+     "criticality": "blocking",
+     "subs": []
+    }
+   ]
+  }
+ ]
+}
