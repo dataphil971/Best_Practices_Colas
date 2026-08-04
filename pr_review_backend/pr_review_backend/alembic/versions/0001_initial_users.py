@@ -17,10 +17,21 @@ depends_on = None
 def upgrade() -> None:
     op.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
 
+    # Crée le type ENUM seulement s'il n'existe pas déjà
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+                CREATE TYPE user_role AS ENUM ('user', 'reviewer', 'admin');
+            END IF;
+        END
+        $$;
+    """)
+
+    # create_type=False : le type existe déjà, on ne fait que le référencer
     user_role = postgresql.ENUM(
-        "user", "reviewer", "admin", name="user_role", create_type=True
+        "user", "reviewer", "admin", name="user_role", create_type=False
     )
-    user_role.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "users",
