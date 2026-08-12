@@ -1,4 +1,3 @@
-
 <div align="center">
 
 # Best Practices Colas
@@ -8,7 +7,7 @@
 **Centraliser les contrôles, fiabiliser les validations et assurer la traçabilité des bonnes pratiques BI.**
 
 [![Version](https://img.shields.io/badge/version-MVP%201.0.0-2563EB?style=flat-square)](https://github.com/dataphil971/Best_Practices_Colas)
-[![Backend](https://img.shields.io/badge/backend-lots%201--7-7C3AED?style=flat-square)](https://github.com/dataphil971/Best_Practices_Colas)
+[![Backend](https://img.shields.io/badge/backend-0.7.0%20(lot%207)-7C3AED?style=flat-square)](https://github.com/dataphil971/Best_Practices_Colas)
 [![Statut](https://img.shields.io/badge/statut-prototype-F59E0B?style=flat-square)](#statut-du-projet)
 [![Documentation](https://img.shields.io/badge/documentation-v1.2-16A34A?style=flat-square)](./Spec_Backend_PR_Review.md)
 [![Power BI](https://img.shields.io/badge/Power%20BI-Peer%20Review-F2C811?style=flat-square&logo=powerbi&logoColor=000000)](#fonctionnalités-clés)
@@ -16,7 +15,7 @@
 </div>
 
 > [!IMPORTANT]
-> Le dépôt contient actuellement un **prototype d'interface exécutable dans le navigateur**, une **spécification backend détaillée** et les **archives des lots backend 1 à 7**. Il ne constitue pas encore une application consolidée prête pour un déploiement en production.
+> Le dépôt contient un **prototype d'interface exécutable dans le navigateur**, un **backend FastAPI consolidé et testable** (lots 1 à 7), une **spécification backend détaillée** et un **volet exploratoire « agent BI »** décrit plus bas. Il ne constitue pas encore une application prête pour un déploiement en production.
 
 ---
 
@@ -25,11 +24,13 @@
 - [Pourquoi ce projet ?](#pourquoi-ce-projet-)
 - [Le projet en un coup d'œil](#le-projet-en-un-coup-dœil)
 - [Fonctionnalités clés](#fonctionnalités-clés)
+- [Volet exploratoire : agent BI local](#volet-exploratoire--agent-bi-local)
 - [Parcours d'une revue](#parcours-dune-revue)
 - [Architecture cible](#architecture-cible)
 - [Stack technique](#stack-technique)
 - [Structure du dépôt](#structure-du-dépôt)
 - [Lancer le prototype](#lancer-le-prototype)
+- [Lancer le backend](#lancer-le-backend)
 - [Roadmap](#roadmap)
 - [Sécurité et gouvernance](#sécurité-et-gouvernance)
 - [Documentation](#documentation)
@@ -70,10 +71,15 @@ Ce mécanisme garantit :
 | Prototype de l'interface de Peer Review | ✅ Disponible au format HTML |
 | Parcours de navigation et de revue | ✅ Démontrable localement |
 | Spécification technique backend | ✅ Version 1.2 documentée |
-| Modèle de données et endpoints REST | ✅ Définis dans la spécification |
-| Archives backend | ✅ Lots 1 à 7 présents dans le dépôt |
-| Backend consolidé dans une arborescence unique | 🟡 À finaliser |
-| Tests automatisés et intégration continue | 🟡 À industrialiser |
+| Backend FastAPI consolidé (lots 1 à 7) | ✅ Arborescence unique, versionnée fichier par fichier |
+| Migrations Alembic reproductibles | ✅ 6 migrations (`0001` → `0006`) |
+| Données d'initialisation du référentiel | ✅ Seed JSON (Power BI, App BI, Build) |
+| Configuration Docker Compose de développement | ✅ `docker compose up --build` |
+| Fichier `.env.example` sans secret | ✅ Présent |
+| Tests automatisés (pytest) | ✅ 7 suites de tests |
+| Volet exploratoire « agent BI » local | 🟡 Incrément 0 (starter .NET + overlay) |
+| Frontend React/TypeScript autonome | ⏳ Cible future (le prototype HTML tient lieu de maquette) |
+| Intégration continue (GitHub Actions) | ⏳ Cible future |
 | Déploiement Azure de production | ⏳ Cible future |
 
 ### Utilisateurs visés
@@ -131,6 +137,26 @@ Ce mécanisme garantit :
 - stockage pluggable : Azure Blob, Amazon S3, MinIO ou stockage interne ;
 - changement du fournisseur actif sans modification du cœur applicatif ;
 - solution de repli locale lorsque l'IA est indisponible.
+
+---
+
+## Volet exploratoire : agent BI local
+
+Une piste en cours d'exploration vise à **détecter et corriger automatiquement** certaines bonnes pratiques directement sur le modèle sémantique ouvert dans Power BI Desktop, puis à **pré-remplir une revue** dans la plateforme.
+
+Le principe : un petit agent local (loopback, `127.0.0.1`) se connecte au modèle via l'onglet **Outils externes** de Power BI Desktop, l'analyse en lecture seule, propose un plan de corrections classées par risque, applique uniquement les corrections sûres après validation, puis publie une revue rattachée aux versions de règles exactes utilisées.
+
+> [!NOTE]
+> Ce volet est au stade **incrément 0** : il valide la chaîne « navigateur ↔ agent ↔ Power BI Desktop » avant d'investir dans un moteur de règles complet. L'agent réel ne fonctionne que sur **Windows avec Power BI Desktop** (le client TOM/AMO est spécifique à Windows). En l'absence d'agent, l'overlay du prototype bascule automatiquement en **mode démonstration** — aucune écriture n'est effectuée.
+
+Deux fichiers matérialisent ce volet dans le dépôt :
+
+| Fichier | Rôle |
+|---|---|
+| `pbi-agent-overlay-v2.js` | Couche d'interface injectée dans le prototype (détection de l'agent, appairage, plan de corrections, dry-run, application, rollback, publication de revue). N'altère pas le bundle existant et suit le thème jour/nuit. |
+| `agent-starter-increment0.zip` | Starter .NET minimal de l'agent local : point de santé `/api/v1/health`, appairage cross-origin, connexion TOM réelle **en lecture seule stricte**, et son manifeste d'outil externe Power BI. |
+
+Principes de sûreté retenus pour ce volet : écoute strictement en loopback, appairage explicite (code affiché dans la fenêtre de l'agent), opérations classées **faible / moyen / élevé** avec les opérations à risque élevé exclues de toute application en lot, revalidation avant écriture, sauvegarde et rollback, et aucune donnée métier transmise à l'interface (métadonnées uniquement).
 
 ---
 
@@ -213,11 +239,11 @@ flowchart LR
 - les actions sensibles sont enregistrées dans un journal d'audit.
 
 <details>
-<summary><strong>Voir le modèle de données cible</strong></summary>
+<summary><strong>Voir le modèle de données</strong></summary>
 
 <br>
 
-Les principales entités prévues sont :
+Les principales entités, présentes dans `app/models/`, sont :
 
 - `users` ;
 - `categories` ;
@@ -237,25 +263,26 @@ Une règle possède une identité stable dans `rules` et plusieurs versions immu
 
 ## Stack technique
 
-| Couche | Technologies cibles |
+| Couche | Technologies |
 |---|---|
-| Frontend | React, TypeScript, TanStack Query |
-| API | Python 3.12, FastAPI, Pydantic |
-| Base de données | PostgreSQL 16 |
-| ORM et migrations | SQLAlchemy 2.x, Alembic |
-| Authentification | Microsoft Entra ID, OIDC |
-| Authentification de repli | Email, mot de passe, Argon2id |
-| Traitements asynchrones | Celery, Redis |
+| Frontend | React, TypeScript, TanStack Query *(cible ; le prototype HTML tient lieu de maquette)* |
+| API | Python 3.12, **FastAPI 0.115**, **Pydantic 2** |
+| Base de données | **PostgreSQL 16** |
+| ORM et migrations | **SQLAlchemy 2**, **Alembic** |
+| Authentification | Microsoft Entra ID, OIDC (`authlib`, `httpx`) |
+| Authentification de repli | Email, mot de passe, **Argon2id** ; JWT applicatifs |
+| Traitements asynchrones | Celery, Redis *(cible)* |
 | Import Excel | openpyxl |
 | Matching local | rapidfuzz, PostgreSQL `pg_trgm` |
 | Intelligence artificielle | Mistral, IA interne, OpenAI, Azure OpenAI |
 | Stockage | Azure Blob, Amazon S3, MinIO, stockage interne |
 | Gestion des secrets | Azure Key Vault |
 | Intégration Microsoft | Microsoft Graph API |
-| Conteneurisation | Docker |
+| Volet agent BI | .NET, client Analysis Services (TOM/AMO) — **Windows uniquement** |
+| Conteneurisation | Docker, Docker Compose |
 | Hébergement cible | Azure Container Apps ou AKS |
 
-> Cette table décrit la **cible d'architecture**. La présence d'une technologie dans cette section ne signifie pas nécessairement que son intégration est déjà consolidée sur la branche principale.
+> Certaines briques (Celery/Redis, frontend React, déploiement Azure) sont des **cibles d'architecture** et ne sont pas encore consolidées sur la branche principale.
 
 ---
 
@@ -264,33 +291,36 @@ Une règle possède une identité stable dans `rules` et plusieurs versions immu
 ```text
 Best_Practices_Colas/
 ├── README.md
-├── PR_Review_PowerBI.html
-├── Spec_Backend_PR_Review.md
-├── Spec_Backend_PR_Review.html
-├── pr_review_backend_lot1.zip
-├── pr_review_backend_lot2.zip
-├── pr_review_backend_lot3.zip
-├── pr_review_backend_lot4.zip
-├── pr_review_backend_lot5.zip
-├── pr_review_backend_lot6.zip
-└── pr_review_backend_lot7.zip
+├── PR_Review_PowerBI_avec_agent_v2.html   # prototype d'interface + overlay agent BI
+├── pbi-agent-overlay-v2.js                # overlay agent BI (couche indépendante)
+├── agent-starter-increment0.zip           # starter .NET de l'agent local (incrément 0)
+├── Spec_Backend_PR_Review.md              # spécification backend (Markdown)
+├── Spec_Backend_PR_Review.html            # spécification backend (HTML)
+└── pr_review_backend/
+    └── pr_review_backend/
+        ├── app/                           # code applicatif (api, models, schemas, services…)
+        ├── alembic/                       # migrations 0001 → 0006
+        ├── tests/                         # suites pytest
+        ├── docker-compose.yml
+        ├── Dockerfile
+        ├── requirements.txt
+        ├── .env.example
+        └── README.md                      # guide de démarrage du backend
 ```
 
-| Fichier | Description |
+| Élément | Description |
 |---|---|
-| `PR_Review_PowerBI.html` | Prototype exécutable de l'interface de Peer Review |
-| `Spec_Backend_PR_Review.md` | Spécification technique backend au format Markdown |
-| `Spec_Backend_PR_Review.html` | Version HTML de la spécification backend |
-| `pr_review_backend_lot1.zip` à `lot7.zip` | Archives de livraison ou de travail des différents lots backend |
-
-> [!NOTE]
-> Les archives backend permettent de conserver les livraisons par lot. Une prochaine étape d'industrialisation consiste à consolider leur contenu dans une arborescence applicative unique, testable et versionnée fichier par fichier.
+| `PR_Review_PowerBI_avec_agent_v2.html` | Prototype exécutable de l'interface de Peer Review, avec l'overlay de l'agent BI intégré |
+| `pbi-agent-overlay-v2.js` | Overlay de l'agent BI, réutilisable dans une autre build |
+| `agent-starter-increment0.zip` | Starter .NET de l'agent local (health, appairage, connexion TOM en lecture seule) |
+| `Spec_Backend_PR_Review.md` / `.html` | Spécification technique backend |
+| `pr_review_backend/` | Backend FastAPI consolidé, testable et conteneurisé |
 
 ---
 
 ## Lancer le prototype
 
-Le prototype actuel est autonome : aucun serveur backend n'est nécessaire pour consulter l'interface.
+Le prototype est autonome : aucun serveur backend n'est nécessaire pour consulter l'interface. En l'absence d'agent BI local, l'overlay fonctionne en mode démonstration (aucune écriture réelle).
 
 ### 1. Cloner le dépôt
 
@@ -304,22 +334,44 @@ cd Best_Practices_Colas
 #### Windows PowerShell
 
 ```powershell
-Start-Process .\PR_Review_PowerBI.html
+Start-Process .\PR_Review_PowerBI_avec_agent_v2.html
 ```
 
 #### Linux
 
 ```bash
-xdg-open PR_Review_PowerBI.html
+xdg-open PR_Review_PowerBI_avec_agent_v2.html
 ```
 
 #### macOS
 
 ```bash
-open PR_Review_PowerBI.html
+open PR_Review_PowerBI_avec_agent_v2.html
 ```
 
-Le fichier peut également être ouvert directement depuis l'explorateur de fichiers avec un navigateur moderne.
+Le fichier peut également être ouvert directement depuis l'explorateur de fichiers avec un navigateur moderne. Si le double-clic est bloqué en raison de la taille du fichier, un petit serveur statique lève la restriction :
+
+```bash
+python3 -m http.server 8080
+# puis ouvrir http://localhost:8080/PR_Review_PowerBI_avec_agent_v2.html
+```
+
+---
+
+## Lancer le backend
+
+Le backend dispose d'une configuration Docker Compose de développement.
+
+```bash
+cd pr_review_backend/pr_review_backend
+cp .env.example .env          # renseigner si besoin (Entra ID facultatif en dev)
+docker compose up --build
+```
+
+L'API applique les migrations puis démarre sur `http://localhost:8000`.
+Documentation interactive (Swagger) : `http://localhost:8000/docs`.
+
+Voir [`pr_review_backend/pr_review_backend/README.md`](./pr_review_backend/pr_review_backend/README.md) pour le détail (migrations, seed du référentiel, création du compte administrateur, exécution des tests).
 
 ---
 
@@ -328,22 +380,21 @@ Le fichier peut également être ouvert directement depuis l'explorateur de fich
 ### Réalisé
 
 - [x] Prototype du parcours de Peer Review — MVP 1.0.0
-- [x] Spécification backend v1.2
-- [x] Architecture cible, sécurité, RBAC et modèle de données
-- [x] Documentation des endpoints REST
-- [x] Découpage fonctionnel du backend en lots
-- [x] Ajout des archives backend des lots 1 à 7
+- [x] Spécification backend v1.2 (architecture, sécurité, RBAC, modèle de données, endpoints REST)
+- [x] Backend FastAPI consolidé dans une arborescence unique (lots 1 à 7)
+- [x] Migrations Alembic reproductibles et seed du référentiel
+- [x] Fichier `.env.example` sans secret et configuration Docker Compose de développement
+- [x] Suites de tests automatisées (pytest)
+- [x] Volet exploratoire agent BI — overlay + starter .NET (incrément 0)
+- [x] Suivi du thème jour/nuit par l'overlay de l'agent
 
 ### Prochaines priorités
 
-- [ ] Extraire et consolider les lots backend dans une arborescence unique
-- [ ] Ajouter un fichier `.env.example` sans secret
-- [ ] Ajouter une configuration Docker Compose de développement
-- [ ] Mettre en place les migrations et données d'initialisation reproductibles
-- [ ] Ajouter les tests unitaires, d'intégration et de sécurité
+- [ ] Développer le frontend React/TypeScript autonome
 - [ ] Configurer l'intégration continue avec GitHub Actions
-- [ ] Documenter le démarrage complet du frontend et du backend
+- [ ] Documenter le démarrage complet frontend + backend de bout en bout
 - [ ] Ajouter des captures d'écran ou une démonstration du prototype
+- [ ] Poursuivre l'agent BI : snapshot complet, graphe de dépendances, premières règles réelles
 - [ ] Préparer le déploiement Azure et le monitoring
 
 <details>
@@ -383,6 +434,8 @@ L'architecture prévoit notamment :
 - une rétention configurable des fichiers importés ;
 - une minimisation des données envoyées aux fournisseurs d'IA.
 
+Pour le volet agent BI : écoute loopback exclusive, appairage explicite, opérations à risque élevé exclues de toute application en lot, sauvegarde et rollback, et métadonnées uniquement (aucune donnée métier transmise).
+
 ### Confidentialité du dépôt
 
 Ne jamais versionner :
@@ -402,7 +455,8 @@ Ne jamais versionner :
 
 - [Spécification backend — Markdown](./Spec_Backend_PR_Review.md)
 - [Spécification backend — HTML](./Spec_Backend_PR_Review.html)
-- [Prototype Peer Review Power BI](./PR_Review_PowerBI.html)
+- [Guide de démarrage du backend](./pr_review_backend/pr_review_backend/README.md)
+- [Prototype Peer Review Power BI](./PR_Review_PowerBI_avec_agent_v2.html)
 
 ---
 
@@ -449,7 +503,7 @@ Ouvrir ensuite une Pull Request vers `main` en décrivant :
 
 **Best Practices Colas est actuellement un prototype / MVP en cours d'industrialisation.**
 
-Les parcours fonctionnels, l'architecture cible et la stratégie backend sont documentés. Les prochaines étapes consistent principalement à consolider le code des lots, automatiser les tests, sécuriser la configuration et préparer un déploiement reproductible.
+Les parcours fonctionnels, l'architecture cible et la stratégie backend sont documentés, le backend est consolidé et testable, et un volet exploratoire d'agent BI local est amorcé. Les prochaines étapes consistent principalement à développer le frontend, automatiser l'intégration continue, et préparer un déploiement reproductible.
 
 Ce dépôt présente un travail de conception et de prototypage ; il ne constitue pas une publication officielle ni une solution de production validée.
 
@@ -463,4 +517,3 @@ Projet développé et documenté par **[dataphil971](https://github.com/dataphil
 - Licence : aucune licence open source n'est actuellement définie.
 
 En l'absence de fichier `LICENSE`, tous les droits restent réservés à l'auteur du dépôt. Toute réutilisation ou diffusion doit respecter le contexte du projet et les règles de confidentialité applicables.
-
