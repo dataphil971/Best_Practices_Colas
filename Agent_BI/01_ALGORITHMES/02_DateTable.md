@@ -1,425 +1,538 @@
-# BP-02 (alias SEM-002) — Table de dates dédiée, marquée et correctement configurée
+# BP-02 — Table de dates dédiée et correctement configurée
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-Un modèle Power BI qui exploite la time intelligence (`TOTALYTD`, `SAMEPERIODLASTYEAR`, comparaisons N/N-1, dérives de dates relatives, etc.) doit s'appuyer sur une **table de dates dédiée**, physiquement présente dans le modèle, **marquée comme table de dates** (`isDateTable` / marquage via `Mark as date table`) et **reliée aux tables de faits** par une clé de date.
+Vérifier qu'un modèle dispose d'une table de dates dédiée **lorsqu'une telle table est réellement requise**.
 
-L'agent doit vérifier deux volets complémentaires :
+La règle doit éviter deux faux positifs majeurs :
 
-1. **Existence et statut de la table** : une table candidate à un rôle de dimension date existe, est correctement marquée, contient une colonne clé de type date/heure continue et sans trou, et est reliée à au moins une table de faits.
-2. **Configuration de la colonne clé de date** : la colonne servant de clé (généralement nommée `DATE`) respecte un typage et un format cohérents avec un usage de time intelligence.
+1. conclure `KO` dans un modèle ne faisant aucune analyse temporelle ;
+2. identifier une table de dates uniquement parce qu'elle s'appelle `D_DATE`, `Calendar` ou `Calendrier`.
 
-La règle doit être générique et fonctionner indépendamment :
+Statuts :
 
-- du nom exact du rapport ou du modèle ;
-- du nom réel donné à la table de dates (`D_DATES`, `D_DATE`, `DimDate`, `Calendar`, `Calendrier`...) ;
-- du nombre de tables de faits reliées à cette dimension ;
-- de l'ordre des propriétés dans les fichiers TMDL ;
-- du fait que la table soit visible ou masquée dans le volet des champs.
+```text
+OK / KO / NA
+```
 
 ---
 
-## 2. Emplacement du modèle sémantique
+## 2. Applicabilité
+
+Valeurs :
 
 ```text
-<SEMANTIC_MODEL_PATH>\definition\tables\*.tmdl
-<SEMANTIC_MODEL_PATH>\definition\relationships.tmdl
+DATE_TABLE_REQUIRED
+DATE_TABLE_NOT_REQUIRED
+UNKNOWN
 ```
 
-Exemple pour ce projet :
+La requirement peut provenir de :
 
-```text
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\
-AI_BAROMETER_BI-CDS.SemanticModel\definition\relationships.tmdl
+### Policy explicite
+
+```yaml
+bp_02:
+  require_dedicated_date_table: true
 ```
 
-L'agent doit charger :
+### Usage temporel démontré
 
-1. l'ensemble des fichiers `tables/*.tmdl`, pour repérer la table candidate et sa colonne clé ;
-2. `relationships.tmdl`, pour vérifier qu'elle est bien reliée à au moins une table de faits.
+Exemples :
+
+- fonctions DAX de time intelligence classique ;
+- relations sur des colonnes temporelles utilisées dans le rapport ;
+- policy de reporting imposant une dimension date.
+
+Le backend doit utiliser un parseur DAX et un usage index.
 
 ---
 
-## 3. Repérer la table candidate
+## 3. Classic time intelligence vs calendar-based time intelligence
 
-Une table est candidate au rôle de dimension date si **au moins un** des signaux suivants est présent :
+Power BI possède désormais plusieurs approches de time intelligence.
+
+Le checker doit distinguer :
 
 ```text
-Signal A — Nom          : le nom de la table matche /^(D_)?DATE(S)?$|^Dim_?Date$|^Calendar$|^Calendrier$/i
-Signal B — Propriété     : la définition de table contient la propriété `isDateTable` (marquage explicite
-                            "Mark as date table" effectué dans Power BI Desktop)
-Signal C — Colonne clé   : la table contient une colonne de type `dateTime`/`date` couvrant une plage
-                            continue de dates (une ligne par jour, sans doublon), généralement nommée DATE
+CLASSIC_DATE_TABLE
+CALENDAR_BASED_TIME_INTELLIGENCE
 ```
+
+Si la policy impose explicitement :
+
+```text
+CLASSIC_DATE_TABLE
+```
+
+un calendar moderne n'est pas automatiquement considéré comme équivalent.
+
+Si la policy autorise les deux :
+
+```text
+calendar valide -> peut satisfaire la requirement
+```
+
+---
+
+## 4. Sources
+
+```text
+<SEMANTIC_MODEL_PATH>/definition/tables/*.tmdl
+<SEMANTIC_MODEL_PATH>/definition/relationships.tmdl
+```
+
+Contexte :
+
+```text
+dax_ast
+date_table_metadata
+calendar_index
+relationship_graph
+column_statistics
+usage_index
+company_policy
+```
+
+---
+
+## 5. Identification d'une date table
+
+Le nom n'est qu'un diagnostic.
+
+Preuves fortes possibles :
+
+```text
+marquage date table résolu par le parser TMDL/TOM
+calendar object explicitement configuré
+policy identifiant la table
+métadonnée de gouvernance
+```
+
+Preuves secondaires :
+
+```text
+colonne Date/dateTime
+one row per day
+unique
+no null
+continuous date range
+```
+
+---
+
+## 6. Résolution version-aware du marquage
+
+Le checker ne doit pas rechercher naïvement une seule chaîne :
+
+```text
+isDateTable
+```
+
+dans le texte.
+
+Le parser central expose :
+
+```text
+date_table_marking = MARKED | NOT_MARKED | UNKNOWN
+```
+
+selon le contrat TMDL/TOM applicable.
+
+Pseudo-code :
 
 ```python
-def find_date_table_candidates(tables):
-    candidates = []
-    for table in tables:
-        name_match = re.match(r"^(D_)?DATE(S)?$|^Dim_?Date$|^Calendar$|^Calendrier$", table.name, re.I)
-        has_flag = table.has_property("isDateTable")
-        date_column = find_column_by_type(table, {"dateTime", "date"})
-        if name_match or has_flag or date_column:
-            candidates.append({
-                "table": table.name,
-                "name_match": bool(name_match),
-                "is_marked": has_flag,
-                "date_column": date_column.name if date_column else None,
-            })
-    return candidates
+marking = context.date_table_metadata.get_marking(
+    table.name
+)
 ```
-
-Si **aucune** table candidate n'est trouvée, la règle est évaluée `KO` : le modèle ne dispose d'aucune dimension temporelle, ce qui empêche toute time intelligence fiable (Power BI retombe alors sur les tables de dates cachées auto-générées, cf. [BP-09](09_DisableAutoDateTime.md)).
 
 ---
 
-## 4. Vérifier le marquage et la relation aux faits
+## 7. Colonne de date principale
 
-Pour la table candidate retenue (celle qui cumule le plus de signaux ; en cas d'égalité, prendre celle référencée par le plus de relations) :
+Une candidate doit avoir une colonne temporelle résolue.
 
-```python
-def check_date_table_role(table, relationships, fact_tables):
-    is_marked = table.has_property("isDateTable")
-    linked_facts = [
-        r for r in relationships
-        if (r.to_table == table.name and r.from_table in fact_tables)
-        or (r.from_table == table.name and r.to_table in fact_tables)
-    ]
-    return {
-        "is_marked": is_marked,
-        "linked_fact_count": len(linked_facts),
-        "linked_facts": [r.from_table if r.to_table == table.name else r.to_table for r in linked_facts],
-    }
+Valeurs :
+
+```text
+DATE_COLUMN_CONFIRMED
+DATE_COLUMN_UNKNOWN
 ```
+
+La colonne peut être déterminée par :
+
+- métadonnée de date table ;
+- calendar primary column ;
+- policy ;
+- analyse de données complète.
+
+Le checker ne doit pas choisir automatiquement :
+
+```text
+la première colonne dateTime
+```
+
+s'il existe plusieurs colonnes temporelles.
+
+---
+
+## 8. Validation des données
+
+Lorsque la règle dépend d'une table de dates classique, la colonne principale doit pouvoir être validée sur les critères applicables :
+
+```text
+valeurs uniques
+pas de null
+dates continues
+timestamps cohérents si DateTime
+```
+
+Niveaux de preuve :
+
+```text
+FULL_DATA
+DERIVED_FROM_CALENDAR_EXPRESSION
+SAMPLE
+NONE
+```
+
+Un échantillon ne peut pas prouver une continuité exhaustive.
+
+Par défaut :
+
+```text
+SAMPLE -> NA
+```
+
+---
+
+## 9. `formatString`
+
+Le `formatString` est une propriété de présentation.
+
+Son absence n'empêche pas une colonne d'être une date valide.
+
+Donc :
+
+```text
+formatString absent -> pas de KO BP-02
+```
+
+Il peut être signalé par une autre règle de présentation.
+
+---
+
+## 10. `summarizeBy`
+
+Le contrôle :
+
+```text
+summarizeBy: none
+```
+
+appartient déjà à BP-22.
+
+BP-02 ne doit pas produire un second `KO` pour cette propriété.
+
+Elle peut simplement référencer :
+
+```text
+related_rule = BP-22
+```
+
+---
+
+## 11. Relation / usage de la date table
+
+Si la policy exige que la date table filtre les faits :
+
+```text
+au moins une relation pertinente attendue
+```
+
+Le rôle des tables reliées doit provenir du `table_role_index` / graphe, pas de préfixes `F_`.
+
+Une relation inactive peut être valide si elle est utilisée via `USERELATIONSHIP`.
+
+---
+
+## 12. Décision
+
+### Requirement = `DATE_TABLE_NOT_REQUIRED`
+
+```text
+NA / OUT_OF_SCOPE
+```
+
+### Requirement = `UNKNOWN`
+
+```text
+NA
+```
+
+### Requirement = `DATE_TABLE_REQUIRED`
 
 | Situation | Statut |
 |---|---|
-| Table marquée `isDateTable` **et** reliée à ≥1 table de faits | `OK` (poursuivre section 5) |
-| Table présente et reliée mais **non marquée** `isDateTable` | `WARN` → `KO` (time intelligence non garantie sans marquage explicite) |
-| Table présente et marquée mais **non reliée** à une table de faits | `KO` (dimension orpheline, inutilisable en filtrage croisé) |
-| Aucune table candidate trouvée | `KO` |
+| aucune date table candidate fiable | `KO` |
+| candidate mais marquage requis absent | `KO` |
+| marquage inconnu | `NA` |
+| colonne principale absente | `KO` |
+| données invalides démontrées | `KO` |
+| validation data impossible alors qu'elle est requise | `NA` |
+| relation requise absente | `KO` |
+| tous contrôles requis satisfaits | `OK` |
 
 ---
 
-## 5. Vérifier la configuration de la colonne clé de date
-
-Une fois la table confirmée, l'agent localise la colonne clé (signal C ci-dessus, généralement `DATE`) et contrôle trois propriétés dans son bloc `column` :
-
-```tmdl
-column DATE
-    dataType: dateTime
-    isKey
-    formatString: Long Date
-    lineageTag: 24c66528-5e93-4718-bb71-57aa077b9b35
-    summarizeBy: none
-    sourceColumn: DATE
-
-    annotation SummarizationSetBy = Automatic
-```
-
-| Propriété | Valeur attendue | Résultat si absente | Résultat si différente |
-|---|---|---|---|
-| `dataType` | `dateTime` (ou `date`) | `NA` | `KO` |
-| `formatString` | un format de date reconnu (`Long Date`, `Short Date`, `dd/mm/yyyy`...) — jamais un format numérique brut | `KO` (obligatoire pour un usage correct en visuel) | `KO` |
-| `summarizeBy` | `none` | `NA` | `KO` |
+## 13. Pseudo-code
 
 ```python
-def check_date_key_column(column):
-    raw_type = column.get_property("dataType")
-    raw_format = column.get_property("formatString")
-    raw_summarize = column.get_property("summarizeBy")
+def determine_requirement(
+    context,
+):
+    explicit = context.company_policy.bp02_requirement
 
-    type_status = "NA" if raw_type is None else (
-        "OK" if str(raw_type).strip().lower() in {"datetime", "date"} else "KO"
-    )
-    format_status = "KO" if not raw_format or not is_date_format(raw_format) else "OK"
-    summarize_status = "NA" if raw_summarize is None else (
-        "OK" if str(raw_summarize).strip().lower() == "none" else "KO"
+    if explicit is not None:
+        return explicit
+
+    if context.dax_ast.uses_classic_time_intelligence:
+        return "DATE_TABLE_REQUIRED"
+
+    if context.calendar_index.has_calendar_based_time_intelligence:
+        if context.company_policy.bp02_calendar_based_allowed:
+            return "DATE_TABLE_NOT_REQUIRED"
+
+    return "UNKNOWN"
+```
+
+```python
+def evaluate_date_table(
+    context,
+):
+    requirement = determine_requirement(
+        context
     )
 
-    return {"dataType": type_status, "formatString": format_status, "summarizeBy": summarize_status}
-```
+    if requirement == "DATE_TABLE_NOT_REQUIRED":
+        return rule_na(
+            reason="Table de dates dédiée non requise",
+        )
 
----
+    if requirement == "UNKNOWN":
+        return rule_na(
+            reason="Besoin de table de dates non démontré",
+        )
 
-## 6. Vérifier la continuité de la plage de dates (optionnel mais recommandé)
+    candidates = context.date_table_metadata.candidates()
 
-Si un échantillon de données est accessible (partition M ou table calculée DAX de type `CALENDAR`/`CALENDARAUTO`), l'agent peut renforcer le contrôle :
-
-```python
-def check_date_continuity(sample_dates):
-    if not sample_dates:
-        return "NA"
-    ordered = sorted(sample_dates)
-    expected_days = (ordered[-1] - ordered[0]).days + 1
-    has_duplicates = len(ordered) != len(set(ordered))
-    return "OK" if len(ordered) == expected_days and not has_duplicates else "KO"
-```
-
-Ce contrôle reste secondaire : son absence de résultat (`NA`, échantillon inaccessible) ne doit jamais faire échouer la règle à elle seule.
-
----
-
-## 7. Règle d'évaluation globale
-
-```python
-def evaluate_date_table(tables, relationships, fact_tables):
-    candidates = find_date_table_candidates(tables)
     if not candidates:
-        return {"rule_status": "KO", "reason": "Aucune table de dates candidate trouvée"}
+        return rule_ko(
+            reason="Aucune table de dates candidate fiable"
+        )
 
-    table = pick_best_candidate(candidates)
-    role = check_date_table_role(table, relationships, fact_tables)
+    results = []
 
-    if role["linked_fact_count"] == 0:
-        return {"rule_status": "KO", "table": table.name, "reason": "Table de dates non reliée à une table de faits"}
-    if not role["is_marked"]:
-        return {"rule_status": "KO", "table": table.name, "reason": "Table non marquée isDateTable"}
+    for table in candidates:
+        marking = context.date_table_metadata.get_marking(
+            table.name
+        )
 
-    key_column = find_column_by_type(table, {"dateTime", "date"})
-    if key_column is None:
-        return {"rule_status": "KO", "table": table.name, "reason": "Colonne clé de date introuvable"}
+        if context.company_policy.bp02_require_marking:
+            if marking == "NOT_MARKED":
+                results.append(
+                    finding_ko(
+                        object=table.name,
+                        reason="Table de dates non marquée",
+                    )
+                )
+                continue
 
-    props = check_date_key_column(key_column)
-    if "KO" in props.values():
-        return {"rule_status": "KO", "table": table.name, "column": key_column.name, "details": props}
-    if "NA" in props.values():
-        return {"rule_status": "NA", "table": table.name, "column": key_column.name, "details": props}
+            if marking == "UNKNOWN":
+                results.append(
+                    finding_na(
+                        object=table.name,
+                        reason="Marquage date table non résolu",
+                    )
+                )
+                continue
 
-    return {"rule_status": "OK", "table": table.name, "column": key_column.name,
-            "linked_facts": role["linked_facts"]}
+        date_column = context.date_table_metadata.primary_date_column(
+            table.name
+        )
+
+        if date_column is None:
+            results.append(
+                finding_ko(
+                    object=table.name,
+                    reason="Colonne de date principale introuvable",
+                )
+            )
+            continue
+
+        validation = context.date_column_validation.get(
+            table.name,
+            date_column.name,
+        )
+
+        if validation.state == "INVALID":
+            results.append(
+                finding_ko(
+                    object=f"{table.name}[{date_column.name}]",
+                    reason="Colonne de date invalide",
+                    evidence=validation.evidence,
+                )
+            )
+            continue
+
+        if validation.state == "UNKNOWN":
+            results.append(
+                finding_na(
+                    object=f"{table.name}[{date_column.name}]",
+                    reason="Validation exhaustive de la colonne date indisponible",
+                )
+            )
+            continue
+
+        if context.company_policy.bp02_require_relationship:
+            usage = context.relationship_graph.date_table_usage(
+                table.name
+            )
+
+            if usage.state == "NOT_USED":
+                results.append(
+                    finding_ko(
+                        object=table.name,
+                        reason="Table de dates requise mais non reliée aux tables analytiques attendues",
+                    )
+                )
+                continue
+
+            if usage.state == "UNKNOWN":
+                results.append(
+                    finding_na(
+                        object=table.name,
+                        reason="Usage relationnel de la table de dates non résolu",
+                    )
+                )
+                continue
+
+        results.append(
+            finding_ok(
+                object=table.name,
+                evidence={
+                    "primary_date_column": date_column.name,
+                    "marking": marking,
+                    "validation": validation.evidence,
+                },
+            )
+        )
+
+    return aggregate_candidate_date_tables(
+        results
+    )
 ```
-
-Priorité des statuts, identique aux autres règles du référentiel : `KO > NA > OK`.
 
 ---
 
-## 8. Parcours complet du modèle
+## 14. Plusieurs tables de dates
 
-### Étape 1 — Localiser les tables et les relations
-1. Lister tous les fichiers `tables/*.tmdl` et charger `relationships.tmdl`.
-2. Si le dossier `tables/` est introuvable ou vide, retourner `NON_EVALUE`.
+Plusieurs date tables peuvent être légitimes.
 
-### Étape 2 — Identifier la ou les tables candidates
-1. Appliquer les 3 signaux (nom, `isDateTable`, colonne de type date) à chaque table.
-2. Retenir la table qui cumule le plus de signaux ; documenter les autres candidates écartées.
-
-### Étape 3 — Vérifier le rôle de dimension
-1. Contrôler le marquage `isDateTable`.
-2. Contrôler la présence d'au moins une relation vers une table de faits (préfixe `F_` dans ce projet).
-
-### Étape 4 — Vérifier la colonne clé
-1. Localiser la colonne de type date/heure.
-2. Contrôler `dataType`, `formatString`, `summarizeBy`.
-
-### Étape 5 — Terminer l'analyse
-Produire :
-- le nom de la table retenue (ou l'absence de candidate) ;
-- le statut de marquage et le nombre de tables de faits liées ;
-- le détail des 3 propriétés de la colonne clé ;
-- le statut global `OK` / `KO` / `NA`.
-
----
-
-## 9. Structure du résultat
-
-```json
-{
-  "rule_id": "BP-02",
-  "alias": "SEM-002",
-  "rule_name": "Table de dates dédiée, marquée et correctement configurée",
-  "execution_status": "SUCCESS",
-  "rule_status": "KO",
-  "candidate_tables_found": 0,
-  "table": null,
-  "reason": "Aucune table de dates candidate trouvée dans le modèle sémantique"
-}
-```
-
-Exemple avec table trouvée mais mal configurée :
-
-```json
-{
-  "rule_id": "BP-02",
-  "alias": "SEM-002",
-  "rule_name": "Table de dates dédiée, marquée et correctement configurée",
-  "execution_status": "SUCCESS",
-  "rule_status": "KO",
-  "table": "D_DATES",
-  "is_marked": true,
-  "linked_fact_count": 2,
-  "linked_facts": ["F_RESPONSES", "F_ADOPTION_QUESTION"],
-  "column": "DATE",
-  "details": {
-    "dataType": "OK",
-    "formatString": "KO",
-    "summarizeBy": "OK"
-  },
-  "reason": "formatString absent ou non reconnu comme un format de date"
-}
-```
-
----
-
-## 10. Message présenté à l'utilisateur
-
-### Exemple `KO` (table absente — cas actuel du projet audité)
+Le checker ne doit pas :
 
 ```text
-BP-02 (SEM-002) — Table de dates dédiée : KO
-
-Aucune table de dates candidate n'a été trouvée dans
-AI_BAROMETER_BI-CDS.SemanticModel/definition/tables/.
-
-Tables de dimension présentes : D_CAMPAIGNS, D_CHOICE,
-D_USAGE_FREQUENCY_LEVELS, D_USERS — aucune ne correspond à un rôle
-de dimension date (nom, marquage isDateTable ou colonne de type date).
-
-Correction attendue :
-créer une table D_DATES avec une colonne DATE (dataType: dateTime,
-formatString: Long Date, summarizeBy: none), la marquer comme table
-de dates ("Mark as date table") et la relier aux tables de faits
-F_RESPONSES et F_ADOPTION_QUESTION via une clé de date.
+prendre celle avec le plus de relations
 ```
 
-### Exemple `OK`
+et ignorer les autres.
+
+La policy peut définir :
 
 ```text
-BP-02 (SEM-002) — Table de dates dédiée : OK
+single_shared_date_dimension
+multiple_role_playing_date_dimensions
+calendar-based architecture
+```
 
-Table D_DATES identifiée, marquée comme table de dates et reliée à
-2 table(s) de faits (F_RESPONSES, F_ADOPTION_QUESTION).
-Colonne clé DATE conforme : dataType=dateTime, formatString=Long Date,
-summarizeBy=none.
+Sans policy permettant de choisir :
+
+```text
+NA
+```
+
+si plusieurs candidates incompatibles empêchent une conclusion fiable.
+
+---
+
+## 15. Statut global
+
+```text
+KO si une exigence obligatoire est violée
+NA si la conclusion dépend d'une preuve indisponible
+OK si la requirement est démontrée et entièrement satisfaite
+```
+
+Aucun quatrième statut.
+
+---
+
+## 16. Preuve obligatoire
+
+Pour `KO` :
+
+```text
+requirement
+requirement_source
+table candidate(s)
+marking state
+primary date column
+validation evidence
+relationship/usage evidence si requis
+source files
 ```
 
 ---
 
-## 11. Conditions empêchant un faux `OK`
+## 17. Références techniques
 
-L'agent ne doit déclarer la règle `OK` que si toutes les conditions suivantes sont réunies :
+Les exigences de date table dépendent du mode de time intelligence utilisé.
 
-- au moins une table candidate a été identifiée par au moins un signal fiable (marquage ou colonne de type date — le nom seul ne suffit pas) ;
-- la table est explicitement marquée `isDateTable` ;
-- au moins une relation la relie à une table de faits ;
-- la colonne clé a été localisée et ses trois propriétés (`dataType`, `formatString`, `summarizeBy`) ont été lues et validées ;
-- aucune des trois propriétés n'est en `KO`.
-
-L'agent ne doit jamais produire `OK` sur la seule base d'un nom de table évocateur (`D_DATES`) sans vérifier le marquage effectif et la relation aux faits.
+Pour la time intelligence classique, la date table doit respecter les conditions de validité de la colonne date ; Power BI propose également des calendriers pour la time intelligence basée sur calendar.
 
 ---
 
-## 12. Résumé de la règle
+## 18. Résumé
 
 ```text
-RÈGLE BP-02 (SEM-002)
+RÈGLE BP-02
 
-IDENTIFIER les tables candidates (nom, isDateTable, colonne de type date)
-SI aucune candidate
-    règle = KO
+DÉTERMINER si une date table est requise
 
-RETENIR la meilleure candidate
-SI non reliée à une table de faits
-    règle = KO
-SI non marquée isDateTable
-    règle = KO
+NOT_REQUIRED
+    -> NA
 
-LOCALISER la colonne clé de date
-POUR dataType, formatString, summarizeBy
-    LIRE la propriété et comparer à la valeur attendue
-    SI absente → NA ; SI différente → KO
+UNKNOWN
+    -> NA
 
-SI au moins une propriété KO
-    règle = KO
-SINON SI au moins une propriété NA
-    règle = NA
-SINON
-    règle = OK
-```
+REQUIRED
+    IDENTIFIER une candidate fiable
 
-La propriété décisionnelle est la combinaison de :
-```tmdl
-isDateTable                 (marquage de la table)
-relationship fromColumn/toColumn   (relation vers une table de faits, relationships.tmdl)
-dataType / formatString / summarizeBy   (colonne clé de date)
-```
+    SI aucune
+        -> KO
 
----
+    VÉRIFIER marquage si requis
+    VÉRIFIER colonne de date principale
+    VÉRIFIER validité des données
+    VÉRIFIER relation/usage si requis
 
-## Annexe — Schéma de flux de l'algorithme
+    violation démontrée
+        -> KO
 
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-02 (SEM-002) — Table de dates dédiée, marquée        │
-│         et correctement configurée                              │
-└────────────────────────┬────────────────────────────────────────┘
-                          │
-                          ▼
-          ┌──────────────────────────────┐
-          │ Lister tables/*.tmdl          │
-          │ Charger relationships.tmdl    │
-          └──────────────┬────────────────┘
-                          │
-               ┌──────────┴──────────┐
-               ▼                     ▼
-         ╔═════════════╗    ┌──────────────────────┐
-         ║ Trouvé ✅   ║    │ Dossier tables/       │
-         ╚════╤════════╝    │ introuvable/vide ❌   │
-              │              └──────────┬────────────┘
-              │                         ▼
-              │                 ┌───────────────────┐
-              │                 │ Retour : NON_EVALUE│
-              │                 └───────────────────┘
-              ▼
-   ┌───────────────────────────────────────────┐
-   │ POUR chaque table (boucle)                 │
-   │ Appliquer 3 signaux candidats :            │
-   │  A. Nom (D_DATES/DimDate/Calendar...)      │
-   │  B. Propriété isDateTable                  │
-   │  C. Colonne de type date/dateTime continue │
-   └──────────────────┬──────────────────────────┘
-                       ▼
-        ┌──────────────────────────────┐
-        │ Au moins une candidate ?     │
-        └───────┬──────────────┬────────┘
-             non│               │oui
-                ▼               ▼
-        ╔═══════════════╗  ┌────────────────────────┐
-        ║ règle = KO    ║  │ Retenir la meilleure    │
-        ║ (aucune table ║  │ candidate (+ de signaux)│
-        ║  de dates)    ║  └───────────┬──────────────┘
-        ╚═══════════════╝              ▼
-                          ┌────────────────────────────┐
-                          │ Reliée à ≥1 table de faits ?│
-                          └──────┬──────────────┬────────┘
-                                non│              │oui
-                                   ▼              ▼
-                        ╔═══════════════╗ ┌─────────────────────┐
-                        ║ règle = KO    ║ │ Marquée isDateTable ?│
-                        ╚═══════════════╝ └──────┬────────┬───────┘
-                                                non│         │oui
-                                                   ▼         ▼
-                                        ╔═══════════════╗ ┌───────────────────────┐
-                                        ║ règle = KO    ║ │ Colonne clé de date    │
-                                        ╚═══════════════╝ │ (type date/dateTime)   │
-                                                           │ trouvée ?              │
-                                                           └──────┬────────┬────────┘
-                                                                non│         │oui
-                                                                   ▼         ▼
-                                                        ╔═══════════════╗ ┌─────────────────────────────┐
-                                                        ║ règle = KO    ║ │ POUR chaque propriété :      │
-                                                        ╚═══════════════╝ │ dataType / formatString /    │
-                                                                          │ summarizeBy (boucle 3 items) │
-                                                                          │ LIRE et COMPARER à l'attendu │
-                                                                          │ SI absente → NA ; SI ≠ → KO  │
-                                                                          └──────────────┬────────────────┘
-                                                                                         ▼
-                                                                     ┌──────────────────────────────────┐
-                                                                     │ CALCUL DU RÉSULTAT FINAL          │
-                                                                     │ SI ≥1 propriété KO   → règle = KO │
-                                                                     │ SINON SI ≥1 NA        → règle = NA│
-                                                                     │ SINON                  → règle = OK│
-                                                                     └──────────────────┬─────────────────┘
-                                                                                        ▼
-                                                                        RETOUR rule_status (OK/KO/NA)
+    preuve insuffisante
+        -> NA
+
+    tout conforme
+        -> OK
 ```
