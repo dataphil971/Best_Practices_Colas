@@ -292,6 +292,54 @@ Implémenté   : engine/ (contexte, orchestrateur), powerbi/ (parseur TMDL des t
 
 `BP-22` sert de référence pour implémenter les prochaines règles : même structure (`engine`/`powerbi`/`rules`/`tests`), même correspondance stricte avec son algorithme (`01_ALGORITHMES/22_DisableSummarization.md`), mêmes trois statuts `OK`/`KO`/`NA`.
 
+### Contrat JSON
+
+`main.py` produit une enveloppe versionnée (`engine/envelope.py`), pensée pour être consommée par un appelant externe (serveur Node local, route FastAPI d'import) sans connaître les détails internes du moteur :
+
+```json
+{
+  "schema_version": "1.0",
+  "engine_version": "0.1.0",
+  "project": {
+    "name": "AI_BAROMETER_BI-CDS",
+    "format": "PBIP",
+    "project_path": "C:\\...\\TEST",
+    "semantic_model_path": "C:\\...\\AI_BAROMETER_BI-CDS.SemanticModel",
+    "fingerprint": "sha256:..."
+  },
+  "results": [
+    {
+      "rule_id": "BP-22",
+      "alias": "SEM-001",
+      "rule_name": "Désactivation de l'autosummarization",
+      "execution_status": "SUCCESS",
+      "rule_status": "OK",
+      "total_tables": 15,
+      "total_columns": 69,
+      "conforming_columns": 69,
+      "nonconforming_columns": 0,
+      "na_columns": 0,
+      "ko_details": [],
+      "na_details": [],
+      "findings": [
+        { "rule_id": "BP-22", "object_type": "column", "object": "D_CAMPAIGNS.CAMPAIGN_ID",
+          "expected": "summarizeBy = none", "actual": "none", "status": "OK",
+          "evidence": { "table": "D_CAMPAIGNS", "column": "CAMPAIGN_ID", "source_file": "..." },
+          "reason": "" }
+      ]
+    }
+  ]
+}
+```
+
+Points de contrat :
+
+- `schema_version` change uniquement en cas d'évolution incompatible de cette forme — un consommateur externe doit s'y fier plutôt qu'à la présence/absence d'un champ.
+- `project.semantic_model_path` vaut `null` si aucun dossier `*.SemanticModel` n'a été trouvé sous `project_path` — à distinguer d'un modèle trouvé mais sans table lisible (`semantic_model_path` renseigné, `tables` vide côté moteur).
+- `project.fingerprint` est une empreinte légère (chemin + taille + date de modification de chaque fichier de table lu, pas le contenu) : suffisante pour détecter qu'un projet a changé depuis la dernière analyse, pas une empreinte cryptographique de contenu.
+- `results[].findings` porte la preuve complète (Rule ID / Object / Expected / Actual / Evidence / Status) pour **chaque** objet analysé, y compris les `OK` — un consommateur externe ne doit jamais avoir à redériver une preuve à partir de `ko_details`/`na_details`, qui restent spécifiques à chaque règle.
+- Le code de sortie du process est `0` dès que le moteur a produit un résultat structuré, **y compris quand `rule_status = KO`** : un `KO` est un résultat métier valide, pas une erreur d'exécution. Seule une exception Python non gérée produit un code non nul.
+
 ### Principe important
 
 Les règles ne doivent pas chacune relire entièrement le projet Power BI.
@@ -710,7 +758,7 @@ pip install -r requirements.txt
 python main.py "C:\Projects\MyProject"
 ```
 
-`MyProject` doit être la racine d'un projet PBIP (dossier contenant `<Nom>.SemanticModel/`). La sortie est un JSON listant le résultat de chaque règle du registre (`rules/registry.py`), une par une (`BP-22` pour l'instant).
+`MyProject` doit être la racine d'un projet PBIP (dossier contenant `<Nom>.SemanticModel/`). La sortie est l'enveloppe JSON versionnée décrite dans `03_PYTHON` ci-dessus, avec un résultat par règle du registre (`rules/registry.py` — `BP-22` pour l'instant).
 
 ---
 

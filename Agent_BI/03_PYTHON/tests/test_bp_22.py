@@ -58,6 +58,21 @@ def test_na_when_summarize_by_is_missing_or_unreadable():
     assert result.summary["na_columns"] == 2
 
 
+def test_to_dict_serializes_full_findings_with_evidence():
+    # Un consommateur externe (API, frontend) doit pouvoir retrouver la
+    # preuve complète de chaque objet sans redériver quoi que ce soit à
+    # partir de ko_details/na_details.
+    result = bp_22.check(_context_for("ko")).to_dict()
+
+    assert "findings" in result
+    amount_finding = next(f for f in result["findings"] if f["object"] == "F_TEST.AMOUNT")
+    assert amount_finding["status"] == "KO"
+    assert amount_finding["expected"] == "summarizeBy = none"
+    assert amount_finding["actual"] == "sum"
+    assert amount_finding["evidence"]["table"] == "F_TEST"
+    assert amount_finding["evidence"]["source_file"].endswith("F_TEST.tmdl")
+
+
 def test_na_when_no_tmdl_file_is_found(tmp_path):
     empty_semantic_model = tmp_path / "Empty.SemanticModel"
     (empty_semantic_model / "definition" / "tables").mkdir(parents=True)

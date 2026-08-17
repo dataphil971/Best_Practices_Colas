@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 from engine.context import AnalysisContext
+from engine.envelope import build_envelope
 from engine.runner import run_rules
 from rules.registry import ALL_RULES
 
@@ -30,14 +31,21 @@ def main(argv=None) -> int:
 
     context = AnalysisContext.load(Path(args.project_path))
     results = run_rules(context, ALL_RULES)
+    envelope = build_envelope(context, results)
 
     # Le terminal Windows n'utilise pas UTF-8 par défaut : sans ce
     # reconfigure, les accents des messages (français) seraient mal
     # encodés dans la sortie, pas seulement mal affichés.
     sys.stdout.reconfigure(encoding="utf-8")
-    print(json.dumps([result.to_dict() for result in results], indent=2, ensure_ascii=False))
+    print(json.dumps(envelope, indent=2, ensure_ascii=False))
 
-    return 1 if any(result.rule_status == "KO" for result in results) else 0
+    # Un `rule_status = KO` est un résultat métier valide, pas une erreur
+    # d'exécution : un futur appelant (ex. serveur Node) ne doit pas le
+    # confondre avec un crash. Le code de sortie reste 0 tant que le moteur
+    # a effectivement produit un résultat structuré pour chaque règle ;
+    # seule une exception non gérée (comportement par défaut de Python)
+    # doit produire un code non nul.
+    return 0
 
 
 if __name__ == "__main__":

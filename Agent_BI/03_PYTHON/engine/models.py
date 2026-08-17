@@ -81,4 +81,10 @@ class RuleResult:
         result["execution_status"] = self.execution_status
         result["rule_status"] = self.rule_status
         result.update(self.summary)
+        # `summary` ne contient que ce que chaque règle choisit d'y mettre
+        # (ex: ko_details/na_details pour BP-22). `findings` porte la preuve
+        # complète (object/expected/actual/evidence) pour CHAQUE objet,
+        # y compris les OK — nécessaire pour un consommateur externe
+        # (API, frontend) qui ne doit jamais avoir à redériver une preuve.
+        result["findings"] = [finding.to_dict() for finding in self.findings]
         return result
