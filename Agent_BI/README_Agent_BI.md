@@ -155,16 +155,14 @@ Exemple :
 ```text
 01_ALGORITHMES/
 |
-├── SEMANTIC_MODEL/
-│   ├── SM-REL-001.md
-│   ├── SM-COL-001.md
-│   └── ...
-│
-└── REPORT/
-    ├── RP-VIS-001.md
-    ├── RP-PAGE-001.md
-    └── ...
+├── 01_Relations.md            (BP-01)
+├── 02_DateTable.md             (BP-02)
+├── 03_AvoidBidirectional.md    (BP-03)
+├── 22_DisableSummarization.md  (BP-22, alias SEM-001)
+└── ...
 ```
+
+Les fichiers sont rangés à plat dans `01_ALGORITHMES/`, sans sous-dossiers par périmètre : le périmètre (modèle sémantique ou rapport) n'est pas porté par l'identifiant ni par un dossier, mais par le contenu même de l'algorithme (voir `Convention des règles`).
 
 Un algorithme ne doit pas dépendre du langage utilisé pour son implémentation.
 
@@ -473,7 +471,7 @@ Status
 Exemple :
 
 ```text
-Rule ID   : SM-COL-001
+Rule ID   : BP-22
 
 Table     : F_SALES
 Column    : Amount
@@ -562,35 +560,46 @@ Une restructuration complexe du modèle sémantique entre par exemple dans cette
 
 ## Convention des règles
 
-Les règles utilisent un identifiant permettant de retrouver immédiatement leur périmètre.
-
-Exemple :
+Les règles utilisent un identifiant plat, sans préfixe de périmètre :
 
 ```text
-SM-COL-001
+BP-NN
 ```
 
 Décomposition :
 
 ```text
-SM  = Semantic Model
-COL = Column
-001 = numéro de la règle
+BP  = Bonne Pratique
+NN  = numéro de la règle (deux chiffres, séquentiel)
+```
+
+Le périmètre (modèle sémantique ou rapport) n'est pas encodé dans l'identifiant. Il se déduit du contenu de l'algorithme, notamment de la section « Emplacement des fichiers concernés », qui référence explicitement :
+
+```text
+<SEMANTIC_MODEL_PATH>/definition/...   -> périmètre Semantic Model
+<REPORT_PATH>/definition/...           -> périmètre Report
 ```
 
 Exemples :
 
-| Identifiant | Périmètre |
-|---|---|
-| `SM-REL-001` | Semantic Model / Relationships |
-| `SM-COL-001` | Semantic Model / Columns |
-| `SM-MEA-001` | Semantic Model / Measures |
-| `SM-TBL-001` | Semantic Model / Tables |
-| `RP-VIS-001` | Report / Visuals |
-| `RP-PAGE-001` | Report / Pages |
-| `RP-FILT-001` | Report / Filters |
+| Identifiant | Fichier | Périmètre |
+|---|---|---|
+| `BP-01` | `01_Relations.md` | Semantic Model / Relationships |
+| `BP-21` | `21_ConciseNames.md` | Semantic Model / Nommage |
+| `BP-22` | `22_DisableSummarization.md` | Semantic Model / Columns |
+| `BP-37` | `37_OrganizeVisualsBookmarks.md` | Report / Visuals |
+| `BP-39` | `39_ConfigAndTestFilters.md` | Report / Filters |
 
-Le même identifiant doit être utilisé dans :
+La numérotation peut comporter des trous (règles pas encore rédigées) : ce n'est pas une anomalie.
+
+Certaines règles portent un **alias hérité** d'un schéma de nommage antérieur (`SEM-XXX`), conservé uniquement à titre de traçabilité historique. L'identifiant de référence reste toujours `BP-NN` :
+
+```text
+BP-04 (alias SEM-003)
+BP-22 (alias SEM-001)
+```
+
+Le même identifiant `BP-NN` doit être utilisé dans :
 
 ```text
 Algorithme
@@ -606,19 +615,19 @@ Exemple :
 
 ```text
 01_ALGORITHMES/
-SM-COL-001.md
+21_ConciseNames.md   (BP-21)
 
         ↕
 
 03_PYTHON/
 rules/
-sm_col_001.py
+bp_21.py
 
         ↕
 
 03_PYTHON/
 tests/
-test_sm_col_001.py
+test_bp_21.py
 ```
 
 ---

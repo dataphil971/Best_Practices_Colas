@@ -92,9 +92,9 @@ INTERNAL_WHITESPACE = re.compile(r"\s")
 | Nom de table sans préfixe reconnu (`D_`/`F_`/`T_`/`P_`) et différent de `MEASURE` | `KO` | Rupture de la convention de préfixage du projet. |
 | Nom d'objet (table, colonne, mesure ou `displayFolder`) avec espace en début ou fin de chaîne | `KO` | Espace superflu, source d'erreurs de correspondance silencieuses. |
 | Nom de colonne avec espace interne (rompt la convention `UPPER_SNAKE_CASE` par ailleurs respectée) | `KO` | Incohérence avec le reste du modèle. |
-| Nom de mesure avec espace interne | `WARN` | Toléré techniquement en DAX, mais incohérent avec la convention sans espace observée sur la majorité des autres mesures du projet — recommandation non bloquante. |
+| Nom de mesure avec espace interne | `KO` | Toléré techniquement en DAX, mais rompt la convention sans espace observée sur la majorité des autres mesures du projet. |
 | Nom contenant un caractère spécial ambigu (accents, `#`, `%`, `/`, `\`, saut de ligne, guillemets internes non échappés) | `KO` | Risque de confusion ou d'erreur d'échappement dans les outils avals (DAX Studio, Tabular Editor, export). |
-| Nom de `displayFolder` avec casse incohérente par rapport aux autres dossiers du même niveau (ex. `usage` vs `USAGE` vs `Usage` mélangés dans la même table) | `WARN` | Incohérence de présentation, non bloquante. |
+| Nom de `displayFolder` avec casse incohérente par rapport aux autres dossiers du même niveau (ex. `usage` vs `USAGE` vs `Usage` mélangés dans la même table) | `KO` | Incohérence de présentation par rapport à la convention observée dans le reste du modèle. |
 
 Exemple issu du modèle audité :
 
@@ -114,7 +114,7 @@ Exemple issu du modèle audité :
 ### Étape 1 — Localiser et charger
 1. Lister tous les fichiers `tables\*.tmdl`.
 2. Charger `relationships.tmdl` pour récupérer les noms de colonnes qui y sont référencés (utile en complément de la lecture directe des fichiers de table, notamment pour les noms nécessitant un échappement).
-3. Si aucun fichier de table n'est trouvé, retourner `NON_EVALUE`.
+3. Si aucun fichier de table n'est trouvé, retourner `NA` (information indisponible pour conclure).
 
 ### Étape 2 — Contrôler chaque nom de table
 Pour chaque fichier `tables\<NOM>.tmdl`, extraire le nom réel de la table (déclaration `table <NOM>`) et appliquer `TABLE_NAME_PATTERN` (avec l'exemption `MEASURE`).
@@ -129,7 +129,7 @@ Pour chaque mesure ou colonne portant un `displayFolder`, extraire sa valeur et 
 L'agent doit parcourir l'intégralité des tables, colonnes, mesures et dossiers d'affichage, en recensant toutes les violations, pas seulement la première.
 
 ### Étape 6 — Terminer l'analyse
-Produire le nombre total d'objets analysés par catégorie, la répartition `OK`/`WARN`/`KO`, et le détail complet des objets `KO` et `WARN` avec le type d'anomalie précis.
+Produire le nombre total d'objets analysés par catégorie, la répartition `OK`/`KO`/`NA`, et le détail complet des objets `KO` avec le type d'anomalie précis.
 
 ---
 
@@ -181,17 +181,17 @@ def check_measure_name(name):
     if LEADING_OR_TRAILING_WHITESPACE.search(name):
         return {"status": "KO", "reason": "Espace en début ou fin de nom de mesure"}
     if INTERNAL_WHITESPACE.search(name):
-        return {"status": "WARN", "reason": "Espace interne toléré en DAX mais incohérent avec la convention du modèle"}
+        return {"status": "KO", "reason": "Espace interne toléré en DAX mais incohérent avec la convention du modèle"}
     if not MEASURE_NAME_PATTERN.match(name):
         return {"status": "KO", "reason": "Caractère spécial ambigu dans le nom de mesure"}
     return {"status": "OK"}
 
 
-ok_results, warn_results, ko_results = [], [], []
+ok_results, ko_results = [], []
 
 table_files = find_all_tmdl_files("<SEMANTIC_MODEL_PATH>/definition/tables/")
 if not table_files:
-    return {"execution_status": "ERROR", "rule_status": "NON_EVALUE",
+    return {"execution_status": "ERROR", "rule_status": "NA",
             "reason": "Aucun fichier de table TMDL trouvé"}
 
 for table_file in table_files:
@@ -199,20 +199,17 @@ for table_file in table_files:
 
     result = check_table_name(table.name)
     entry = {"object_type": "table", "object_name": repr(table.name), **result}
-    (ok_results if result["status"] == "OK" else
-     warn_results if result["status"] == "WARN" else ko_results).append(entry)
+    (ok_results if result["status"] == "OK" else ko_results).append(entry)
 
     for column in table.columns:
         result = check_column_name(column.name)
         entry = {"object_type": "column", "object_name": f"{table.name}.{repr(column.name)}", **result}
-        (ok_results if result["status"] == "OK" else
-         warn_results if result["status"] == "WARN" else ko_results).append(entry)
+        (ok_results if result["status"] == "OK" else ko_results).append(entry)
 
     for measure in table.measures:
         result = check_measure_name(measure.name)
         entry = {"object_type": "measure", "object_name": f"{table.name}.{repr(measure.name)}", **result}
-        (ok_results if result["status"] == "OK" else
-         warn_results if result["status"] == "WARN" else ko_results).append(entry)
+        (ok_results if result["status"] == "OK" else ko_results).append(entry)
 ```
 
 ---
@@ -220,21 +217,21 @@ for table_file in table_files:
 ## 8. Calcul du statut global
 
 ```python
-if ko_results:
+if not table_files:
+    rule_status = "NA"
+elif ko_results:
     rule_status = "KO"
-elif warn_results:
-    rule_status = "WARN"
 else:
     rule_status = "OK"
 ```
 
-Priorité des statuts : `KO > WARN > OK` (pas de `NA` pertinent pour cette règle, qui s'applique systématiquement dès qu'au moins une table est présente).
+Priorité des statuts : `KO > NA > OK`.
 
 | Résultat de l'analyse | Statut global |
 |---|---|
 | Tous les noms d'objets respectent la convention | `OK` |
-| Au moins une incohérence non bloquante (espace interne de mesure, casse de dossier) | `WARN` |
-| Au moins une violation bloquante (espace en tête/fin, préfixe manquant, caractère spécial) | `KO` |
+| Au moins une violation (espace en tête/fin/interne, préfixe manquant, caractère spécial, casse de `displayFolder` incohérente) | `KO` |
+| Aucun fichier de table TMDL trouvé | `NA` |
 
 ---
 
@@ -252,10 +249,8 @@ Exemple `OK` (hypothèse d'un modèle entièrement nettoyé) :
   "total_columns": 69,
   "total_measures": 42,
   "ok_objects": 126,
-  "warn_objects": 0,
   "ko_objects": 0,
-  "ko_details": [],
-  "warn_details": []
+  "ko_details": []
 }
 ```
 
@@ -271,15 +266,13 @@ Exemple `KO` (état réel constaté dans ce projet) :
   "total_columns": 69,
   "total_measures": 42,
   "ok_objects": 124,
-  "warn_objects": 0,
   "ko_objects": 2,
   "ko_details": [
     {"object_type": "column", "object_name": "D_CHOICE.'ID '",
      "reason": "Espace en début ou fin de nom de colonne"},
     {"object_type": "column", "object_name": "P_EVOLUTION_LEGEND_TOP.'P_LEGEND Order'",
      "reason": "Espace interne dans le nom de colonne (attendu UPPER_SNAKE_CASE)"}
-  ],
-  "warn_details": []
+  ]
 }
 ```
 
@@ -340,6 +333,10 @@ L'agent ne doit jamais produire `OK` si un seul nom d'objet présente un espace 
 ```text
 RÈGLE BP-21
 
+SI aucun fichier de table TMDL trouvé
+    règle = NA
+    FIN
+
 POUR chaque fichier de table TMDL
     EXTRAIRE le nom de la table SANS le nettoyer (préserver espaces éventuels)
 
@@ -357,28 +354,24 @@ POUR chaque fichier de table TMDL
             colonne = OK
 
     POUR chaque mesure
-        SI espace en tête/fin OU caractère spécial ambigu
+        SI espace en tête/fin OU caractère spécial ambigu OU espace interne
             mesure = KO
-        SINON SI espace interne
-            mesure = WARN
         SINON
             mesure = OK
 
     POUR chaque displayFolder
         SI espace en tête/fin OU casse incohérente avec les autres dossiers du niveau
-            displayFolder = KO ou WARN selon la gravité
+            displayFolder = KO
 
     ENREGISTRER chaque résultat avec le nom exact (guillemets/espaces préservés dans la preuve)
 FIN POUR
 
 SI au moins un objet KO
     règle = KO
-SINON SI au moins un objet WARN
-    règle = WARN
 SINON
     règle = OK
 
-AFFICHER tous les objets KO et WARN avec le renommage recommandé
+AFFICHER tous les objets KO avec le renommage recommandé
 ```
 
 ---
@@ -403,7 +396,7 @@ AFFICHER tous les objets KO et WARN avec le renommage recommandé
                 │                        ▼
                 │                ┌────────────────┐
                 │                │ Retour :          │
-                │                │ NON_EVALUE        │
+                │                │ NA                │
                 │                └────────────────┘
                 ▼
      ┌──────────────────────────────────────────┐
@@ -452,31 +445,25 @@ AFFICHER tous les objets KO et WARN avec le renommage recommandé
                       ▼
         ┌────────────────────────────────┐
         │ Espace tête/fin OU caractère       │
-        │ spécial ambigu ?                    │
+        │ spécial ambigu OU espace interne    │
         └──────────┬───────────────────────────┘
              ┌──────┴──────┐
              ▼             ▼
-       ╔═══════════╗ ┌────────────────────────┐
-       ║ OUI = KO  ║ │ NON : espace interne ?      │
-       ╚═══════════╝ └──────────┬─────────────────┘
-                           ┌──────┴──────┐
-                           ▼             ▼
-                     ╔═══════════╗ ┌──────────┐
-                     ║ OUI = WARN║ │ NON = OK   │
-                     ╚═══════════╝ └──────────┘
-                           │             │
-                           └──────┬──────┘
-                                 ▼
+       ╔═══════════╗ ┌──────────┐
+       ║ OUI = KO  ║ │ NON = OK   │
+       ╚═══════════╝ └──────────┘
+             │             │
+             └──────┬──────┘
+                    ▼
    FIN DE BOUCLE (table/colonne/mesure suivante)
                                  │
                                  ▼
     ┌────────────────────────────────────────────┐
     │ CALCUL DU RÉSULTAT FINAL                        │
     │ KO présent ?              → règle = KO             │
-    │ Sinon WARN présent ?      → règle = WARN           │
     │ Sinon                      → règle = OK            │
-    │ (pas de statut NA pertinent pour BP-21)             │
+    │ (NA si aucun fichier de table TMDL trouvé)          │
     └────────────────────┬───────────────────────────────┘
                          ▼
-             RETOUR rule_status (OK/WARN/KO)
+             RETOUR rule_status (OK/KO/NA)
 ```

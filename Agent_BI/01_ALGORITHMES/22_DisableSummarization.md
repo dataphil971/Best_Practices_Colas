@@ -114,7 +114,7 @@ L'agent doit parcourir l'intégralité du modèle sémantique sans s'arrêter ap
 1. Accéder au dossier `<SEMANTIC_MODEL_PATH>\definition\tables\`.
 2. Vérifier que le dossier existe et qu'il est accessible.
 3. Récupérer la liste complète des fichiers `*.tmdl`.
-4. Si aucun fichier n'est trouvé, arrêter l'évaluation et retourner un statut technique `NON_EVALUE`.
+4. Si aucun fichier n'est trouvé, arrêter l'évaluation et retourner `NA` (information indisponible pour conclure).
 
 ### Étape 2 — Lire chaque table
 Pour chaque fichier TMDL : ouvrir le fichier ; identifier le nom réel de la table ; identifier tous les blocs `column` ; analyser chaque colonne détectée ; passer au fichier de table suivant.
@@ -186,7 +186,7 @@ table_files = find_all_tmdl_files("<SEMANTIC_MODEL_PATH>/definition/tables/")
 if not table_files:
     return {
         "execution_status": "ERROR",
-        "rule_status": "NON_EVALUE",
+        "rule_status": "NA",
         "reason": "Aucun fichier de table TMDL trouvé",
     }
 
@@ -414,7 +414,7 @@ annotation SummarizationSetBy = <STATUS>
          ╚══════╤══════╝                 ▼
                 │                ┌────────────────┐
                 │                │ Retour :          │
-                │                │ NON_EVALUE        │
+                │                │ NA                │
                 │                └────────────────┘
                 ▼
      ┌──────────────────────────────────────────┐
