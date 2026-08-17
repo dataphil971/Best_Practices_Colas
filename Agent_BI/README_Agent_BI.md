@@ -283,6 +283,15 @@ Architecture cible :
 
 `rules/` et `fixes/` sont à plat, sans sous-dossiers `semantic_model/`/`report/` : comme pour `01_ALGORITHMES/`, le périmètre se déduit du contenu de chaque fichier, pas de son emplacement (cf. `Convention des règles`).
 
+### État actuel
+
+```text
+Implémenté   : engine/ (contexte, orchestrateur), powerbi/ (parseur TMDL des tables), BP-22, tests + fixtures
+À construire : les autres BP-NN, powerbi/ (PBIR/Report), fixes/, run-agent.ps1
+```
+
+`BP-22` sert de référence pour implémenter les prochaines règles : même structure (`engine`/`powerbi`/`rules`/`tests`), même correspondance stricte avec son algorithme (`01_ALGORITHMES/22_DisableSummarization.md`), mêmes trois statuts `OK`/`KO`/`NA`.
+
 ### Principe important
 
 Les règles ne doivent pas chacune relire entièrement le projet Power BI.
@@ -692,6 +701,16 @@ Agent BI
 ```
 
 La logique métier reste dans le moteur Python.
+
+`run-agent.ps1` n'existe pas encore. En attendant, le point d'entrée réel et fonctionnel est directement `03_PYTHON/main.py` :
+
+```powershell
+cd Agent_BI/03_PYTHON
+pip install -r requirements.txt
+python main.py "C:\Projects\MyProject"
+```
+
+`MyProject` doit être la racine d'un projet PBIP (dossier contenant `<Nom>.SemanticModel/`). La sortie est un JSON listant le résultat de chaque règle du registre (`rules/registry.py`), une par une (`BP-22` pour l'instant).
 
 ---
 
