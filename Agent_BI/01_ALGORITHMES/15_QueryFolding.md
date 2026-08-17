@@ -1,497 +1,519 @@
 # BP-15 — Maximiser le query folding vers la source
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-Le **query folding** (repli de requête) est le mécanisme par lequel le moteur Mashup de Power Query traduit les étapes M en une requête native exécutée directement par la source (SQL, Databricks, OData...), au lieu de rapatrier les données brutes et de les transformer localement. Lorsqu'il est préservé, il permet de déléguer le filtrage, le tri, l'agrégation et le typage au moteur de la source — généralement bien plus performant et déjà optimisé (index, statistiques, parallélisme) que le moteur Mashup local.
+Vérifier le query folding sans transformer une simple analyse statique du code M en preuve de comportement runtime.
 
-L'objectif de cette règle est de vérifier que, pour les requêtes adossées à une **source repliable** (base SQL, Databricks, OData, service d'analyse...), la chaîne d'étapes M est composée exclusivement — ou majoritairement — de fonctions repliables, et que les mécanismes explicites de repli disponibles (paramètre `EnableFolding=true` de `Value.NativeQuery`) sont correctement activés lorsqu'ils sont utilisés.
+Le folding est une propriété d'évaluation de la requête et dépend :
 
-Cette règle est complémentaire de :
+- du connecteur ;
+- de ses capacités ;
+- de la chaîne d'étapes ;
+- du contexte de la requête ;
+- du moteur Power Query.
 
-- [BP-04](04_PushTransformUpstream.md), qui vérifie si les transformations métier lourdes devraient être déléguées à un dataflow / une couche gold en amont de Power Query ;
-- [BP-13](13_AvoidEarlyMergesAppends.md), qui vérifie l'ordre des étapes lourdes au sein d'une requête donnée.
+La règle distingue donc :
 
-**BP-15** se concentre sur un point différent : à source égale, la chaîne d'étapes M casse-t-elle le repli plus tôt que nécessaire à cause de fonctions ou de constructions non repliables ?
+```text
+preuve explicite de folding
+preuve explicite de non-folding
+configuration empêchant le folding
+heuristique statique
+```
 
-La règle doit être générique et fonctionner indépendamment :
+Statuts :
 
-- du nom du rapport Power BI ;
-- du type de connecteur repliable utilisé (SQL Server, Databricks, Synapse, OData, service d'analyse...) ;
-- du nombre d'étapes de chaque requête ;
-- du fait que la requête interroge directement des tables/vues de la source (navigation de schéma) ou exécute une requête native via `Value.NativeQuery`.
+```text
+OK / KO / NA
+```
 
 ---
 
-## 2. Emplacement des fichiers concernés
+## 2. Sources
 
 ```text
-<SEMANTIC_MODEL_PATH>\definition\tables\*.tmdl        (partitions "= m")
-<SEMANTIC_MODEL_PATH>\definition\expressions.tmdl      (requêtes partagées)
+<SEMANTIC_MODEL_PATH>/definition/tables/*.tmdl
+<SEMANTIC_MODEL_PATH>/definition/expressions.tmdl
 ```
 
-Exemple pour ce projet :
+Preuves runtime optionnelles :
 
 ```text
-AI_BAROMETER_BI-CDS.SemanticModel\definition\expressions.tmdl   (contient D_STRUCTURES, seule requête adossée à Databricks)
+query plan
+folding indicators
+View Native Query / native query evidence
+diagnostic export
 ```
 
-Aucun fichier du rapport n'est nécessaire : cette règle porte exclusivement sur le code M du modèle sémantique.
+Le `AnalysisContext` peut contenir :
+
+```text
+folding_capabilities
+folding_evidence
+m_ast
+query_graph
+```
 
 ---
 
-## 3. Élément(s) / propriété(s) à contrôler
-
-### 3.1 Qualifier la source comme repliable ou non
-
-```python
-FOLDABLE_CONNECTORS = {
-    "Sql.Database", "Sql.Databases",
-    "Databricks.Catalogs",                 # navigation de schéma (pas Value.NativeQuery)
-    "AnalysisServices.Database",
-    "Odbc.DataSource", "Odbc.Query",
-    "OData.Feed",
-    "PostgreSQL.Database", "Snowflake.Databases", "AzureDataLakeStorage.Contents (avec vue SQL)",
-}
-
-NON_FOLDABLE_CONNECTORS = {
-    "SharePoint.Files", "SharePoint.Tables",
-    "Excel.Workbook", "Csv.Document", "Json.Document",
-    "Web.Contents", "Folder.Files",
-}
-```
-
-### 3.2 Cas de la requête native (`Value.NativeQuery`)
-
-Exemple réel du projet audité (`expressions.tmdl`, requête `D_STRUCTURES`) :
+## 3. États de folding
 
 ```text
+FOLDED
+NOT_FOLDED
+UNKNOWN
+NOT_APPLICABLE
+```
+
+Le checker ne doit pas fabriquer `FOLDED` uniquement parce qu'aucune fonction « suspecte » n'a été trouvée.
+
+---
+
+## 4. Sources non repliables
+
+Si la source est explicitement connue comme non repliable dans le contexte :
+
+```text
+NOT_APPLICABLE
+```
+
+et :
+
+```text
+rule_status = NA
+```
+
+Cette règle ne pénalise pas une source pour laquelle le folding n'est pas disponible.
+
+---
+
+## 5. `Value.NativeQuery`
+
+`Value.NativeQuery(..., [EnableFolding=true])` peut permettre le folding d'étapes **ultérieures** lorsque le connecteur et le contexte le supportent.
+
+### Aucun traitement après la requête native
+
+Exemple :
+
+```m
 Source =
     Value.NativeQuery(
-        Databricks.Catalogs(SPARK_Hostname, SPARK_HTTP_Path, [...])
-            {[Name=ReferentialEnvironment, Kind="Database"]}[Data],
-        "
-        SELECT
-                USR_LOGIN, u.STC_UE_IDENTIFIER, s.STC_STRUCTURES_KEY,
-                CTR_COUNTRY_LABEL_EN AS USER_COUNTRY, DIR_LEVEL3_LABEL AS USER_AREA
-        FROM master_data.v_usr_colasusers_lastknown_d u
-        JOIN master_data.stc_colas_structures_last_known_d s ON ...
-        JOIN master_data.ctr_countries_d c ON ...
-        "
-        , null, [EnableFolding=true])
+        Target,
+        SqlText,
+        null,
+        []
+    )
 in
     Source
 ```
 
-Ici, la jointure SQL est exécutée **côté Databricks** : le paramètre `EnableFolding=true` est explicitement positionné en 4ᵉ argument de `Value.NativeQuery`, ce qui autorise Power Query à replier d'éventuelles étapes ultérieures (filtrage, tri) sur cette requête native plutôt que de les exécuter localement. La requête `D_STRUCTURES` ne comporte ici aucune étape après la requête native (`in Source` directement) : le repli est donc trivialement préservé sur toute la chaîne.
+Il n'existe aucune étape ultérieure à replier.
 
-### 3.3 Fonctions connues pour casser le repli
+L'absence de `EnableFolding=true` ne constitue donc pas à elle seule une non-conformité à BP-15.
 
-```python
-FOLD_BREAKING_FUNCTIONS = {
-    "Table.Buffer", "List.Buffer",                 # mise en cache locale forcée
-    "Python.Execute", "R.Execute",                  # scripts exécutés dans le moteur local
-    "Table.Profile",                                 # calcul de profils statistiques local
-    "Table.AddColumn",                               # repliable seulement si la logique "each" est simple
-                                                      # (référence de colonne + opérateur arithmétique/texte basique) ;
-                                                      # casse le repli si elle appelle une fonction M personnalisée
-                                                      # ou une fonction non traduisible en SQL
-    "Table.Distinct",                                # repliable seulement sans comparateur personnalisé
-    "Table.Group",                                   # repliable seulement avec des agrégateurs standards
-                                                      # (List.Sum, List.Count...) ; casse le repli avec "each" complexe
-}
+Résultat :
+
+```text
+OK
+```
+
+si l'objectif est uniquement de ne pas perdre un folding ultérieur inexistant.
+
+### Étapes après la requête native
+
+Si :
+
+```text
+subsequent_steps > 0
+```
+
+et que le connecteur est explicitement connu comme supportant le folding sur requête native :
+
+```text
+EnableFolding != true
+```
+
+alors la configuration empêche de bénéficier du mécanisme prévu pour le folding des étapes suivantes.
+
+```text
+KO
+```
+
+La preuve doit inclure :
+
+```text
+connector_capability
+subsequent_steps
+EnableFolding
+```
+
+### `EnableFolding=true`
+
+La présence de :
+
+```text
+EnableFolding=true
+```
+
+prouve que le mécanisme est **autorisé**, mais ne prouve pas que toutes les étapes suivantes foldent réellement.
+
+Sans autre preuve :
+
+```text
+NA
+```
+
+si des étapes ultérieures existent.
+
+---
+
+## 6. Ruptures explicites
+
+Certaines opérations peuvent fournir une preuve statique forte.
+
+### `Table.Buffer`
+
+Si `Table.Buffer` est suivi d'autres transformations, le folding en aval est empêché.
+
+```text
+source foldable
++ Table.Buffer
++ étapes après
+-> KO
+```
+
+Si `Table.Buffer` est la dernière étape :
+
+```text
+aucune étape en aval à replier
+```
+
+donc le simple fait qu'il soit présent ne suffit pas à produire `KO` pour BP-15.
+
+Un diagnostic de performance peut être ajouté.
+
+### `Table.StopFolding`
+
+Si présent avant des étapes ultérieures :
+
+```text
+KO
+```
+
+car l'intention même de cette fonction est d'empêcher les opérations en aval d'être exécutées par la source.
+
+### Fonctions à comportement dépendant du contexte
+
+Exemples :
+
+```text
+Table.AddColumn
+Table.Group
+Table.Distinct
+Table.Join
+```
+
+ne doivent pas être classés automatiquement comme :
+
+```text
+FOLD_BREAKING
+```
+
+Leur capacité de folding dépend du contexte.
+
+Sans preuve runtime ou contrat précis :
+
+```text
+NA + diagnostic
 ```
 
 ---
 
-## 4. Règle(s) d'évaluation
+## 7. Preuves runtime
 
-| Situation détectée | Statut | Interprétation |
-|---|---|---|
-| Source racine non repliable (`SharePoint.Files`, `Excel.Workbook`...) | `NA` | Le folding n'est pas applicable à cette requête : hors périmètre de la règle. |
-| `Value.NativeQuery` utilisé avec `EnableFolding=true` explicite, aucune étape non repliable après | `OK` | Le repli est correctement activé et préservé jusqu'à la fin de la requête. |
-| `Value.NativeQuery` utilisé sans le paramètre `EnableFolding`, ou avec `EnableFolding=false` | `KO` | Le repli n'est pas explicitement activé alors que la source le permettrait — étapes ultérieures potentiellement exécutées en local. |
-| Source de navigation de schéma repliable (`Sql.Database`, `Databricks.Catalogs` sans requête native), aucune fonction de `FOLD_BREAKING_FUNCTIONS` détectée dans les étapes suivantes | `OK` | Chaîne entièrement composée de fonctions présumées repliables. |
-| Source de navigation de schéma repliable, au moins une fonction de `FOLD_BREAKING_FUNCTIONS` détectée | `KO` | Le repli est présumé rompu à partir de cette étape ; toutes les étapes suivantes s'exécutent probablement en local. |
-| Requête sans code M analysable (DAX, DirectQuery/DirectLake sans partition M) | `NA` | Hors périmètre. |
-
-Exemple issu du modèle audité :
-
-| Requête | Source racine | `Value.NativeQuery` ? | `EnableFolding` | Étapes après | Statut |
-|---|---|---|---|---|---|
-| `D_STRUCTURES` | `Databricks.Catalogs` | Oui | `true` | aucune | `OK` |
-| `SOURCE` | `SharePoint.Files` | — | — | — | `NA` (source non repliable) |
-| `D_USERS`, `F_MONORESPONSES` | résolues via `SOURCE` → `SharePoint.Files` | — | — | — | `NA` |
-
-Aucune requête `KO` n'existe actuellement dans ce modèle : la seule source repliable identifiée (`D_STRUCTURES`) active correctement `EnableFolding=true`.
-
----
-
-## 5. Parcours complet du modèle
-
-### Étape 1 — Localiser et charger
-1. Lister tous les fichiers `tables/*.tmdl`.
-2. Charger `expressions.tmdl` s'il existe.
-3. Si aucun fichier de table n'est trouvé, retourner `NON_EVALUE`.
-
-### Étape 2 — Construire le graphe de requêtes atteignables
-Identique à BP-04 : ne retenir que les requêtes réellement utilisées, transitivement, par une table chargée du modèle.
-
-### Étape 3 — Qualifier la source racine de chaque requête
-Résoudre récursivement la première étape jusqu'à un appel de connecteur réel (même logique que BP-04, section 4), puis classer ce connecteur en `FOLDABLE`, `NON_FOLDABLE` ou `UNKNOWN`.
-
-### Étape 4 — Analyser la chaîne d'étapes pour les sources repliables
-Pour chaque requête dont la source racine est `FOLDABLE` :
-1. si la première étape est un `Value.NativeQuery`, vérifier la présence et la valeur du paramètre `EnableFolding` ;
-2. sinon, parcourir toutes les étapes suivantes et détecter la première fonction appartenant à `FOLD_BREAKING_FUNCTIONS` ;
-3. enregistrer le résultat avec preuve (nom de l'étape, fonction en cause).
-
-### Étape 5 — Ne pas s'arrêter à la première anomalie
-Toutes les requêtes adossées à une source repliable doivent être analysées, même après un premier `KO`.
-
-### Étape 6 — Terminer l'analyse
-Produire le nombre de requêtes analysées, la répartition `OK`/`KO`/`NA`, et le détail des requêtes `KO` avec la fonction responsable de la rupture de repli.
-
----
-
-## 6. Détection robuste / normalisation
-
-- Le paramètre `EnableFolding` de `Value.NativeQuery` peut apparaître avec une casse ou un espacement variable (`[EnableFolding=true]`, `[ EnableFolding = true ]`) : l'agent doit normaliser les espaces avant de rechercher la clé et de comparer la valeur (`true`/`false`, insensible à la casse).
-- `Value.NativeQuery` accepte 5 arguments positionnels (`connexion`, `requête`, `paramètres`, `options`) : l'option `EnableFolding` se trouve dans le 4ᵉ argument (`options`, un `record`) ; l'agent doit localiser ce record indépendamment de l'ordre des autres clés qu'il peut contenir (`EnableQueryFolding`, `HierarchicalNavigation`...).
-- Une requête peut être encadrée par des triples backticks `` ``` `` (cas de `D_STRUCTURES`) : cette enveloppe doit être retirée avant le parsing.
-- `Table.AddColumn` ne doit pas être classée automatiquement `FOLD_BREAKING` : l'agent doit inspecter le corps de la fonction `each ...` et ne la considérer comme rompant le repli que si elle appelle une fonction M personnalisée, une fonction non standard (`Text.Combine` avec logique conditionnelle complexe, appel récursif...), ou accède à des colonnes d'une autre requête non repliable.
-- Le principe de détection reste **heuristique** : la seule vérification définitive du repli est la disponibilité de l'option « Afficher la requête source » (View Native Query) sur la dernière étape dans Power BI Desktop. L'agent doit le signaler explicitement dans sa restitution comme méthode de contre-vérification manuelle, sans prétendre remplacer cette vérification runtime.
-- Les fonctions M sont sensibles à la casse (`Table.Group` ≠ `table.group`) ; les noms d'étapes utilisateur ne le sont pas et ne doivent jamais servir de critère de décision (seule la fonction réellement appelée compte).
-
----
-
-## 7. Pseudo-code détaillé
+Lorsqu'un export de diagnostic ou un query plan est disponible :
 
 ```python
-FOLD_BREAKING_FUNCTIONS = {"Table.Buffer", "List.Buffer", "Python.Execute", "R.Execute", "Table.Profile"}
+def evaluate_runtime_folding(evidence):
+    if evidence.final_state == "FOLDED":
+        return "OK"
 
-def extract_enable_folding_option(native_query_call):
-    options_record = get_argument(native_query_call, position=4)  # peut être absent
-    if options_record is None:
-        return None
-    return parse_record_boolean(options_record, key="EnableFolding")  # None si clé absente
+    if evidence.final_state == "NOT_FOLDED":
+        return "KO"
 
-def step_breaks_folding(step_expression):
-    called_functions = find_all_called_functions(step_expression)
-    if called_functions & FOLD_BREAKING_FUNCTIONS:
-        return True
-    if "Table.AddColumn" in called_functions and calls_custom_or_nonstandard_function(step_expression):
-        return True
-    if "Table.Group" in called_functions and not uses_standard_aggregators(step_expression):
-        return True
-    if "Table.Distinct" in called_functions and has_custom_comparer(step_expression):
-        return True
-    return False
+    return "NA"
+```
 
-def evaluate_query_folding(query_name, m_code, root_source_connector):
-    if root_source_connector not in FOLDABLE_CONNECTORS:
-        return {"query": query_name, "status": "NA", "reason": "Source non repliable"}
+Cette preuve a priorité sur les heuristiques statiques.
 
-    steps = extract_ordered_steps(m_code)
-    first_expr = steps[0][1] if steps else None
+---
 
-    if first_expr and "Value.NativeQuery" in find_all_called_functions(first_expr):
-        enable_folding = extract_enable_folding_option(first_expr)
-        if enable_folding is not True:
-            return {"query": query_name, "status": "KO",
-                    "reason": "Value.NativeQuery sans EnableFolding=true explicite",
-                    "enable_folding_value": enable_folding}
-        remaining_steps = steps[1:]
-    else:
-        remaining_steps = steps
+## 8. Pseudo-code
 
-    for step_name, step_expr in remaining_steps:
-        if step_breaks_folding(step_expr):
-            return {"query": query_name, "status": "KO",
-                    "reason": f"Étape '{step_name}' présumée non repliable",
-                    "breaking_step": step_name}
+```python
+def evaluate_query_folding(
+    query,
+    context,
+):
+    source_capability = context.folding_capabilities.get(
+        query.root_source
+    )
 
-    return {"query": query_name, "status": "OK"}
+    if source_capability == "NON_FOLDABLE":
+        return finding_na(
+            object=query.name,
+            reason="Source non repliable",
+            reason_code="NOT_APPLICABLE",
+        )
 
+    runtime = context.folding_evidence.get(
+        query.name
+    )
 
-ok_results, ko_results, na_results = [], [], []
+    if runtime is not None:
+        if runtime.final_state == "FOLDED":
+            return finding_ok(
+                object=query.name,
+                evidence=runtime,
+            )
 
-table_files = find_all_tmdl_files("<SEMANTIC_MODEL_PATH>/definition/tables/")
-if not table_files:
-    return {"execution_status": "ERROR", "rule_status": "NON_EVALUE",
-            "reason": "Aucun fichier de table TMDL trouvé"}
+        if runtime.final_state == "NOT_FOLDED":
+            return finding_ko(
+                object=query.name,
+                evidence=runtime,
+            )
 
-queries = build_query_graph(table_files, expressions_file="<SEMANTIC_MODEL_PATH>/definition/expressions.tmdl")
-reachable = collect_all_reachable_queries(tables_with_m_partition(table_files), queries)
+    explicit_break = find_explicit_downstream_folding_break(
+        query
+    )
 
-for name in reachable:
-    if is_out_of_scope(queries[name]):
-        na_results.append({"query": name, "status": "NA", "reason": "Pas de code M analysable"})
-        continue
+    if explicit_break is not None:
+        return finding_ko(
+            object=query.name,
+            reason="Rupture explicite du folding avant des étapes ultérieures",
+            evidence=explicit_break,
+        )
 
-    root_source = resolve_root_source(name, queries)
-    connector = classify_connector_foldability(root_source)   # FOLDABLE / NON_FOLDABLE / UNKNOWN
+    native = query.find_value_native_query()
 
-    if connector == "UNKNOWN":
-        na_results.append({"query": name, "status": "NA", "reason": "Connecteur racine non déterminable"})
-        continue
+    if native is not None:
+        later_steps = query.steps_after(
+            native.step
+        )
 
-    result = evaluate_query_folding(name, queries[name]["m_code"], connector)
-    {"OK": ok_results, "KO": ko_results, "NA": na_results}[result["status"]].append(result)
+        if not later_steps:
+            return finding_ok(
+                object=query.name,
+                reason="Aucune étape ultérieure à replier",
+            )
+
+        capability = context.native_query_folding_support.get(
+            query.root_source
+        )
+
+        if capability is not True:
+            return finding_na(
+                object=query.name,
+                reason="Capacité de folding sur requête native non démontrée",
+            )
+
+        enable = native.options.get(
+            "EnableFolding"
+        )
+
+        if enable is not True:
+            return finding_ko(
+                object=query.name,
+                expected="EnableFolding=true",
+                actual=enable,
+                evidence={
+                    "subsequent_steps": [
+                        s.name for s in later_steps
+                    ],
+                    "native_query_folding_supported": True,
+                },
+            )
+
+        return finding_na(
+            object=query.name,
+            reason=(
+                "EnableFolding activé mais folding réel des "
+                "étapes suivantes non observé"
+            ),
+            diagnostic_level="INFO",
+        )
+
+    if source_capability != "FOLDABLE":
+        return finding_na(
+            object=query.name,
+            reason="Capacité de folding de la source non déterminée",
+        )
+
+    if len(query.transform_steps) == 0:
+        return finding_ok(
+            object=query.name,
+            reason="Aucune transformation après la navigation source",
+        )
+
+    return finding_na(
+        object=query.name,
+        reason="Folding réel non démontré statiquement",
+        diagnostics=static_folding_diagnostics(
+            query
+        ),
+    )
 ```
 
 ---
 
-## 8. Calcul du statut global
+## 9. Détection des ruptures explicites
 
 ```python
-if ko_results:
-    rule_status = "KO"
-elif na_results and not ok_results:
-    rule_status = "NA"
-else:
-    rule_status = "OK"
+def find_explicit_downstream_folding_break(
+    query,
+):
+    for index, step in enumerate(query.steps):
+        called = step.called_functions
+
+        explicit = None
+
+        if "Table.StopFolding" in called:
+            explicit = "Table.StopFolding"
+
+        elif "Table.Buffer" in called:
+            explicit = "Table.Buffer"
+
+        if explicit is None:
+            continue
+
+        later_steps = query.steps[index + 1:]
+
+        if later_steps:
+            return {
+                "step": step.name,
+                "function": explicit,
+                "subsequent_steps": [
+                    s.name for s in later_steps
+                ],
+            }
+
+    return None
 ```
 
-Priorité des statuts : `KO > NA > OK`.
+---
 
-| Résultat de l'analyse | Statut global |
+## 10. Matrice de décision
+
+| Situation | Statut |
 |---|---|
-| Toutes les requêtes adossées à une source repliable préservent le folding | `OK` |
-| Au moins une requête adossée à une source repliable rompt le folding | `KO` |
-| Aucune requête du modèle n'est adossée à une source repliable | `NA` |
+| source explicitement non repliable | `NA` |
+| preuve runtime `FOLDED` | `OK` |
+| preuve runtime `NOT_FOLDED` | `KO` |
+| `Table.Buffer`/`Table.StopFolding` avec étapes en aval | `KO` |
+| `Value.NativeQuery`, aucune étape après | `OK` |
+| étapes après native query, support connu, `EnableFolding` absent/faux | `KO` |
+| étapes après native query, `EnableFolding=true`, pas de preuve runtime | `NA` |
+| source foldable, transformations présentes, pas de preuve runtime | `NA` |
+| aucune transformation après source | `OK` |
 
 ---
 
-## 9. Structure du résultat
+## 11. Statut global
 
-Exemple `OK` (état actuel du projet audité) :
+Les requêtes `NOT_APPLICABLE` ne doivent pas faire basculer le résultat.
 
-```json
-{
-  "rule_id": "BP-15",
-  "rule_name": "Maximiser le query folding vers la source",
-  "execution_status": "SUCCESS",
-  "rule_status": "OK",
-  "total_queries": 27,
-  "foldable_source_queries": 1,
-  "ok_queries": 1,
-  "ko_queries": 0,
-  "na_queries": 26,
-  "ok_details": [
-    {"query": "D_STRUCTURES", "root_source": "Databricks.Catalogs (Value.NativeQuery)", "enable_folding_value": true}
-  ],
-  "ko_details": []
-}
-```
+```python
+evaluable = [
+    r for r in results
+    if r.reason_code != "NOT_APPLICABLE"
+]
 
-Exemple `KO` :
+if any(r.status == "KO" for r in evaluable):
+    rule_status = "KO"
 
-```json
-{
-  "rule_id": "BP-15",
-  "rule_name": "Maximiser le query folding vers la source",
-  "execution_status": "SUCCESS",
-  "rule_status": "KO",
-  "total_queries": 27,
-  "foldable_source_queries": 2,
-  "ok_queries": 1,
-  "ko_queries": 1,
-  "na_queries": 25,
-  "ko_details": [
-    {
-      "query": "D_STRUCTURES_V2",
-      "root_source": "Databricks.Catalogs (Value.NativeQuery)",
-      "reason": "Value.NativeQuery sans EnableFolding=true explicite",
-      "enable_folding_value": null
-    }
-  ]
-}
+elif any(r.status == "NA" for r in evaluable):
+    rule_status = "NA"
+
+elif evaluable:
+    rule_status = "OK"
+
+else:
+    rule_status = "NA"
 ```
 
 ---
 
-## 10. Message présenté à l'utilisateur
+## 12. Preuve obligatoire
 
-### Exemple `OK`
+Un `KO` doit reposer sur au moins une preuve forte :
 
 ```text
-BP-15 — Query folding : OK
-
-1 requête adossée à une source repliable (D_STRUCTURES, via Databricks).
-La requête native déclare explicitement EnableFolding=true et aucune étape
-non repliable ne suit dans la chaîne : le repli est correctement préservé.
+runtime_state = NOT_FOLDED
 ```
 
-### Exemple `KO`
+ou :
 
 ```text
-BP-15 — Query folding : KO
-
-1 requête conforme sur 2 requêtes adossées à une source repliable.
-
-Requête non conforme :
-- D_STRUCTURES_V2 : la requête native (Value.NativeQuery sur Databricks)
-  n'active pas explicitement EnableFolding=true. Sans ce paramètre, les
-  étapes de filtrage ou de tri ajoutées après cette requête native
-  s'exécuteront potentiellement en local plutôt que d'être repliées.
-
-Correction attendue :
-ajouter l'option [EnableFolding=true] en 4e argument de Value.NativeQuery,
-puis vérifier via "Afficher la requête source" (clic droit sur la dernière
-étape dans Power BI Desktop) que le repli est effectif de bout en bout.
+explicit_breaking_function + downstream_steps
 ```
 
----
+ou :
 
-## 11. Conditions empêchant un faux OK
+```text
+native_query_folding_supported
++ downstream_steps
++ EnableFolding != true
+```
 
-L'agent ne doit déclarer la bonne pratique `OK` que si toutes les conditions suivantes sont réunies :
-
-- toutes les tables et `expressions.tmdl` ont été lues et parsées sans erreur ;
-- le graphe de requêtes atteignables a été construit intégralement ;
-- pour chaque requête retenue, la source racine a pu être résolue jusqu'à un connecteur réel ;
-- toutes les requêtes dont la source racine est repliable ont été analysées, sans exception ;
-- pour chaque `Value.NativeQuery` détecté, la présence et la valeur du paramètre `EnableFolding` ont été vérifiées explicitement (une absence de paramètre n'équivaut jamais à `OK`) ;
-- toutes les étapes de chaque requête repliable ont été inspectées pour détecter une éventuelle fonction rompant le repli.
-
-L'agent ne doit jamais produire `OK` si la source racine d'une requête n'a pas pu être déterminée avec certitude, ni conclure silencieusement qu'une fonction personnalisée non reconnue est repliable par défaut.
+Une liste statique de fonctions « probablement non foldables » n'est jamais suffisante à elle seule.
 
 ---
 
-## 12. Résumé de la règle
+## 13. Références techniques
+
+Cette logique suit les principes documentés par Microsoft Learn concernant :
+
+- le query folding sur `Value.NativeQuery` ;
+- l'option `EnableFolding=true` pour permettre le folding des étapes suivantes ;
+- les diagnostics/indicateurs de folding ;
+- `Table.Buffer`, qui empêche le folding en aval.
+
+---
+
+## 14. Résumé
 
 ```text
 RÈGLE BP-15
 
-CONSTRUIRE le graphe de requêtes atteignables
-POUR chaque requête
+SI source non repliable
+    -> NA
 
-    RÉSOUDRE la source racine (connecteur réel)
-    SI source racine non repliable
-        requête = NA
-        CONTINUER
+SI preuve runtime disponible
+    FOLDED -> OK
+    NOT_FOLDED -> KO
 
-    SI première étape = Value.NativeQuery
-        SI EnableFolding != true explicitement
-            requête = KO
-            CONTINUER
-        ÉTAPES_À_VÉRIFIER = étapes après la requête native
-    SINON
-        ÉTAPES_À_VÉRIFIER = toutes les étapes
-
-    POUR chaque étape de ÉTAPES_À_VÉRIFIER
-        SI la fonction appelée rompt le repli (Table.Buffer, script, agrégation
-           non standard, appel de fonction personnalisée non repliable...)
-            requête = KO
-            ARRÊTER la boucle sur les étapes
-
-    SI aucune rupture détectée
-        requête = OK
-
-    ENREGISTRER le résultat avec preuve (étape ou paramètre en cause)
-FIN POUR
-
-SI au moins une requête KO
-    règle = KO
-SINON SI aucune requête n'est adossée à une source repliable
-    règle = NA
 SINON
-    règle = OK
+    RECHERCHER une rupture explicite
 
-AFFICHER toutes les requêtes KO, avec recommandation et rappel de la
-vérification manuelle "Afficher la requête source"
-```
+    SI rupture explicite + étapes en aval
+        -> KO
 
----
+    SI Value.NativeQuery
+        SI aucune étape après
+            -> OK
 
-## Annexe — Schéma de flux de l'algorithme
+        SI support du folding inconnu
+            -> NA
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-15 — Maximiser le query folding vers la source           │
-└────────────────────────────┬───────────────────────────────────────┘
-                              ▼
-          ┌────────────────────────────────────────┐
-          │ Lister tables/*.tmdl                     │
-          │ + charger expressions.tmdl                │
-          └────────────────┬───────────────────────────┘
-               ┌───────────┴───────────┐
-               ▼                       ▼
-         ╔═════════════╗       ┌──────────────────┐
-         ║ Trouvés ✅  ║       │ Aucun fichier ❌    │
-         ╚══════╤══════╝       └─────────┬──────────┘
-                │                        ▼
-                │                ┌────────────────┐
-                │                │ Retour :        │
-                │                │ NON_EVALUE      │
-                │                └────────────────┘
-                ▼
-     ┌─────────────────────────────────────────┐
-     │ CONSTRUIRE le graphe des requêtes         │
-     │ atteignables depuis les tables chargées   │
-     └────────────────┬────────────────────────────┘
-                      ▼
-     ┌──────────────────────────────────────────┐
-     │ POUR chaque requête atteignable (boucle)    │
-     └────────────────┬────────────────────────────┘
-                      ▼
-        ┌───────────────────────────────┐
-        │ RÉSOUDRE la source racine       │
-        │ (connecteur réel)               │
-        └──────────┬──────────────────────┘
-                   ▼
-        ┌───────────────────────────────┐
-        │ Connecteur FOLDABLE ?           │
-        └──────────┬──────────────────────┘
-             ┌──────┴──────┐
-             ▼             ▼
-       ┌──────────┐   ╔═══════════╗
-       │ NON/      │   ║ OUI        ║
-       │ INCONNU   │   ╚═════╤══════╝
-       │ = NA      │         ▼
-       └──────────┘  ┌──────────────────────────┐
-                      │ 1re étape = Value.          │
-                      │ NativeQuery ?               │
-                      └──────────┬─────────────────┘
-                           ┌──────┴──────┐
-                           ▼             ▼
-                     ╔═══════════╗  ┌──────────────────┐
-                     ║ OUI        ║  │ NON                │
-                     ╚═════╤══════╝  │ Vérifier chaque      │
-                           ▼         │ étape (fonction        │
-              ┌────────────────────┐│ FOLD_BREAKING ?)        │
-              │ EnableFolding=true  │└─────────┬────────────────┘
-              │ explicite ?         │          │
-              └──────────┬───────────┘          │
-                   ┌──────┴──────┐              │
-                   ▼             ▼              │
-             ┌──────────┐  ╔═══════════╗        │
-             │ NON = KO │  ║ OUI         ║        │
-             └──────────┘  ╚═════╤═══════╝        │
-                                 ▼               ▼
-                     ┌────────────────────────────────┐
-                     │ Étapes suivantes analysées :      │
-                     │ fonction rompant le repli          │
-                     │ détectée (Buffer, script, agrégat  │
-                     │ non standard, AddColumn custom) ?  │
-                     └──────────────┬─────────────────────┘
-                              ┌──────┴──────┐
-                              ▼             ▼
-                        ╔═══════════╗ ┌──────────┐
-                        ║ OUI = KO  ║ │ NON = OK  │
-                        ╚═══════════╝ └──────────┘
-                              │             │
-                              └──────┬──────┘
-                                    ▼
-                    FIN DE BOUCLE (requête suivante)
-                                    │
-                                    ▼
-        ┌────────────────────────────────────────────┐
-        │ CALCUL DU RÉSULTAT FINAL                      │
-        │ KO présent ?              → règle = KO         │
-        │ Sinon NA seul (aucun OK)  → règle = NA         │
-        │ Sinon                      → règle = OK        │
-        └────────────────────┬───────────────────────────┘
-                             ▼
-             RETOUR rule_status (OK/KO/NA)
+        SI support connu ET EnableFolding != true
+            -> KO
+
+        SI EnableFolding=true mais résultat non observé
+            -> NA
+
+    SI aucune transformation
+        -> OK
+
+    SINON
+        -> NA + diagnostic
 ```
