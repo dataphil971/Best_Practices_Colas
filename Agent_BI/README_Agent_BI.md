@@ -172,7 +172,9 @@ Il décrit **ce que le programme doit faire**, et non uniquement comment Python 
 
 ## `02_SKILLS`
 
-Ce dossier contient les skills utilisés par la couche agentique d'Agent BI.
+Ce dossier documente la couche agentique d'Agent BI dans l'architecture fonctionnelle du projet.
+
+Les fichiers exécutables `SKILL.md` ne sont pas stockés ici : ils vivent à la racine du dépôt, dans `.claude/skills/` (emplacement reconnu à la fois par Claude Code et par GitHub Copilot). `02_SKILLS/` ne contient qu'un pointeur vers cet emplacement, afin d'éviter deux sources de vérité pour un même skill.
 
 Les skills n'ont pas vocation à remplacer les contrôles déterministes réalisés en Python.
 
