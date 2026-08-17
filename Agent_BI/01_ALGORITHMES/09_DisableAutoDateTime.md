@@ -1,355 +1,327 @@
-# BP-09 — Désactiver l'option globale « Auto Date/Time »
+# BP-09 — Désactiver l'option Auto Date/Time
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-Lorsque l'option Power BI Desktop « Auto Date/Time » (aussi appelée time intelligence automatique) est activée, le moteur crée **silencieusement une table de dates cachée par colonne de type date/heure** présente dans le modèle, afin de permettre l'usage direct des fonctions de hiérarchie temporelle (Année/Trimestre/Mois/Jour) dans le volet des champs. Chacune de ces tables cachées consomme de la mémoire supplémentaire dans le moteur VertiPaq et allonge le temps de rafraîchissement, sans que l'utilisateur du modèle n'en ait conscience — le coût est proportionnel au nombre de colonnes de type date/heure du modèle, pas à un seul coût fixe. Cette fonctionnalité fait, de plus, double emploi avec une **table de dates dédiée** correctement conçue et marquée ([BP-02](02_DateTable.md)), qui doit être la source unique de vérité pour toute time intelligence dans un modèle bien gouverné.
+Vérifier, uniquement à partir de preuves observables dans le modèle, que l'option Power BI **Auto Date/Time** est désactivée lorsque la politique de gouvernance l'exige.
 
-L'objectif de cette règle est de vérifier que l'option « Auto Date/Time » est **désactivée** au niveau du modèle. Dans un projet Power BI au format PBIP/TMDL, ce réglage se matérialise par l'annotation `__PBI_TimeIntelligenceEnabled` au niveau du fichier `model.tmdl` : la valeur `0` signifie que l'option est désactivée (aucune table de dates cachée n'est générée), la valeur `1` (ou l'absence de l'annotation, qui correspond au comportement par défaut historique de Power BI Desktop) signifie qu'elle est active.
-
-La règle doit être générique et fonctionner indépendamment :
-
-- du nom du rapport Power BI ;
-- du nombre de colonnes de type date/heure présentes dans le modèle ;
-- de la présence ou non d'une table de dates dédiée déjà en place ;
-- de l'ordre des propriétés et annotations dans `model.tmdl`.
-
----
-
-## 2. Emplacement des fichiers concernés
+Statuts Agent BI :
 
 ```text
-<SEMANTIC_MODEL_PATH>\definition\model.tmdl
+OK / KO / NA
 ```
 
-Exemple pour ce projet :
+La règle ne doit jamais transformer une absence de métadonnée en `KO` sans preuve que cette absence signifie effectivement « activé » pour le fichier analysé.
+
+---
+
+## 2. Source principale
 
 ```text
-AI_BAROMETER_BI-CDS.SemanticModel\definition\model.tmdl
+<SEMANTIC_MODEL_PATH>/definition/model.tmdl
 ```
 
-L'agent doit charger l'intégralité de ce fichier unique — contrairement à la plupart des autres règles du référentiel, cette bonne pratique ne dépend pas des fichiers de tables individuelles mais d'un réglage global déclaré une seule fois au niveau du modèle.
+Métadonnée actuellement exploitée :
+
+```text
+annotation __PBI_TimeIntelligenceEnabled = <VALUE>
+```
+
+Cette annotation est une métadonnée observée dans les projets Power BI, mais le checker doit rester prudent lorsqu'elle est absente.
 
 ---
 
-## 3. Élément(s) / propriété(s) à contrôler
+## 3. Rappel fonctionnel
 
-La propriété décisionnelle est l'annotation suivante, déclarée directement sous le bloc `model` de `model.tmdl` :
+Lorsque Auto Date/Time est activé, Power BI peut créer des tables de dates automatiques cachées pour les colonnes de date/date-heure éligibles.
 
-```tmdl
-model Model
-	culture: fr-FR
-	defaultPowerBIDataSourceVersion: powerBI_V3
-	sourceQueryCulture: en-US
-	dataAccessOptions
-		legacyRedirects
-		returnErrorValuesAsNull
+La conformité de cette règle porte sur le réglage du modèle, pas sur une estimation du nombre exact de tables cachées.
 
-...
-
-annotation __PBI_TimeIntelligenceEnabled = 0
-```
-
-Dans ce projet, la valeur observée est `0` : l'option « Auto Date/Time » est **désactivée** au niveau du modèle. L'agent doit lire exclusivement cette annotation ; les autres annotations globales du fichier (`PBI_QueryOrder`, `PBI_ProTooling`, les blocs `queryGroup`) ne participent jamais au verdict de cette règle.
+Le nombre de colonnes date/dateTime peut être conservé comme diagnostic, mais ne doit pas modifier le verdict.
 
 ---
 
-## 4. Règle(s) d'évaluation
+## 4. Décision
 
-| Situation détectée | Statut | Interprétation |
-|---|---|---|
-| `annotation __PBI_TimeIntelligenceEnabled = 0` | `OK` | Auto Date/Time désactivée : aucune table de dates cachée générée. |
-| `annotation __PBI_TimeIntelligenceEnabled = 1` | `KO` | Auto Date/Time activée : une table de dates cachée est générée pour chaque colonne date/heure du modèle. |
-| Annotation `__PBI_TimeIntelligenceEnabled` absente du fichier `model.tmdl` | `KO` | Absence d'annotation explicite : Power BI applique le comportement par défaut historique, qui est activé, sauf configuration contraire au niveau de l'installation — à traiter comme non conforme tant que le réglage n'est pas explicitement désactivé. |
-| Valeur de l'annotation illisible ou non numérique (`__PBI_TimeIntelligenceEnabled = <valeur inattendue>`) | `NA` | Impossible d'interpréter le réglage de façon fiable. |
-| `model.tmdl` introuvable ou illisible | `NA` (au niveau technique `NON_EVALUE`) | Impossible d'accéder au fichier source du réglage. |
-
----
-
-## 5. Parcours complet du modèle
-
-### Étape 1 — Localiser et charger
-1. Accéder à `<SEMANTIC_MODEL_PATH>\definition\model.tmdl`.
-2. Vérifier que le fichier existe et est accessible en lecture.
-3. Si le fichier est introuvable, retourner `NON_EVALUE`.
-
-### Étape 2 — Rechercher l'annotation
-Parcourir l'intégralité du fichier (l'annotation peut être positionnée n'importe où dans le fichier, généralement après les déclarations de `queryGroup` et avant les références `ref table`) à la recherche de la ligne `annotation __PBI_TimeIntelligenceEnabled = <valeur>`.
-
-### Étape 3 — Interpréter la valeur
-Extraire la valeur brute, la normaliser, et la comparer aux valeurs attendues (`0` ou `1`).
-
-### Étape 4 — Compléter l'analyse avec le contexte du modèle (optionnel mais recommandé)
-Pour renforcer le diagnostic, l'agent peut recenser le nombre de colonnes de type `dateTime`/`date` présentes dans les fichiers `tables/*.tmdl` : si l'annotation est absente ou active (`KO`) et que plusieurs colonnes de ce type existent, le message utilisateur peut chiffrer l'impact potentiel (nombre de tables de dates cachées susceptibles d'être générées).
-
-### Étape 5 — Terminer l'analyse
-Produire : la valeur brute trouvée pour l'annotation ; le statut résultant ; en cas de `KO`, le nombre de colonnes date/heure recensées dans le modèle, à titre d'indicateur de l'impact.
-
----
-
-## 6. Détection robuste / normalisation
-
-**Recherche indépendante de la position** : l'annotation `__PBI_TimeIntelligenceEnabled` n'est pas nécessairement la première ligne après le bloc `model` — dans ce projet, elle apparaît après plusieurs blocs `queryGroup` et avant l'annotation `PBI_QueryOrder`. L'agent doit rechercher la ligne par son nom de propriété dans l'intégralité du fichier, sans dépendre d'un numéro de ligne fixe.
-
-```python
-def find_annotation(model_tmdl_text, annotation_name):
-    pattern = re.compile(rf"^\s*annotation\s+{re.escape(annotation_name)}\s*=\s*(.+)$", re.MULTILINE)
-    match = pattern.search(model_tmdl_text)
-    return match.group(1).strip() if match else None
-```
-
-**Normalisation de la valeur** : suppression des espaces, comparaison sous forme de chaîne pour tolérer `0`, `"0"`, `0 ` :
-
-```python
-def normalize_flag(raw_value):
-    if raw_value is None:
-        return None
-    return str(raw_value).strip().strip('"').strip("'")
-```
-
-**Distinction entre absence et désactivation explicite** : l'absence de l'annotation ne doit **jamais** être interprétée comme équivalente à `0` — Power BI Desktop active l'option par défaut à la création d'un nouveau modèle tant qu'elle n'a pas été désactivée explicitement dans les options de fichier (Options du fichier > Options de données > Time Intelligence), ce qui matérialise systématiquement l'annotation à `0` une fois désactivée. Une absence d'annotation dans un fichier `model.tmdl` généré par export TMDL doit donc être traitée avec la même sévérité qu'une valeur `1`.
-
-**Recensement des colonnes date/heure pour le contexte** : réutilise la même détection que [BP-02](02_DateTable.md) (`dataType` égal à `dateTime` ou `date`), appliquée à toutes les colonnes de toutes les tables, sans se limiter à la table de dates candidate.
-
----
-
-## 7. Pseudo-code détaillé
-
-```python
-def evaluate_auto_date_time(model_tmdl_path, table_files):
-    if not file_exists(model_tmdl_path):
-        return {"execution_status": "ERROR", "rule_status": "NON_EVALUE",
-                "reason": "Fichier model.tmdl introuvable"}
-
-    model_text = read_file(model_tmdl_path)
-    raw_value = find_annotation(model_text, "__PBI_TimeIntelligenceEnabled")
-    normalized = normalize_flag(raw_value)
-
-    date_columns = []
-    for table_file in table_files:
-        table = parse_tmdl_table(table_file)
-        for column in table.columns:
-            dtype = str(column.get_property("dataType") or "").strip().lower()
-            if dtype in {"datetime", "date"}:
-                date_columns.append({"table": table.name, "column": column.name})
-
-    if normalized is None:
-        return {
-            "rule_status": "KO",
-            "annotation_found": False,
-            "reason": "Annotation __PBI_TimeIntelligenceEnabled absente : Auto Date/Time réputée active par défaut",
-            "impacted_date_columns": date_columns,
-        }
-
-    if normalized == "0":
-        return {"rule_status": "OK", "annotation_found": True, "raw_value": raw_value}
-
-    if normalized == "1":
-        return {
-            "rule_status": "KO",
-            "annotation_found": True,
-            "raw_value": raw_value,
-            "reason": "Auto Date/Time explicitement activée",
-            "impacted_date_columns": date_columns,
-        }
-
-    return {"rule_status": "NA", "annotation_found": True, "raw_value": raw_value,
-            "reason": "Valeur de l'annotation non interprétable"}
-```
-
----
-
-## 8. Calcul du statut global
-
-```python
-rule_status = result["rule_status"]   # déjà déterminé lors de l'évaluation unique (une seule annotation à contrôler)
-```
-
-Contrairement aux règles portant sur un ensemble de colonnes ou de requêtes, cette bonne pratique porte sur un **réglage unique** au niveau du modèle : il n'y a pas d'agrégation de plusieurs résultats élémentaires. La priorité `KO > NA > OK` reste néanmoins respectée dans la hiérarchie d'interprétation :
-
-| Résultat de l'analyse | Statut global |
+| Situation | Statut |
 |---|---|
-| `annotation __PBI_TimeIntelligenceEnabled = 0` | `OK` |
-| `annotation __PBI_TimeIntelligenceEnabled = 1` | `KO` |
-| Annotation absente du fichier | `KO` |
-| Valeur illisible/non numérique | `NA` |
-| Fichier `model.tmdl` introuvable | `NON_EVALUE` (technique, distinct du triplet `OK`/`KO`/`NA`) |
+| annotation présente avec valeur normalisée `0` | `OK` |
+| annotation présente avec valeur normalisée `1` | `KO` |
+| annotation absente | `NA` |
+| annotation présente mais valeur inconnue/illisible | `NA` |
+| `model.tmdl` absent ou illisible | `NA` |
+
+### Pourquoi l'absence donne `NA`
+
+La documentation Power BI indique que les options globales et du fichier courant peuvent être activées ou désactivées.
+
+Elle ne fournit pas, dans le contrat TMDL utilisé ici, une garantie permettant d'affirmer :
+
+```text
+annotation absente = option du fichier courant activée
+```
+
+Le moteur ne doit donc pas fabriquer cette équivalence.
 
 ---
 
-## 9. Structure du résultat
+## 5. Lecture robuste
 
-Exemple lorsque la bonne pratique est respectée (état actuel du projet audité) :
+```python
+def find_annotation(model, annotation_name):
+    for annotation in model.annotations:
+        if annotation.name == annotation_name:
+            return annotation.value
+
+    return MISSING
+```
+
+Si aucun parseur TMDL structuré n'est disponible, un fallback textuel peut être utilisé, mais l'extraction doit conserver :
+
+```text
+raw_value
+source_file
+parse_method
+```
+
+---
+
+## 6. Normalisation
+
+```python
+def normalize_time_intelligence_flag(raw):
+    if raw is MISSING:
+        return None
+
+    value = str(raw).strip().strip('"').strip("'")
+
+    if value == "0":
+        return False
+
+    if value == "1":
+        return True
+
+    return None
+```
+
+Le moteur ne doit pas accepter silencieusement :
+
+```text
+false
+true
+disabled
+enabled
+```
+
+si ces variantes ne sont pas explicitement démontrées comme valides dans le format analysé.
+
+Elles restent :
+
+```text
+NA
+```
+
+jusqu'à validation du contrat.
+
+---
+
+## 7. Pseudo-code
+
+```python
+def evaluate_auto_date_time(context):
+    model = context.semantic_model
+
+    if model is None or not model.model_tmdl_readable:
+        return rule_na(
+            reason="model.tmdl absent ou illisible"
+        )
+
+    raw = model.get_annotation(
+        "__PBI_TimeIntelligenceEnabled"
+    )
+
+    if raw is MISSING:
+        return rule_na(
+            reason=(
+                "Annotation __PBI_TimeIntelligenceEnabled absente : "
+                "état du réglage non démontrable à partir de cette preuve"
+            ),
+            evidence={
+                "annotation_found": False,
+            },
+        )
+
+    normalized = normalize_time_intelligence_flag(raw)
+
+    if normalized is False:
+        return rule_ok(
+            expected="Auto Date/Time désactivé",
+            actual=raw,
+            evidence={
+                "annotation_found": True,
+                "source_file": model.model_tmdl_path,
+            },
+        )
+
+    if normalized is True:
+        return rule_ko(
+            expected="Auto Date/Time désactivé",
+            actual=raw,
+            evidence={
+                "annotation_found": True,
+                "source_file": model.model_tmdl_path,
+            },
+        )
+
+    return rule_na(
+        reason="Valeur de l'annotation non reconnue",
+        evidence={
+            "annotation_found": True,
+            "raw_value": raw,
+        },
+    )
+```
+
+---
+
+## 8. Statut technique séparé
+
+L'impossibilité de lire le fichier ne doit pas introduire un quatrième statut métier.
+
+Exemple :
+
+```json
+{
+  "execution_status": "ERROR",
+  "rule_status": "NA"
+}
+```
+
+et non :
+
+```json
+{
+  "rule_status": "NON_EVALUE"
+}
+```
+
+Le contrat de conformité reste toujours :
+
+```text
+OK / KO / NA
+```
+
+---
+
+## 9. Diagnostic optionnel
+
+Lorsque le réglage est explicitement actif (`KO`), le moteur peut recenser les colonnes de type date/dateTime potentiellement concernées.
+
+Exemple :
+
+```json
+{
+  "diagnostic": {
+    "date_columns": [
+      "D_DATE[Date]",
+      "F_SALES[OrderDate]"
+    ]
+  }
+}
+```
+
+Cette liste sert uniquement à illustrer l'impact potentiel.
+
+Elle ne doit pas être utilisée pour modifier le statut.
+
+---
+
+## 10. Résultat attendu
+
+### Exemple OK
 
 ```json
 {
   "rule_id": "BP-09",
-  "rule_name": "Désactiver l'option globale Auto Date/Time",
   "execution_status": "SUCCESS",
   "rule_status": "OK",
-  "annotation_found": true,
-  "raw_value": "0",
-  "source_file": "AI_BAROMETER_BI-CDS.SemanticModel/definition/model.tmdl"
+  "expected": "__PBI_TimeIntelligenceEnabled = 0",
+  "actual": "0"
 }
 ```
 
-Exemple avec option activée ou annotation absente :
+### Exemple KO
 
 ```json
 {
   "rule_id": "BP-09",
-  "rule_name": "Désactiver l'option globale Auto Date/Time",
   "execution_status": "SUCCESS",
   "rule_status": "KO",
-  "annotation_found": false,
-  "reason": "Annotation __PBI_TimeIntelligenceEnabled absente : Auto Date/Time réputée active par défaut",
-  "impacted_date_columns": [
-    {"table": "D_DATES", "column": "DATE"},
-    {"table": "T_NOTIFICATION", "column": "PUBLICATION_DATE"}
-  ]
+  "expected": "__PBI_TimeIntelligenceEnabled = 0",
+  "actual": "1"
+}
+```
+
+### Exemple NA
+
+```json
+{
+  "rule_id": "BP-09",
+  "execution_status": "SUCCESS",
+  "rule_status": "NA",
+  "actual": null,
+  "reason": "Annotation absente : état réel non démontrable"
 }
 ```
 
 ---
 
-## 10. Message présenté à l'utilisateur
+## 11. Conditions empêchant un faux OK / faux KO
 
-### Exemple `OK` (état actuel du projet audité)
+### Pour `OK`
+
+Le moteur doit avoir lu explicitement :
 
 ```text
-BP-09 — Option Auto Date/Time : OK
-
-L'annotation __PBI_TimeIntelligenceEnabled du fichier
-AI_BAROMETER_BI-CDS.SemanticModel/definition/model.tmdl est réglée
-sur 0 : l'option Auto Date/Time est désactivée. Aucune table de dates
-cachée n'est générée automatiquement par Power BI.
+__PBI_TimeIntelligenceEnabled = 0
 ```
 
-### Exemple `KO`
+### Pour `KO`
+
+Le moteur doit avoir lu explicitement :
 
 ```text
-BP-09 — Option Auto Date/Time : KO
+__PBI_TimeIntelligenceEnabled = 1
+```
 
-L'annotation __PBI_TimeIntelligenceEnabled est absente (ou réglée sur
-1) dans model.tmdl : l'option Auto Date/Time est active par défaut.
+### Sinon
 
-2 colonnes de type date/heure ont été recensées dans le modèle
-(D_DATES[DATE], T_NOTIFICATION[PUBLICATION_DATE]) : chacune peut
-générer une table de dates cachée distincte, redondante avec toute
-table de dates dédiée déjà présente dans le modèle.
-
-Correction attendue :
-dans Power BI Desktop, ouvrir Fichier > Options et paramètres >
-Options pour le fichier actif > Time Intelligence, décocher
-"Activer Auto Date/Time", puis enregistrer le fichier pour que
-l'annotation __PBI_TimeIntelligenceEnabled = 0 soit écrite dans
-model.tmdl.
+```text
+NA
 ```
 
 ---
 
-## 11. Conditions empêchant un faux `OK`
-
-L'agent ne doit déclarer la bonne pratique `OK` que si toutes les conditions suivantes sont réunies :
-
-- `model.tmdl` a été localisé et intégralement lu ;
-- l'annotation `__PBI_TimeIntelligenceEnabled` a été recherchée dans l'intégralité du fichier, indépendamment de sa position ;
-- l'annotation est présente **et** sa valeur normalisée est strictement `0` ;
-- aucune ambiguïté n'existe sur la valeur lue (pas de troncature, pas de valeur non numérique).
-
-L'agent ne doit jamais produire `OK` en cas d'absence de l'annotation : ce cas doit systématiquement être traité comme `KO`, car il correspond au comportement par défaut activé de Power BI Desktop, jamais présumé désactivé par prudence.
-
----
-
-## 12. Résumé de la règle
+## 12. Résumé
 
 ```text
 RÈGLE BP-09
 
-LOCALISER model.tmdl
-SI fichier introuvable
-    règle = NON_EVALUE
+LIRE model.tmdl
 
-RECHERCHER annotation __PBI_TimeIntelligenceEnabled dans tout le fichier
+SI fichier absent / illisible
+    -> NA
+
+RECHERCHER __PBI_TimeIntelligenceEnabled
 
 SI annotation absente
-    règle = KO (comportement par défaut activé, jamais présumé désactivé)
+    -> NA
+
+SI valeur = 0
+    -> OK
+
+SI valeur = 1
+    -> KO
+
 SINON
-    NORMALISER la valeur brute
-    SI valeur = 0
-        règle = OK
-    SINON SI valeur = 1
-        règle = KO
-    SINON
-        règle = NA
-
-SI règle = KO
-    RECENSER les colonnes date/heure de toutes les tables (impact potentiel)
-
-AFFICHER le statut avec la valeur brute lue et l'impact estimé si KO
-```
-
----
-
-## Annexe — Schéma de flux de l'algorithme
-
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-09 — Désactiver l'option globale Auto Date/Time      │
-└────────────────────────┬────────────────────────────────────────┘
-                          │
-                          ▼
-          ┌──────────────────────────────┐
-          │ Localiser                     │
-          │ <SEMANTIC_MODEL_PATH>\         │
-          │ definition\model.tmdl          │
-          └──────────────┬────────────────┘
-                          │
-               ┌──────────┴──────────┐
-               ▼                     ▼
-         ╔═════════════╗    ┌──────────────────────┐
-         ║ Trouvé ✅   ║    │ Fichier introuvable ❌ │
-         ╚════╤════════╝    └──────────┬────────────┘
-              │                        ▼
-              │                ┌───────────────────┐
-              │                │ Retour : NON_EVALUE│
-              │                └───────────────────┘
-              ▼
-   ┌───────────────────────────────────────────┐
-   │ RECHERCHER l'annotation                     │
-   │ __PBI_TimeIntelligenceEnabled dans            │
-   │ l'intégralité du fichier (position libre)     │
-   └──────────────────┬──────────────────────────┘
-                       ▼
-        ┌────────────────────────────────────┐
-        │ Annotation présente ?                 │
-        └───────┬──────────────────┬───────────┘
-              non│                  │oui
-                 ▼                  ▼
-         ╔═══════════════╗  ┌────────────────────────────┐
-         ║ règle = KO    ║  │ NORMALISER la valeur brute   │
-         ║ (comportement ║  │ (espaces, guillemets)         │
-         ║  par défaut   ║  └───────────────┬─────────────────┘
-         ║  activé,      ║                  ▼
-         ║  jamais       ║   ┌────────────────────────────────────┐
-         ║  présumé      ║   │ Valeur = "0" ?  │ = "1" ?  │ autre ? │
-         ║  désactivé)   ║   └──────┬────────────┬────────────┬─────┘
-         ╚═══════════════╝       "0"│         "1"│      illisible│
-                                     ▼             ▼               ▼
-                          ╔═══════════════╗ ╔═══════════════╗ ╔═══════════════╗
-                          ║ règle = OK    ║ ║ règle = KO    ║ ║ règle = NA    ║
-                          ╚═══════════════╝ ╚═══════════════╝ ╚═══════════════╝
-                       │
-                       ▼ (chemin commun aux deux verdicts KO)
-        ┌────────────────────────────────────────────┐
-        │ SI règle = KO :                              │
-        │ POUR chaque table de tables/*.tmdl (boucle    │
-        │ secondaire, contexte seulement)               │
-        │   RECENSER les colonnes dataType date/dateTime│
-        │   (impact potentiel — n'influence pas le       │
-        │    verdict, déjà déterminé ci-dessus)           │
-        └──────────────────┬────────────────────────────┘
-                           ▼
-                RETOUR rule_status (OK / KO / NA)
-                avec la valeur brute lue et, si KO,
-                l'impact estimé (colonnes date/heure)
+    -> NA
 ```
