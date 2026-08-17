@@ -1,497 +1,420 @@
-# BP-37 — Organisation des visuels (groupes) et des signets (bookmarks)
+# BP-37 — Organiser les visuels et les signets
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-Un rapport Power BI mature accumule rapidement des dizaines de visuels par page et des dizaines de signets pour piloter la navigation, les vues alternatives ou les états de filtre. Sans organisation explicite, le volet de sélection (« Selection pane ») affiche une liste plate de visuels nommés automatiquement (`Group1`, `TextBox3`, `Slicer12`...) et le volet de signets affiche une liste plate de signets sans hiérarchie, rendant la maintenance du rapport dépendante de la mémoire de son auteur d'origine.
+Vérifier que l'organisation des visuels et des signets respecte une politique de maintenabilité explicite, sans transformer des choix de conception en non-conformités automatiques.
 
-L'objectif de cette règle est de vérifier que :
-
-- les visuels apparentés sont **regroupés** (`visualGroup`) sous un nom explicite plutôt que laissés en éléments isolés portant un nom auto-généré ;
-- les signets sont **organisés en dossiers/groupes de signets** (`bookmarks/bookmarks.json`, structure `items[].children[]`) portant un `displayName` explicite plutôt qu'un intitulé technique par défaut (`Bookmark 1`, `Bookmark 2`...).
-
-Cette organisation facilite la maintenance (un contributeur reprend le rapport et comprend immédiatement la structure), réduit le risque d'erreur lors d'une modification (on manipule un groupe cohérent plutôt que des visuels épars) et améliore l'expérience de navigation lorsque les groupes de signets sont exposés dans un visuel de navigation.
-
-La règle doit être générique et fonctionner indépendamment :
-
-- du nom du rapport Power BI ;
-- du nombre de pages, de visuels et de signets ;
-- des identifiants techniques hexadécimaux générés par l'outil pour les pages, visuels, groupes et signets ;
-- du nombre de groupes de visuels ou de dossiers de signets effectivement créés.
-
----
-
-## 2. Emplacement des fichiers concernés
+Cette règle doit distinguer :
 
 ```text
-<REPORT_PATH>\definition\pages\<pageId>\visuals\<visualId>\visual.json     (visuels et groupes de visuels)
-<REPORT_PATH>\definition\bookmarks\bookmarks.json                          (hiérarchie des signets)
-<REPORT_PATH>\definition\bookmarks\<bookmarkId>.bookmark.json              (contenu de chaque signet)
+structure objectivement invalide
+noms explicitement interdits par une politique
+opportunité de regroupement
 ```
 
-Exemple pour ce projet :
+Statuts autorisés :
 
 ```text
-AI_BAROMETER_BI-CDS.Report\definition\pages\81a74ceaa660678035ae\visuals\1a2d7452a63db41882ea\visual.json  (groupe de visuels)
-AI_BAROMETER_BI-CDS.Report\definition\bookmarks\bookmarks.json
-AI_BAROMETER_BI-CDS.Report\definition\bookmarks\00dae2a10218b562dc4a.bookmark.json
+OK / KO / NA
+```
+
+Les recommandations d'organisation sont exposées séparément via :
+
+```text
+diagnostic_level
 ```
 
 ---
 
-## 3. Élément(s) / propriété(s) à contrôler
+## 2. Sources
 
-### 3.1. Groupe de visuels — `visual.json` d'un conteneur de groupe
+```text
+<REPORT_PATH>/definition/pages/**/visual.json
+<REPORT_PATH>/definition/bookmarks/bookmarks.json
+<REPORT_PATH>/definition/bookmarks/*.bookmark.json
+```
 
-Un groupe de visuels est lui-même représenté par un fichier `visual.json` dans le dossier `visuals/` de la page, mais sans clé `visual` : il porte une clé `visualGroup` à la place, et les visuels qu'il contient référencent son identifiant via leur propre propriété `parentGroupName`.
+Le moteur consomme le `AnalysisContext` :
+
+```text
+report_pages
+visual_index
+visual_group_index
+bookmark_index
+bookmark_hierarchy
+company_policy
+```
+
+---
+
+## 3. Groupes de visuels
+
+Un groupe de visuels peut être identifié structurellement par la présence de :
 
 ```json
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
-  "name": "1a2d7452a63db41882ea",
-  "position": { "x": 64, "y": 593.02, "z": 1000, "height": 456.25, "width": 1151.60, "tabOrder": 4000 },
   "visualGroup": {
-    "displayName": "USAGE OF AI",
-    "groupMode": "ScaleMode"
+    "displayName": "..."
   }
 }
 ```
 
-Un visuel membre de ce groupe référence le groupe ainsi :
+Les membres peuvent référencer le groupe via :
+
+```text
+parentGroupName
+```
+
+Le checker doit vérifier la cohérence des références :
+
+```text
+parentGroupName -> groupe existant sur la page
+```
+
+Si le rapport est complètement parsé et qu'un visuel référence un groupe inexistant :
+
+```text
+KO
+```
+
+Si la couverture du rapport est incomplète :
+
+```text
+NA
+```
+
+---
+
+## 4. Nommage des groupes
+
+La qualité sémantique d'un nom n'est pas déterminable de manière générique.
+
+Un nom tel que :
+
+```text
+Group1
+Group 2
+```
+
+peut être identifié comme nom par défaut uniquement si le projet dispose :
+
+- d'une liste de motifs validés ;
+- d'une politique d'entreprise ;
+- ou d'un contrat associé à la version de Power BI utilisée.
+
+Exemple :
+
+```yaml
+bp_37:
+  forbidden_default_names:
+    visual_group:
+      - "^Group\\s*\\d*$"
+```
+
+Sans cette configuration :
+
+```text
+nom présent mais qualité inconnue -> NA / diagnostic
+```
+
+Une valeur `displayName` vide alors que la politique exige un nom explicite peut produire :
+
+```text
+KO
+```
+
+---
+
+## 5. Visuels non groupés
+
+L'absence de groupe n'est pas une non-conformité automatique.
+
+Une page peut volontairement contenir :
+
+- quelques visuels indépendants ;
+- une mise en page simple ;
+- des objets décoratifs ;
+- des visuels dont le regroupement n'apporte aucune valeur.
+
+Donc :
+
+```text
+nombre de visuels non groupés > 5
+```
+
+ne doit jamais produire `WARN`, `KO` ou modifier `rule_status` par défaut.
+
+Le moteur peut produire un candidat :
 
 ```json
 {
-  "name": "40e24ea779a62934c9c1",
-  "visual": { "visualType": "columnChart", "...": "..." },
-  "parentGroupName": "1a2d7452a63db41882ea"
+  "diagnostic_type": "UNGROUPED_VISUALS",
+  "page": "Overview",
+  "count": 8
 }
 ```
 
-Propriété décisionnelle : `visualGroup.displayName`. Un nom auto-généré non renommé par l'utilisateur suit typiquement un motif reconnaissable (`Group`, `Group1`, `Group 2`...), alors qu'un nom explicite décrit le contenu métier du groupe (`"USAGE OF AI"`, `"Filtres de page"`, `"KPIs synthèse"`...).
+La recommandation éventuelle relève d'une policy ou d'une revue contextuelle.
 
-### 3.2. Hiérarchie des signets — `bookmarks.json`
+---
 
-```json
-{
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmarksMetadata/1.0.0/schema.json",
-  "items": [
-    {
-      "name": "247ec431ac3ccd01a994",
-      "displayName": "Nav Pane",
-      "children": ["93894c76102e57062c89", "e550f6f21061dd61973d"]
-    },
-    {
-      "name": "b44cdf3056b70aea9394",
-      "displayName": "Evolution switch",
-      "children": ["253af9bc2b019c689a8d", "00dae2a10218b562dc4a"]
-    }
-  ]
-}
+## 6. Signets
+
+Le moteur doit construire la hiérarchie des signets à partir de :
+
+```text
+bookmarks.json
+*.bookmark.json
 ```
 
-Propriétés décisionnelles :
-- au niveau `items[]` (dossier/groupe de signets) : `displayName`, comparé au motif technique par défaut (`"Bookmark group"`, `"Group"`...) ;
-- pour un signet individuel non rattaché à un groupe (élément d'`items[]` sans `children`, ou signet référencé nulle part), le contrôle porte directement sur son propre `displayName`.
+Il vérifie :
 
-### 3.3. Signet individuel — `<bookmarkId>.bookmark.json`
+1. la validité des identifiants ;
+2. l'absence de références cassées ;
+3. les cycles éventuels ;
+4. la cohérence entre métadonnées et fichiers présents.
 
-```json
-{
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmark/2.1.0/schema.json",
-  "displayName": "Cumulated levels",
-  "name": "00dae2a10218b562dc4a",
-  "options": { "targetVisualNames": [], "suppressData": true },
-  "explorationState": { "...": "..." }
-}
+---
+
+## 7. Références de signets invalides
+
+Si `bookmarks.json` référence un identifiant qui ne correspond à aucun signet ou groupe connu, et que la couverture est complète :
+
+```text
+KO
 ```
 
-Propriété décisionnelle : `displayName`, comparé au motif générique par défaut de Power BI Desktop (`"Bookmark 1"`, `"Bookmark 2"`, ...).
+Si `bookmarks.json` est absent ou illisible alors que des fichiers de signets existent :
+
+```text
+NA
+```
+
+Le moteur ne doit pas supposer la hiérarchie.
 
 ---
 
-## 4. Règle(s) d'évaluation
+## 8. Signet non référencé dans la hiérarchie
 
-| Situation détectée | Statut | Interprétation |
-|---|---|---|
-| Groupe de visuels avec `visualGroup.displayName` explicite (ex. `"USAGE OF AI"`) | `OK` | Le groupe est nommé de façon compréhensible pour un contributeur tiers. |
-| Groupe de visuels avec un nom auto-généré non renommé (`"Group1"`, `"Group 2"`) | `KO` | Le nom par défaut n'apporte aucune information sur le contenu du groupe. |
-| Plusieurs visuels apparentés sur une page (même thématique, même zone) ne sont dans **aucun** groupe | `WARN` | Regroupement recommandé mais non strictement obligatoire : l'absence de groupe n'est pas une erreur en soi si la page compte peu de visuels. |
-| Dossier de signets (`items[]` avec `children`) avec `displayName` explicite (ex. `"Filter Pane Evolution"`) | `OK` | Organisation claire du volet de signets. |
-| Dossier de signets ou signet isolé avec `displayName` par défaut (`"Bookmark 1"`) | `KO` | Le signet n'a pas été renommé après sa création, ce qui nuit à la navigation et à la maintenance. |
-| `bookmarks.json` absent alors que des fichiers `*.bookmark.json` existent | `NA` | Incohérence structurelle : la hiérarchie ne peut pas être établie, mais les signets existent. |
-| Aucun signet dans le rapport | `NA` (hors périmètre) | Rien à organiser : la règle ne s'applique pas. |
+Un fichier de signet non retrouvé dans la hiérarchie peut être :
 
----
+- un reste obsolète ;
+- un format/version PBIR différent ;
+- un cas de sérialisation non couvert.
 
-## 5. Parcours complet du rapport
+Par défaut :
 
-### Étape 1 — Localiser les pages et les visuels
-1. Lire `<REPORT_PATH>\definition\pages\pages.json` pour obtenir la liste complète des pages.
-2. Pour chaque page, lister tous les fichiers `visuals\<visualId>\visual.json`.
+```text
+NA + diagnostic
+```
 
-### Étape 2 — Classer chaque conteneur : visuel simple ou groupe
-Pour chaque `visual.json` : s'il contient une clé `visualGroup`, le traiter comme groupe (contrôle du `displayName`) ; sinon, s'il contient une clé `parentGroupName`, l'enregistrer comme membre d'un groupe existant ; sinon, l'enregistrer comme visuel isolé, hors groupe.
-
-### Étape 3 — Évaluer chaque groupe de visuels détecté
-Pour chaque groupe : comparer `visualGroup.displayName` au motif par défaut ; enregistrer `OK` ou `KO` avec le nom du groupe et la page concernée.
-
-### Étape 4 — Signaler les concentrations de visuels isolés
-Sur chaque page, si le nombre de visuels hors groupe dépasse un seuil (ex. plus de 5 visuels non-textbox non groupés), signaler un `WARN` de recommandation de regroupement — sans bloquer l'évaluation globale.
-
-### Étape 5 — Localiser et lire les signets
-1. Lire `<REPORT_PATH>\definition\bookmarks\bookmarks.json` s'il existe.
-2. Lister tous les fichiers `*.bookmark.json` du dossier `bookmarks\`.
-3. Croiser les deux : tout signet présent en fichier mais absent de la hiérarchie `bookmarks.json` (ni en racine, ni comme enfant d'un dossier) est signalé comme non organisé.
-
-### Étape 6 — Évaluer chaque dossier de signets et chaque signet isolé
-Pour chaque entrée de `items[]` : comparer `displayName` au motif par défaut. Pour chaque signet référencé par un `children[]`, comparer également son propre `displayName` (un dossier bien nommé peut contenir des signets eux-mêmes mal nommés).
-
-### Étape 7 — Terminer l'analyse
-Parcourir la totalité des pages, groupes, visuels isolés, dossiers de signets et signets individuels avant de conclure. Produire les listes complètes de `KO` (noms par défaut non renommés) et de `WARN` (regroupement recommandé) par catégorie (visuels / signets).
+Il ne devient `KO` que si une policy ou un contrat de schéma applicable garantit qu'il doit obligatoirement être référencé dans la hiérarchie.
 
 ---
 
-## 6. Détection robuste / normalisation
+## 9. Nommage des signets
 
-- Les noms techniques (`name` de page, de visuel, de groupe, de signet) sont des identifiants hexadécimaux opaques (`1a2d7452a63db41882ea`, `00dae2a10218b562dc4a`...) : ils ne doivent jamais être utilisés pour juger de la qualité du nommage — seul `displayName` (ou `visualGroup.displayName`) compte.
-- Les motifs de nommage par défaut de Power BI Desktop doivent être reconnus par expression régulière tolérante (ex. `^Group\s?\d*$`, `^Bookmark\s?\d*$`, `^TextBox\s?\d*$`, `^Slicer\s?\d*$`), insensible à la casse et aux espaces, plutôt que par comparaison exacte à une liste figée.
-- Un visuel de type `textbox` peut légitimement rester hors groupe (simple titre ou légende de page) : l'agent doit pondérer le seuil de déclenchement du `WARN` de regroupement en excluant les textbox du décompte des visuels « à regrouper ».
-- L'absence de `parentGroupName` sur un visuel n'est pas une erreur de lecture : c'est un état normal pour un visuel volontairement isolé.
-- Les pages masquées (`visibility: "HiddenInViewMode"`) restent analysées au même titre que les pages visibles : l'organisation interne d'une page technique reste une bonne pratique de maintenabilité.
-- Un dossier de signets peut être imbriqué (un `children` peut lui-même pointer vers un autre dossier plutôt qu'un signet terminal, selon la version du schéma) : l'agent doit résoudre la hiérarchie de façon récursive et éviter les boucles infinies via un ensemble `visited`.
+La détection de noms comme :
 
----
+```text
+Bookmark 1
+Bookmark 2
+```
 
-## 7. Pseudo-code détaillé
+est pilotée par configuration.
 
 ```python
-DEFAULT_NAME_PATTERNS = {
-    "group": re.compile(r"^group\s?\d*$", re.IGNORECASE),
-    "bookmark": re.compile(r"^bookmark\s?\d*$", re.IGNORECASE),
-    "textbox": re.compile(r"^text ?box\s?\d*$", re.IGNORECASE),
-    "slicer": re.compile(r"^slicer\s?\d*$", re.IGNORECASE),
-}
+def is_forbidden_name(
+    display_name,
+    kind,
+    policy,
+):
+    patterns = policy.forbidden_default_names.get(
+        kind,
+        []
+    )
 
-def is_default_name(display_name, kind):
-    if not display_name:
-        return True
-    pattern = DEFAULT_NAME_PATTERNS.get(kind)
-    return bool(pattern and pattern.match(display_name.strip()))
+    return any(
+        pattern.fullmatch(display_name or "")
+        for pattern in patterns
+    )
+```
 
+Sans motifs configurés :
 
-def analyze_visual_groups(report_path, pages):
-    ok_groups, ko_groups, ungrouped_warnings = [], [], []
-
-    for page in pages:
-        visual_files = list_visual_json_files(report_path, page.id)
-        groups, members, isolated = {}, [], []
-
-        for vfile in visual_files:
-            data = read_json(vfile)
-            if "visualGroup" in data:
-                groups[data["name"]] = {
-                    "display_name": data["visualGroup"].get("displayName"),
-                    "page": page.display_name,
-                }
-            elif "parentGroupName" in data:
-                members.append(data)
-            elif data.get("visual", {}).get("visualType") != "textbox":
-                isolated.append(data)
-
-        for group_id, group in groups.items():
-            if is_default_name(group["display_name"], "group"):
-                ko_groups.append({"page": group["page"], "group_id": group_id,
-                                   "display_name": group["display_name"]})
-            else:
-                ok_groups.append({"page": group["page"], "group_id": group_id,
-                                   "display_name": group["display_name"]})
-
-        if len(isolated) > 5:
-            ungrouped_warnings.append({
-                "page": page.display_name,
-                "ungrouped_visual_count": len(isolated),
-                "reason": "Nombre élevé de visuels hors groupe sur la page",
-            })
-
-    return ok_groups, ko_groups, ungrouped_warnings
-
-
-def analyze_bookmarks(report_path):
-    bookmarks_meta_path = f"{report_path}/definition/bookmarks/bookmarks.json"
-    bookmark_files = list_bookmark_files(report_path)
-
-    if not bookmark_files:
-        return {"execution_status": "SUCCESS", "rule_status": "NA",
-                "reason": "Aucun signet dans le rapport"}
-
-    if not file_exists(bookmarks_meta_path):
-        return {"execution_status": "PARTIAL", "rule_status": "NA",
-                "reason": "bookmarks.json introuvable alors que des signets existent"}
-
-    hierarchy = read_json(bookmarks_meta_path)
-    referenced_ids = set()
-    ok_folders, ko_folders = [], []
-
-    for item in hierarchy.get("items", []):
-        referenced_ids.add(item["name"])
-        if item.get("children"):
-            if is_default_name(item.get("displayName"), "bookmark"):
-                ko_folders.append({"id": item["name"], "display_name": item.get("displayName")})
-            else:
-                ok_folders.append({"id": item["name"], "display_name": item.get("displayName")})
-            referenced_ids.update(item["children"])
-
-    ok_bookmarks, ko_bookmarks, unorganized_bookmarks = [], [], []
-    for bfile in bookmark_files:
-        bookmark = read_json(bfile)
-        entry = {"id": bookmark["name"], "display_name": bookmark.get("displayName")}
-        if bookmark["name"] not in referenced_ids:
-            unorganized_bookmarks.append(entry)
-        if is_default_name(bookmark.get("displayName"), "bookmark"):
-            ko_bookmarks.append(entry)
-        else:
-            ok_bookmarks.append(entry)
-
-    return {
-        "ok_folders": ok_folders, "ko_folders": ko_folders,
-        "ok_bookmarks": ok_bookmarks, "ko_bookmarks": ko_bookmarks,
-        "unorganized_bookmarks": unorganized_bookmarks,
-    }
+```text
+NA / diagnostic
 ```
 
 ---
 
-## 8. Calcul du statut global
+## 10. Décision
 
-```python
-if ko_groups or ko_folders or ko_bookmarks:
-    rule_status = "KO"
-elif na_condition:          # bookmarks.json manquant, ou lecture partielle
-    rule_status = "NA"
-elif ungrouped_warnings or unorganized_bookmarks:
-    rule_status = "WARN"
-else:
-    rule_status = "OK"
-```
+### Éléments structurels
 
-| Résultat de l'analyse | Statut global |
+| Situation | Statut |
 |---|---|
-| Tous les groupes de visuels et tous les signets/dossiers portent un nom explicite | `OK` |
-| Au moins un groupe de visuels ou un dossier/signet porte encore un nom par défaut non renommé | `KO` |
-| `bookmarks.json` introuvable alors que des fichiers `*.bookmark.json` existent | `NA` |
-| Nommage correct partout mais concentration de visuels non groupés ou signets non rattachés à un dossier | `WARN` |
+| `parentGroupName` pointe vers un groupe inexistant, couverture complète | `KO` |
+| signet/groupe référencé mais inexistant, couverture complète | `KO` |
+| cycle de hiérarchie démontré | `KO` |
+| structure illisible/incomplète | `NA` |
+| structure cohérente | `OK` pour le sous-contrôle structurel |
+
+### Organisation / nommage
+
+| Situation | Statut |
+|---|---|
+| nom interdit par `COMPANY_POLICY` | `KO` |
+| nom conforme à la policy | `OK` |
+| aucune policy de nommage | `NA` |
+| visuels non groupés sans obligation explicite | `NA` + diagnostic |
 
 ---
 
-## 9. Structure du résultat
+## 11. Pseudo-code
 
-Exemple `OK` :
+```python
+def evaluate_bp37(
+    report,
+    context,
+):
+    results = []
 
-```json
-{
-  "rule_id": "BP-37",
-  "rule_name": "Organisation des visuels et des signets",
-  "execution_status": "SUCCESS",
-  "rule_status": "OK",
-  "total_visual_groups": 4,
-  "ko_visual_groups": 0,
-  "total_bookmark_folders": 9,
-  "ko_bookmark_folders": 0,
-  "total_bookmarks": 22,
-  "ko_bookmarks": 0,
-  "ungrouped_visual_warnings": [],
-  "unorganized_bookmarks": []
-}
-```
+    for visual in report.visuals:
+        if not visual.parent_group_name:
+            continue
 
-Exemple `KO` :
+        group = context.visual_group_index.resolve(
+            visual.page_id,
+            visual.parent_group_name,
+        )
 
-```json
-{
-  "rule_id": "BP-37",
-  "rule_name": "Organisation des visuels et des signets",
-  "execution_status": "SUCCESS",
-  "rule_status": "KO",
-  "total_visual_groups": 4,
-  "ko_visual_groups": 1,
-  "ko_visual_group_details": [
-    {"page": "Perception", "group_id": "3a9c6ea846666528c09c", "display_name": "Group 1"}
-  ],
-  "total_bookmark_folders": 9,
-  "ko_bookmark_folders": 1,
-  "ko_bookmark_folder_details": [
-    {"id": "9f1a2b3c4d5e6f708192", "display_name": "Bookmark group 1"}
-  ],
-  "total_bookmarks": 22,
-  "ko_bookmarks": 2,
-  "ko_bookmark_details": [
-    {"id": "a1b2c3d4e5f607182930", "display_name": "Bookmark 1"},
-    {"id": "b2c3d4e5f60718293041", "display_name": "Bookmark 2"}
-  ]
-}
+        if group is None:
+            if context.report_coverage_complete:
+                results.append(
+                    finding_ko(
+                        object=visual.id,
+                        reason="parentGroupName référence un groupe inexistant",
+                    )
+                )
+            else:
+                results.append(
+                    finding_na(
+                        object=visual.id,
+                        reason="Groupe parent non résolu avec couverture incomplète",
+                    )
+                )
+
+    bookmark_validation = validate_bookmark_hierarchy(
+        context.bookmark_hierarchy,
+        context.bookmark_index,
+    )
+
+    results.extend(
+        bookmark_validation.findings
+    )
+
+    policy = context.company_policy.bp37
+
+    for group in report.visual_groups:
+        if policy and policy.forbidden_default_names:
+            if is_forbidden_name(
+                group.display_name,
+                "visual_group",
+                policy,
+            ):
+                results.append(
+                    finding_ko(
+                        object=group.id,
+                        reason="Nom de groupe interdit par la politique",
+                    )
+                )
+            else:
+                results.append(
+                    finding_ok(
+                        object=group.id,
+                    )
+                )
+
+    for bookmark in context.bookmark_index.all():
+        if policy and policy.forbidden_default_names:
+            if is_forbidden_name(
+                bookmark.display_name,
+                "bookmark",
+                policy,
+            ):
+                results.append(
+                    finding_ko(
+                        object=bookmark.id,
+                        reason="Nom de signet interdit par la politique",
+                    )
+                )
+
+    diagnostics = build_ungrouped_visual_diagnostics(
+        report
+    )
+
+    return aggregate_bp37(
+        results=results,
+        diagnostics=diagnostics,
+    )
 ```
 
 ---
 
-## 10. Message présenté à l'utilisateur
+## 12. Statut global
 
-### Exemple `OK`
+```python
+if any(r.status == "KO" for r in results):
+    rule_status = "KO"
+
+elif any(r.status == "NA" for r in results):
+    rule_status = "NA"
+
+elif results:
+    rule_status = "OK"
+
+else:
+    rule_status = "NA"
+```
+
+Une simple recommandation de regroupement ne modifie jamais ce statut.
+
+---
+
+## 13. Preuve obligatoire pour KO
 
 ```text
-BP-37 — Organisation des visuels et des signets : OK
-
-4 groupes de visuels, 9 dossiers de signets et 22 signets analysés.
-Tous portent un nom explicite (ex. "USAGE OF AI", "Filter Pane Evolution",
-"Cumulated levels") — aucun nom auto-généré non renommé détecté.
-```
-
-### Exemple `KO`
-
-```text
-BP-37 — Organisation des visuels et des signets : KO
-
-Éléments non renommés détectés :
-- Page "Perception" : groupe de visuels "Group 1" (nom par défaut).
-- Dossier de signets "Bookmark group 1" (nom par défaut).
-- Signets "Bookmark 1" et "Bookmark 2" non renommés.
-
-Ces noms par défaut ne permettent pas à un contributeur tiers de comprendre
-le contenu du groupe ou du signet sans l'ouvrir.
-
-Correction attendue :
-renommer chaque groupe/dossier/signet avec un intitulé décrivant son contenu
-métier (ex. "Filtres — Perception", "Vue synthèse KPI"), en cohérence avec
-la convention déjà utilisée sur le reste du rapport.
+object_type
+object_id
+page
+expected
+actual
+policy_id / schema_contract si applicable
+source_file
+evidence
 ```
 
 ---
 
-## 11. Conditions empêchant un faux OK
-
-- toutes les pages du rapport ont été parcourues et tous les fichiers `visual.json` lus ;
-- chaque groupe de visuels détecté (`visualGroup`) a été comparé au motif de nom par défaut ;
-- `bookmarks.json` a été lu avec succès et tous les fichiers `*.bookmark.json` du dossier ont été recensés ;
-- chaque dossier de signets (`items[]` avec `children`) et chaque signet référencé a été comparé au motif de nom par défaut ;
-- les signets présents en fichier mais absents de la hiérarchie `bookmarks.json` ont été identifiés ;
-- aucun groupe, dossier ou signet ne porte un nom par défaut non renommé.
-
----
-
-## 12. Résumé de la règle
+## 14. Résumé
 
 ```text
 RÈGLE BP-37
 
-POUR chaque page
-    POUR chaque visual.json
-        SI contient "visualGroup" -> évaluer displayName du groupe (nom par défaut ?)
-        SINON SI contient "parentGroupName" -> membre d'un groupe, rien à évaluer directement
-        SINON (hors textbox) -> visuel isolé, compter pour le seuil de regroupement
-    FIN POUR
-FIN POUR
+VALIDER les groupes et références
+VALIDER la hiérarchie des signets
 
-LIRE bookmarks.json
-POUR chaque dossier de signets (items[] avec children)
-    ÉVALUER displayName (nom par défaut ?)
-    POUR chaque signet enfant -> ÉVALUER displayName (nom par défaut ?)
-FIN POUR
-IDENTIFIER les signets présents en fichier mais absents de la hiérarchie
+SI référence cassée démontrée
+    -> KO
 
-SI au moins un groupe/dossier/signet porte un nom par défaut
-    règle = KO
-SINON SI bookmarks.json manquant malgré des signets existants
-    règle = NA
-SINON SI visuels non groupés en nombre élevé OU signets non organisés
-    règle = WARN
-SINON
-    règle = OK
-```
+POUR le nommage
+    SI policy explicite
+        nom interdit -> KO
+        nom conforme -> OK
+    SINON
+        -> NA
 
----
-
-## Annexe — Schéma de flux de l'algorithme
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-37 — Organisation des visuels (groupes) et signets     │
-└────────────────────────┬───────────────────────────────────────────┘
-                          │
-                          ▼
-          ┌───────────────────────────────┐
-          │ Lire pages.json (liste pages)  │
-          └──────────────┬──────────────────┘
-                          │
-                          ▼
-     ┌──────────────────────────────────────────────────┐
-     │ POUR chaque page, POUR chaque visual.json          │
-     │   SI clé "visualGroup" -> conteneur de groupe       │
-     │   SINON SI "parentGroupName" -> membre d'un groupe  │
-     │   SINON (hors textbox) -> visuel isolé               │
-     └──────────────┬─────────────────────────────────────┘
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
- ┌─────────────────────┐  ┌──────────────────────────┐
- │ Groupe détecté       │  │ Visuels isolés > 5 sur    │
- │ displayName          │  │ la page (hors textbox)     │
- │ = motif par défaut ? │  └──────────────┬─────────────┘
- └──────────┬────────────┘                 ▼
-   ┌────────┴────────┐               ┌─────────────┐
-   ▼                 ▼               │ WARN         │
-╔═════════╗   ┌─────────────┐        │ (regroupement│
-║ Non ->OK║   │ Oui -> KO   │        │ recommandé)  │
-╚═════════╝   └─────────────┘        └─────────────┘
-                          │
-                          ▼
-          ┌───────────────────────────────┐
-          │ Lire bookmarks\bookmarks.json  │
-          │ + lister *.bookmark.json       │
-          └──────────────┬──────────────────┘
-                          │
-               ┌──────────┴──────────┐
-               ▼                     ▼
-       ┌───────────────┐     ╔═════════════════════╗
-       │ Aucun signet   │     ║ Signets présents     ║
-       │ -> NA (hors    │     ╚══════════╤═══════════╝
-       │ périmètre)     │                │
-       └───────────────┘        ┌────────┴────────┐
-                                 ▼                 ▼
-                          ╔═════════════╗   ┌────────────────────┐
-                          ║ bookmarks.  ║   │ bookmarks.json      │
-                          ║ json trouvé ║   │ manquant -> NA       │
-                          ╚══════╤══════╝   └────────────────────┘
-                                 ▼
-                 ┌─────────────────────────────────────┐
-                 │ POUR chaque dossier (items[])         │
-                 │  ÉVALUER displayName (défaut ?)       │
-                 │  POUR chaque signet enfant            │
-                 │   ÉVALUER displayName (défaut ?)      │
-                 │ IDENTIFIER signets orphelins           │
-                 │ (fichier présent, absent hiérarchie)   │
-                 └──────────────┬──────────────────────────┘
-                                ▼
-                       ┌────────┴─────────┐
-                       ▼                   ▼
-                ╔═════════════════╗  ┌─────────────────────┐
-                ║ Nom par défaut   ║  │ Nom explicite / OK   │
-                ║ détecté -> KO    ║  └─────────────────────┘
-                ╚═════════════════╝
-                          │
-                          ▼
-     ┌──────────────────────────────────────────┐
-     │ CALCUL DU RÉSULTAT FINAL                  │
-     │ Priorité : KO > NA > WARN > OK            │
-     └──────────────┬─────────────────────────────┘
-                     │
-    ┌────────────────┼─────────────────┬───────────────┐
-    ▼                ▼                 ▼                ▼
-╔═════════╗   ┌─────────────┐   ┌─────────────┐  ┌─────────────┐
-║ 1+ nom   ║   │ bookmarks.  │   │ Visuels non  │  │ Tout nommé   │
-║ défaut   ║   │ json manquant│  │ groupés/     │  │ explicitement│
-║ -> KO    ║   │ -> NA        │  │ signets non  │  │ -> OK        │
-╚═════════╝   └─────────────┘   │ organisés     │  └─────────────┘
-                                 │ -> WARN       │
-                                 └─────────────┘
-                     │
-                     ▼
-        RETOUR rule_status (OK/KO/NA/WARN)
+VISUELS non groupés
+    -> diagnostic uniquement
 ```
