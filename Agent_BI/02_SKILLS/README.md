@@ -5,10 +5,10 @@ Les skills exécutables (fichiers `SKILL.md`) de la couche agentique d'Agent BI 
 Ils vivent à la racine du dépôt, dans :
 
 ```text
-.claude/skills/
+.github/skills/
 ```
 
-Cet emplacement est reconnu à la fois par Claude Code et par GitHub Copilot (`.github/skills`, `.claude/skills` et `.agents/skills` sont interchangeables pour Copilot), ce qui évite de dupliquer les mêmes skills à deux endroits.
+Cet emplacement est l'un des trois reconnus par GitHub Copilot (`.github/skills`, `.claude/skills`, `.agents/skills` sont interchangeables pour Copilot) — retenu ici car le projet fonctionne essentiellement avec Copilot (cloud agent, Copilot Code Review, CLI). Un seul emplacement est utilisé pour éviter de dupliquer les mêmes skills à deux endroits.
 
 Ce dossier `02_SKILLS/` est conservé uniquement pour documenter la place de la couche agentique dans l'architecture fonctionnelle d'Agent BI (`01_ALGORITHMES → 02_SKILLS → 03_PYTHON → 04_DOCS`), telle que décrite dans `README_Agent_BI.md`.
 
