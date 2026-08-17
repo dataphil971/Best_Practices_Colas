@@ -1,420 +1,342 @@
-# BP-24 — Centralisation des mesures dans une ou des tables dédiées
+# BP-24 — Centraliser les mesures dans une ou plusieurs tables dédiées
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-L'objectif de cette règle est de vérifier que les mesures DAX du modèle sémantique sont centralisées dans une ou plusieurs tables dédiées (souvent nommées `MEASURE`, `_Measures`, `KPIs`...) ne contenant aucune colonne de données métier, plutôt que dispersées à travers les tables de faits et de dimensions. Cette pratique améliore la réutilisabilité (un développeur sait immédiatement où chercher/ajouter une mesure), la lisibilité du volet des champs (les tables de faits/dimensions n'affichent que des colonnes, les mesures sont regroupées ailleurs) et limite les risques de confusion entre colonnes physiques et mesures calculées lors de la maintenance du modèle.
+Vérifier que les mesures du modèle sont hébergées dans une ou plusieurs **tables dédiées aux mesures**, conformément à la bonne pratique du référentiel.
 
-Une table de mesures dédiée est reconnaissable structurellement : elle ne possède pas de colonnes issues d'une source de données (`sourceColumn`), pas de relation entrante/sortante porteuse de sens métier, et sa partition est généralement une table calculée technique (`= calculated`, `Row("Column", BLANK())`) servant uniquement de support à l'affichage des mesures dans le volet des champs.
-
-La règle doit être générique et fonctionner indépendamment :
-
-- du nom du rapport Power BI ;
-- du nom exact donné à la ou aux tables de mesures (`MEASURE`, `_Measures`, `KPI`...) ;
-- du nombre total de mesures dans le modèle ;
-- du nombre de tables de faits et de dimensions ;
-- de l'ordre des propriétés dans les fichiers TMDL.
-
----
-
-## 2. Emplacement des fichiers concernés
+Cette règle est déterministe à condition de distinguer correctement :
 
 ```text
-<SEMANTIC_MODEL_PATH>\definition\tables\*.tmdl
+table de mesures
 ```
 
-Exemple pour ce projet :
+et :
 
 ```text
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\MEASURE.tmdl
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\F_RESPONSES.tmdl
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\F_ADOPTION_QUESTION.tmdl
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\D_USERS.tmdl
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\D_CAMPAIGNS.tmdl
+table de données contenant des mesures
 ```
 
-L'agent doit lire l'intégralité des fichiers du dossier `tables\`, car il doit établir la distribution complète des mesures par table avant de pouvoir juger de la centralisation.
+Le nom de la table (`MEASURE`, `_Measures`, `KPI`...) ne doit jamais être utilisé comme preuve suffisante.
 
----
+Statuts :
 
-## 3. Élément(s) / propriété(s) à contrôler
-
-Pour chaque table, l'agent doit dénombrer :
-1. le nombre de blocs `measure` ;
-2. le nombre de blocs `column` porteurs de données (colonnes avec `sourceColumn` pointant vers une source réelle, hors colonne technique de support).
-
-Exemple de table de mesures dédiée conforme, observée dans le projet :
-
-```tmdl
-table MEASURE
-    lineageTag: b57b7d33-f0e2-4901-960e-dd3acbdd73cf
-
-    measure pct_RespondentsPerUsage = ```...```
-        displayFolder: USAGE
-
-    measure Nb_Responses = COUNT(F_RESPONSES[CAMPAIGN_USER_LOGIN])
-        displayFolder: CAMPAIGNS STATS
-
-    column Column
-        isHidden
-        formatString: 0
-        lineageTag: 2f82f6ae-2195-45d8-a738-beee9b45accc
-        summarizeBy: none
-        isNameInferred
-        sourceColumn: [Column]
-
-    partition MEASURE = calculated
-        mode: import
-        source = Row("Column", BLANK())
+```text
+OK / KO / NA
 ```
 
-Ici, `MEASURE` contient un très grand nombre de mesures et une seule colonne (`Column`), qui est une colonne technique de support (masquée, générée automatiquement par la table calculée `Row("Column", BLANK())`) et non une colonne métier issue d'une source de données.
+---
 
-Exemple d'une mesure DAX présente dans une table de faits (situation à détecter comme non conforme si elle se généralise) :
+## 2. Sources
 
-```tmdl
-table F_RESPONSES
-    lineageTag: fde52b64-673f-4a83-bb84-6579745a9591
-
-    column WORRY_LEVEL
-        dataType: string
-        sourceColumn: WORRY_LEVEL
-
-    measure Total_Worry_Score = SUM(F_RESPONSES[WORRY_SCORE])
-        formatString: 0
+```text
+<SEMANTIC_MODEL_PATH>/definition/tables/*.tmdl
+<SEMANTIC_MODEL_PATH>/definition/relationships.tmdl
 ```
 
-Dans cet exemple hypothétique, la mesure `Total_Worry_Score` est définie directement dans la table de faits `F_RESPONSES`, qui contient par ailleurs de vraies colonnes de données (`WORRY_LEVEL`, issue de `sourceColumn`).
+Le `AnalysisContext` doit fournir :
+
+```text
+tables
+columns
+measures
+partitions
+relationships
+usage_index
+```
 
 ---
 
-## 4. Règle(s) d'évaluation
+## 3. Définition d'une table dédiée aux mesures
 
-L'évaluation se fait à deux niveaux : par table (dispersion locale), puis globalement (taux de centralisation).
+Une table est `MEASURE_TABLE_CONFIRMED` si :
 
-| Situation détectée | Statut | Interprétation |
-|---|---|---|
-| La table ne contient aucune colonne de données (uniquement la colonne technique de support) et regroupe des mesures | `OK` (table « mesures ») | Table dédiée conforme à la bonne pratique. |
-| La table contient uniquement des colonnes de données et aucune mesure | `OK` (table « données ») | Séparation correcte entre données et calculs. |
-| La table contient à la fois des colonnes de données réelles et une ou plusieurs mesures | `KO` | Mesure(s) dispersée(s) dans une table de faits/dimension au lieu d'être centralisée(s). |
-| Le modèle ne comporte aucune mesure nulle part | `NA` | La règle ne s'applique pas (aucune mesure à organiser). |
-| Le modèle comporte plusieurs tables « mesures » légitimement séparées par domaine (ex. `MEASURE_FINANCE`, `MEASURE_RH`) sans colonnes de données | `OK` | La centralisation n'impose pas une table unique, seulement l'absence de mélange mesures/données. |
+1. elle contient au moins une mesure ;
+2. elle ne contient aucune colonne métier / donnée réelle ;
+3. toute colonne éventuellement présente est démontrée comme **colonne technique de support**.
+
+Une table peut donc contenir une colonne cachée servant uniquement à matérialiser une table calculée de support.
 
 ---
 
-## 5. Parcours complet du modèle
+## 4. Colonne technique de support
 
-### Étape 1 — Localiser et charger
-1. Lister tous les fichiers `tables\*.tmdl`.
-2. Si aucun fichier n'est trouvé, retourner `NON_EVALUE`.
+Une colonne ne doit être exemptée que si son caractère technique est démontré.
 
-### Étape 2 — Construire l'inventaire par table
-Pour chaque table : compter les mesures ; compter les colonnes de données réelles (exclure la colonne technique de support des tables calculées de type `Row("Column", BLANK())` lorsqu'elle est unique, masquée et sans usage en aval) ; enregistrer le couple `(nb_mesures, nb_colonnes_donnees)`.
+Exemples de preuves convergentes :
 
-### Étape 3 — Classifier chaque table
-Pour chaque table, appliquer la règle de la section 4 : `KO` si `nb_mesures > 0` ET `nb_colonnes_donnees > 0` ; `OK` sinon.
+```text
+table calculée
+colonne masquée
+aucun usage direct dans le rapport
+aucune relation
+aucun usage métier dans DAX
+colonne générée par une expression de support de la table
+```
 
-### Étape 4 — Calculer les indicateurs globaux
-Ne pas s'arrêter à la première table non conforme : parcourir la totalité des tables, produire la liste complète des tables `KO` avec, pour chacune, la liste des mesures concernées, et calculer le taux global de centralisation (`nombre de mesures situées dans une table dédiée / nombre total de mesures du modèle`).
-
-### Étape 5 — Terminer l'analyse
-Produire le nombre total de tables, de mesures, de tables `KO`, et le taux de centralisation global.
-
----
-
-## 6. Détection robuste / normalisation
-
-- Une table peut contenir des mesures définies sur une seule ligne ou encadrées de triples backticks : l'agent doit détecter les deux formats pour ne manquer aucune mesure.
-- La colonne technique de support d'une table calculée de type mesures (`Row("Column", BLANK())`) doit être reconnue par un faisceau d'indices convergents, jamais par le seul nom : elle est `isHidden`, sa partition parente est de type `calculated` avec une source `Row(...)`, et elle porte l'annotation `isNameInferred`. Une colonne nommée `Column` mais réellement alimentée par une source de données (`sourceColumn` correspondant à une colonne physique dans une table `import`/`directQuery`) ne doit jamais être exemptée.
-- Le nom de la ou des tables de mesures n'est jamais présupposé (`MEASURE`, `_Measures`, `KPI`, `Mesures`...) : la classification repose exclusivement sur la structure (présence de colonnes de données vs mesures), pas sur une convention de nommage.
-- L'ordre des blocs `measure` et `column` dans le fichier TMDL est indifférent : l'agent doit les recenser tous, indépendamment de leur position.
-- Les tables sans aucune mesure ni colonne de données (table vide, table paramètre pur) sont classées `NA` pour cette règle et ne comptent ni comme conformes ni comme non conformes.
+Pseudo-code :
 
 ```python
-def is_technical_support_column(column, table):
-    return (
-        column.has_flag("isHidden")
-        and column.has_flag("isNameInferred")
-        and table.partition is not None
-        and table.partition.kind == "calculated"
-        and "Row(" in table.partition.source_expression
+def classify_measure_support_column(
+    table,
+    column,
+    context,
+):
+    if not column.is_hidden:
+        return "DATA_COLUMN"
+
+    usages = context.usage_index.get_column_usages(
+        table.name,
+        column.name,
     )
 
-def count_real_data_columns(table):
-    return sum(
-        1 for c in table.columns
-        if not is_technical_support_column(c, table)
-    )
+    if usages.has_semantic_or_report_usage:
+        return "DATA_COLUMN"
+
+    if context.relationship_graph.uses_column(
+        table.name,
+        column.name,
+    ):
+        return "DATA_COLUMN"
+
+    if (
+        table.is_calculated
+        and column.is_generated_from_table_support_expression
+    ):
+        return "SUPPORT_COLUMN"
+
+    return "UNKNOWN"
+```
+
+### Important
+
+Les critères suivants ne suffisent pas seuls :
+
+```text
+nom = Column
+isHidden
+isNameInferred
+```
+
+Une colonne masquée réelle ne doit jamais être exemptée uniquement sur ces signaux.
+
+---
+
+## 5. Classification d'une table
+
+Valeurs :
+
+```text
+MEASURE_TABLE_CONFIRMED
+DATA_TABLE
+UNKNOWN
+EMPTY_OR_OUT_OF_SCOPE
+```
+
+Pseudo-code :
+
+```python
+def classify_table_for_measure_rule(
+    table,
+    context,
+):
+    measure_count = len(table.measures)
+
+    if measure_count == 0:
+        return "DATA_TABLE"
+
+    support_states = [
+        classify_measure_support_column(
+            table,
+            column,
+            context,
+        )
+        for column in table.columns
+    ]
+
+    if any(state == "DATA_COLUMN" for state in support_states):
+        return "DATA_TABLE"
+
+    if any(state == "UNKNOWN" for state in support_states):
+        return "UNKNOWN"
+
+    return "MEASURE_TABLE_CONFIRMED"
 ```
 
 ---
 
-## 7. Pseudo-code détaillé
+## 6. Décision par mesure
+
+Pour chaque mesure :
+
+```text
+mesure dans MEASURE_TABLE_CONFIRMED -> OK
+mesure dans DATA_TABLE              -> KO
+mesure dans UNKNOWN                 -> NA
+```
+
+Si le modèle ne contient aucune mesure :
+
+```text
+NA
+```
+
+---
+
+## 7. Pseudo-code
 
 ```python
-def analyze_measure_centralization(table_files):
-    per_table_stats = []
-    ko_tables = []
-    total_measures = 0
-    centralized_measures = 0
+def evaluate_bp24(
+    semantic_model,
+    context,
+):
+    measures = semantic_model.all_measures()
 
-    for table_file in table_files:
-        table = parse_tmdl_table(table_file)
-        nb_measures = len(table.measures)
-        nb_data_columns = count_real_data_columns(table)
+    if not measures:
+        return rule_na(
+            reason="Aucune mesure dans le modèle"
+        )
 
-        total_measures += nb_measures
-
-        if nb_measures == 0 and nb_data_columns == 0:
-            status = "NA"
-        elif nb_measures > 0 and nb_data_columns > 0:
-            status = "KO"
-            ko_tables.append({
-                "table": table.name,
-                "measures": [m.name for m in table.measures],
-                "nb_data_columns": nb_data_columns,
-                "reason": "Mesures mêlées à des colonnes de données réelles",
-            })
-        else:
-            status = "OK"
-            if nb_measures > 0:
-                centralized_measures += nb_measures
-
-        per_table_stats.append({
-            "table": table.name, "nb_measures": nb_measures,
-            "nb_data_columns": nb_data_columns, "status": status,
-        })
-
-    if total_measures == 0:
-        return {"rule_status": "NA", "reason": "Aucune mesure dans le modèle"}
-
-    centralization_rate = centralized_measures / total_measures
-
-    return {
-        "per_table_stats": per_table_stats,
-        "ko_tables": ko_tables,
-        "total_measures": total_measures,
-        "centralized_measures": centralized_measures,
-        "centralization_rate": centralization_rate,
+    table_roles = {
+        table.name: classify_table_for_measure_rule(
+            table,
+            context,
+        )
+        for table in semantic_model.tables
     }
+
+    results = []
+
+    for measure in measures:
+        role = table_roles[measure.table_name]
+
+        if role == "MEASURE_TABLE_CONFIRMED":
+            results.append(
+                finding_ok(
+                    object=measure.qualified_name,
+                    evidence={
+                        "host_table_role": role,
+                    },
+                )
+            )
+
+        elif role == "DATA_TABLE":
+            results.append(
+                finding_ko(
+                    object=measure.qualified_name,
+                    reason=(
+                        "Mesure hébergée dans une table contenant "
+                        "des colonnes de données réelles"
+                    ),
+                    evidence={
+                        "host_table": measure.table_name,
+                        "host_table_role": role,
+                    },
+                )
+            )
+
+        else:
+            results.append(
+                finding_na(
+                    object=measure.qualified_name,
+                    reason=(
+                        "Impossible de confirmer que la table hôte "
+                        "est dédiée aux mesures"
+                    ),
+                )
+            )
+
+    return aggregate_ok_ko_na(results)
 ```
 
 ---
 
-## 8. Calcul du statut global
+## 8. Statut global
 
 ```python
-if ko_tables:
+if any(r.status == "KO" for r in results):
     rule_status = "KO"
-elif total_measures == 0:
+
+elif any(r.status == "NA" for r in results):
     rule_status = "NA"
+
 else:
     rule_status = "OK"
 ```
 
-Priorité des statuts : `KO > NA > OK`. Une seule table mélangeant mesures et colonnes de données suffit à faire basculer la règle en `KO`, quel que soit le taux global de centralisation, car chaque mesure mal placée constitue une non-conformité individuellement actionnable.
-
-| Résultat de l'analyse | Statut global |
-|---|---|
-| Toutes les mesures sont dans une ou plusieurs tables sans colonnes de données | `OK` |
-| Au moins une table mélange mesures et colonnes de données | `KO` |
-| Aucune mesure dans tout le modèle | `NA` |
-
----
-
-## 9. Structure du résultat
-
-Exemple `OK` (état actuel du projet audité) :
-
-```json
-{
-  "rule_id": "BP-24",
-  "rule_name": "Centralisation des mesures dans une ou des tables dédiées",
-  "execution_status": "SUCCESS",
-  "rule_status": "OK",
-  "total_tables": 15,
-  "total_measures": 34,
-  "centralized_measures": 34,
-  "centralization_rate": 1.0,
-  "ko_tables": []
-}
-```
-
-Exemple `KO` :
-
-```json
-{
-  "rule_id": "BP-24",
-  "rule_name": "Centralisation des mesures dans une ou des tables dédiées",
-  "execution_status": "SUCCESS",
-  "rule_status": "KO",
-  "total_tables": 15,
-  "total_measures": 36,
-  "centralized_measures": 34,
-  "centralization_rate": 0.944,
-  "ko_tables": [
-    {
-      "table": "F_RESPONSES",
-      "measures": ["Total_Worry_Score", "Avg_Interest_Score"],
-      "nb_data_columns": 22,
-      "reason": "Mesures mêlées à des colonnes de données réelles"
-    }
-  ]
-}
-```
-
----
-
-## 10. Message présenté à l'utilisateur
-
-### Exemple `OK`
+Priorité :
 
 ```text
-BP-24 — Centralisation des mesures dans une ou des tables dédiées : OK
-
-34 mesures détectées dans le modèle, toutes centralisées dans la table MEASURE
-qui ne contient aucune colonne de données métier. Taux de centralisation : 100 %.
+KO > NA > OK
 ```
 
-### Exemple `KO`
+---
+
+## 9. Taux de centralisation
+
+Le taux peut être conservé comme indicateur :
 
 ```text
-BP-24 — Centralisation des mesures dans une ou des tables dédiées : KO
+centralized_measure_count / total_measure_count
+```
 
-34 mesures sur 36 sont correctement centralisées dans MEASURE (taux 94,4 %).
+Mais il ne remplace pas le verdict objet par objet.
 
-Table non conforme :
-- F_RESPONSES contient 2 mesures (Total_Worry_Score, Avg_Interest_Score) alors
-  qu'elle porte 22 colonnes de données réelles issues de la source.
+Une seule mesure démontrée comme hébergée dans une table de données reste :
 
-Correction attendue :
-déplacer les mesures Total_Worry_Score et Avg_Interest_Score depuis
-F_RESPONSES vers la table MEASURE (ou toute autre table dédiée sans colonnes
-de données), en conservant leur définition DAX, leur formatString et leur
-displayFolder.
+```text
+KO
+```
+
+même si le taux global est élevé.
+
+---
+
+## 10. Preuve obligatoire
+
+Pour un `KO` :
+
+```text
+measure
+host_table
+host_table_role = DATA_TABLE
+real_data_columns
+evidence
+```
+
+Pour un `OK` :
+
+```text
+measure
+host_table
+host_table_role = MEASURE_TABLE_CONFIRMED
+support_columns
+support_evidence
 ```
 
 ---
 
-## 11. Conditions empêchant un faux OK
-
-- tous les fichiers `tables\*.tmdl` ont été lus ;
-- chaque mesure du modèle, quel que soit son format d'écriture (ligne unique ou triple backticks), a été comptabilisée dans sa table d'origine ;
-- chaque colonne de chaque table a été examinée pour distinguer colonne de données réelle et colonne technique de support ;
-- la colonne technique de support n'a été exemptée qu'après vérification du faisceau d'indices complet (masquée, `isNameInferred`, partition calculée `Row(...)`), jamais sur la seule base de son nom ;
-- aucune table n'a été omise de l'inventaire, y compris les tables sans mesure ;
-- le taux de centralisation a été calculé sur l'ensemble des mesures du modèle, pas sur un sous-ensemble.
-
----
-
-## 12. Résumé de la règle
+## 11. Résumé
 
 ```text
 RÈGLE BP-24
 
-POUR chaque table du modèle sémantique
-    COMPTER les mesures (measure)
-    COMPTER les colonnes de données réelles (exclure colonne technique de support)
+RECENSER toutes les mesures
 
-    SI nb_mesures > 0 ET nb_colonnes_donnees > 0
-        table = KO (mesures dispersées)
-    SINON SI nb_mesures = 0 ET nb_colonnes_donnees = 0
-        table = NA
-    SINON
-        table = OK
-    ENREGISTRER le résultat
-FIN POUR
+SI aucune mesure
+    -> NA
 
-SI aucune mesure dans tout le modèle
-    règle = NA
-SINON SI au moins une table KO
-    règle = KO
-SINON
-    règle = OK
+CLASSER chaque table contenant des mesures
 
-AFFICHER toutes les tables KO avec la liste des mesures à déplacer
+POUR chaque mesure
+    SI table dédiée confirmée
+        -> OK
+
+    SI table de données confirmée
+        -> KO
+
+    SI rôle de table incertain
+        -> NA
+FIN
 ```
 
----
-
-## Annexe — Schéma de flux de l'algorithme
-
-```text
-┌────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-24 — Centralisation des mesures dans une ou        │
-│         des tables dédiées                                    │
-└────────────────────────┬───────────────────────────────────────┘
-                          ▼
-           ┌───────────────────────────────┐
-           │ Lister tables\*.tmdl            │
-           └───────────────┬─────────────────┘
-                ┌────────────┴────────────┐
-                ▼                          ▼
-          ╔═════════════╗          ┌───────────────┐
-          ║ Fichiers    ║          │ Aucun fichier  │
-          ║ trouvés ✅  ║          │ trouvé ❌       │
-          ╚══════╤══════╝          └───────┬────────┘
-                 │                          ▼
-                 │                  ┌────────────────┐
-                 │                  │ Retour :        │
-                 │                  │ NON_EVALUE      │
-                 │                  └────────────────┘
-                 ▼
-     ┌───────────────────────────────────────────┐
-     │ POUR chaque table du modèle                 │
-     │  (boucle sur toutes les tables)              │
-     └───────────────────────┬───────────────────────┘
-                             ▼
-            ┌────────────────────────────────────┐
-            │ COMPTER nb_mesures (measure)         │
-            │ COMPTER nb_colonnes_données réelles   │
-            │ (exclure colonne technique support)   │
-            └──────────────────┬────────────────────┘
-                               ▼
-                 ┌──────────────────────────────┐
-                 │ nb_mesures > 0 ET              │
-                 │ nb_colonnes_données > 0 ?      │
-                 └───────────────┬────────────────┘
-              ┌───────────────────┼───────────────────┐
-              ▼                   ▼                   ▼
-        ╔═════════╗        ┌────────────┐       ┌────────────┐
-        ║ OUI ❌  ║        │ Les deux   │       │ Un seul    │
-        ╚════╤════╝        │ = 0        │       │ > 0        │
-             ▼              └─────┬──────┘       └─────┬──────┘
-    ┌────────────────┐            ▼                    ▼
-    │ table = KO       │    ┌────────────┐       ┌────────────┐
-    │ (mesures         │    │ table = NA │       │ table = OK │
-    │  dispersées)      │    └────────────┘       └────────────┘
-    └────────────────┘
-                 │ (répéter pour chaque table, sans s'arrêter)
-                 ▼
-     ┌────────────────────────────────────────┐
-     │ Fin du parcours : toutes les tables      │
-     │ classées, total_measures cumulé          │
-     └───────────────────┬───────────────────────┘
-                         ▼
-            ┌──────────────────────────┐
-            │ Au moins une table KO ?   │
-            └──────────────┬─────────────┘
-              ┌──────────────┴──────────────┐
-              ▼                              ▼
-        ╔═════════╗                    ┌────────────┐
-        ║ OUI ❌  ║                    │ NON        │
-        ╚════╤════╝                    └──────┬─────┘
-             ▼                                 ▼
-      ┌─────────────┐              ┌────────────────────────┐
-      │ règle = KO   │              │ total_measures = 0 ?     │
-      └─────────────┘              └────────────┬──────────────┘
-                                    ┌──────────────┴──────────────┐
-                                    ▼                              ▼
-                              ╔═════════╗                    ┌────────────┐
-                              ║ OUI     ║                    │ NON ✅     │
-                              ╚════╤════╝                    └──────┬─────┘
-                                   ▼                                ▼
-                            ┌─────────────┐                 ┌─────────────┐
-                            │ règle = NA   │                 │ règle = OK   │
-                            └─────────────┘                 └─────────────┘
-                                        │
-                                        ▼
-                              RETOUR rule_status
-                              (OK / KO / NA)
-```
+Le checker ne doit jamais identifier une table de mesures uniquement à partir de son nom.
