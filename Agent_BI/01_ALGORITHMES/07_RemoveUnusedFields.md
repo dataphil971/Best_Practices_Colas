@@ -1,426 +1,520 @@
 # BP-07 — Éliminer les colonnes visibles et inutilisées du modèle
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-Chaque colonne chargée dans un modèle sémantique consomme de la mémoire (dictionnaire de valeurs VertiPaq, index de colonnes), allonge le temps de rafraîchissement, et — lorsqu'elle est **visible** dans le volet des champs — ajoute du bruit pour les utilisateurs qui explorent le modèle en libre-service (Analyse dans Excel, création de rapports personnels). Une colonne visible qui n'est référencée ni par une mesure DAX, ni par un visuel du rapport, ni par une relation, ni par un tri (`sortByColumn`), n'apporte aucune valeur au rapport actuel et devrait être **masquée** (si elle reste potentiellement utile en libre-service) ou **supprimée** (si elle est réellement superflue).
+Identifier les colonnes **visibles** dont l'absence d'utilisation peut être démontrée dans le périmètre du PBIP analysé.
 
-L'objectif de cette règle est d'identifier, pour chaque table du modèle, les colonnes qui cumulent deux caractéristiques : elles sont **visibles** (absence de la propriété `isHidden`) et elles ne sont **référencées nulle part** dans le périmètre analysé (mesures DAX du modèle, visuels et filtres du rapport, relations, tri par colonne). Une colonne masquée mais inutilisée n'est pas un problème de gouvernance de même nature (elle n'encombre pas l'expérience utilisateur) et n'est donc que secondairement signalée.
+La règle doit éviter les faux `KO`.
 
-La règle doit être générique et fonctionner indépendamment :
+L'absence d'une référence dans un simple regex ne constitue pas une preuve suffisante qu'une colonne est inutilisée.
 
-- du nom du rapport Power BI ;
-- du nombre de tables et de colonnes ;
-- du nom des tables et des colonnes ;
-- de l'ordre des propriétés dans les fichiers TMDL ;
-- du type de données de la colonne.
-
----
-
-## 2. Emplacement des fichiers concernés
+Statuts :
 
 ```text
-<SEMANTIC_MODEL_PATH>\definition\tables\*.tmdl
-<SEMANTIC_MODEL_PATH>\definition\relationships.tmdl
-<REPORT_PATH>\definition\pages\*\visuals\*\visual.json
-<REPORT_PATH>\definition\filters.json
+OK / KO / NA
 ```
 
-Exemple pour ce projet :
+---
+
+## 2. Périmètre de la conclusion
+
+Par défaut, la règle conclut uniquement sur :
 
 ```text
-AI_BAROMETER_BI-CDS.SemanticModel\definition\tables\D_CAMPAIGNS.tmdl
-AI_BAROMETER_BI-CDS.SemanticModel\definition\relationships.tmdl
-AI_BAROMETER_BI-CDS.Report\definition\pages\*\visuals\*\visual.json
+usage_scope = CURRENT_PBIP
 ```
 
-L'agent doit charger :
+Elle ne prétend pas connaître :
 
-1. tous les fichiers `tables/*.tmdl`, pour lister colonnes et mesures ;
-2. `relationships.tmdl`, pour identifier les colonnes utilisées comme clé de relation ;
-3. tous les fichiers `visual.json` du rapport (un par visuel, dans chaque sous-dossier de page), pour extraire les champs réellement projetés, filtrés ou triés ;
-4. les filtres de niveau page/rapport, généralement décrits dans le même schéma de visuel ou dans un fichier de filtres dédié selon la version du format PBIR.
+- d'autres rapports connectés au même modèle ;
+- des usages XMLA externes ;
+- Analyse dans Excel ;
+- des outils tiers ;
+- des consommateurs hors du projet fourni.
+
+Le message utilisateur doit donc parler de :
+
+> colonne inutilisée dans le PBIP analysé
+
+et non de :
+
+> colonne inutilisée partout.
+
+Une politique d'entreprise peut élargir le périmètre seulement si les sources supplémentaires sont effectivement accessibles.
 
 ---
 
-## 3. Élément(s) / propriété(s) à contrôler
+## 3. Sources
 
-Visibilité d'une colonne, contrôlée par l'absence ou la présence de `isHidden` :
+### Modèle sémantique
 
-```tmdl
-column CAMPAIGN_ID
-	dataType: string
-	isHidden
-	lineageTag: b30938a6-aa65-4080-bd83-dd84d12c599d
-	summarizeBy: none
-	sourceColumn: CAMPAIGN_ID
+```text
+<SEMANTIC_MODEL_PATH>/definition/tables/*.tmdl
+<SEMANTIC_MODEL_PATH>/definition/relationships.tmdl
+<SEMANTIC_MODEL_PATH>/definition/roles.tmdl
 ```
 
-`CAMPAIGN_ID` est **masquée** (`isHidden` présent) : même si elle n'est utilisée que comme clé de relation, elle est hors du périmètre prioritaire de cette règle. À l'inverse :
+Selon la structure disponible, le contexte peut également inclure :
 
-```tmdl
-column CAMPAIGN_LABEL
-	dataType: string
-	lineageTag: 379b4036-dca5-4e99-a377-15d50ec4ce7c
-	summarizeBy: none
-	sourceColumn: CAMPAIGN_LABEL
+```text
+hierarchies
+perspectives
+calculation groups
+calculated columns
+calculated tables
 ```
 
-`CAMPAIGN_LABEL` n'a pas de propriété `isHidden` : elle est **visible**, et doit donc être recherchée dans les mesures, les visuels et les relations avant de conclure à son utilité.
+### Rapport
 
-Référencement recherché :
+```text
+<REPORT_PATH>/definition/pages/**/*.json
+<REPORT_PATH>/definition/report.json
+<REPORT_PATH>/definition/filters.json
+```
 
-- dans les mesures DAX : toute occurrence de `Table[Colonne]` dans le corps d'une mesure (`measure ... = ...`) ;
-- dans les visuels : les champs déclarés dans les structures `queryRef`/`Column` d'un `visual.json` (axes, légendes, valeurs, info-bulles, tris) ;
-- dans les relations : `fromColumn`/`toColumn` de `relationships.tmdl` ;
-- dans les propriétés `sortByColumn` d'une autre colonne, qui référence la colonne courante comme colonne de tri.
+Les chemins exacts peuvent varier selon la version PBIR.
 
----
-
-## 4. Règle(s) d'évaluation
-
-| Situation détectée | Statut | Interprétation |
-|---|---|---|
-| `D_CAMPAIGNS[CAMPAIGN_LABEL]`, visible, utilisée comme champ de légende dans un visuel de la page 1 | `OK` | Colonne visible et effectivement exploitée par le rapport. |
-| `F_RESPONSES[INTEREST_LEVEL]`, visible, référencée par `sortByColumn` d'une autre colonne et utilisée dans un visuel | `OK` | Colonne visible, utilisée à la fois pour le tri et l'affichage. |
-| `D_CAMPAIGNS[CAMPAIGN_ID]`, `isHidden` présent, utilisée uniquement comme clé de relation | `NA` | Hors périmètre prioritaire : colonne déjà masquée, gouvernance déjà correcte. |
-| Colonne hypothétique `D_USERS[LEGACY_COMMENT_FIELD]`, visible, absente de toute mesure, tout visuel et toute relation | `KO` | Colonne visible mais totalement inutilisée : à masquer ou supprimer. |
-| Colonne hypothétique `F_RESPONSES[DEBUG_FLAG]`, visible, utilisée uniquement dans un filtre de page non documenté | `OK` (avec remarque) | Techniquement référencée ; utilité à confirmer manuellement mais la règle automatique ne peut pas conclure à l'inutilité. |
-| Colonne dont le référencement n'a pas pu être vérifié (visuel illisible, `visual.json` corrompu) | `NA` | Analyse incomplète sur cette colonne, ne pas conclure. |
+Le moteur doit utiliser les données normalisées du `AnalysisContext` et non dépendre d'un seul chemin JSON codé en dur.
 
 ---
 
-## 5. Parcours complet du modèle
+## 4. UsageIndex partagé
 
-### Étape 1 — Localiser et charger
-1. Charger tous les fichiers `tables/*.tmdl`, `relationships.tmdl`.
-2. Lister tous les fichiers `visual.json` sous `<REPORT_PATH>\definition\pages\*\visuals\*\`.
-3. Si le dossier `tables/` est introuvable, retourner `NON_EVALUE`.
+Cette règle doit consommer un index central :
 
-### Étape 2 — Construire l'inventaire des colonnes visibles
-Pour chaque table, pour chaque colonne : déterminer sa visibilité (`isHidden` absent = visible) ; ignorer les colonnes déjà masquées pour la suite du calcul du statut (elles restent inventoriées mais classées `NA`).
+```text
+usage_index
+```
 
-### Étape 3 — Construire l'index de référencement
-1. Parcourir toutes les mesures DAX de toutes les tables et extraire les références `Table[Colonne]`.
-2. Parcourir `relationships.tmdl` et extraire toutes les colonnes utilisées en `fromColumn`/`toColumn`.
-3. Parcourir chaque `visual.json` et extraire tous les champs référencés (axes, valeurs, légendes, info-bulles, tris, filtres de niveau visuel).
-4. Parcourir les colonnes elles-mêmes pour repérer les propriétés `sortByColumn` qui référencent une autre colonne.
+Il est construit une seule fois pour le PBIP et peut être réutilisé par les autres règles.
 
-### Étape 4 — Croiser l'inventaire et l'index
-Pour chaque colonne visible : vérifier sa présence dans l'index construit à l'étape 3. Marquer `OK` si trouvée au moins une fois, `KO` sinon.
-
-### Étape 5 — Ne pas s'arrêter à la première colonne inutilisée
-L'agent analyse l'intégralité des colonnes visibles de toutes les tables, sans interrompre l'analyse après la première anomalie.
-
-### Étape 6 — Terminer l'analyse
-Produire : le nombre total de colonnes visibles analysées ; le nombre de colonnes `OK`/`KO`/`NA` ; la liste des colonnes `KO` avec la table d'appartenance ; un résumé du gain de mémoire estimé si les colonnes `KO` étaient masquées ou supprimées (optionnel, si l'agent dispose de statistiques de cardinalité).
-
----
-
-## 6. Détection robuste / normalisation
-
-**Repérage des références de colonnes dans les mesures DAX** — les colonnes sont référencées sous la forme `NomTable[NomColonne]` ou, dans le contexte de la table elle-même, simplement `[NomColonne]`. L'agent doit résoudre cette forme courte en s'appuyant sur le contexte de la mesure (table hôte) et sur les colonnes réellement disponibles dans les tables filtrées par le contexte DAX environnant, avec une tolérance : en cas de doute, considérer la référence courte comme valide pour toute colonne homonyme du modèle plutôt que de risquer un faux `KO`.
+Structure possible :
 
 ```python
-def extract_column_references(dax_body, all_tables):
-    qualified = re.findall(r"([A-Za-z_][\w]*)\[([^\]]+)\]", dax_body)  # Table[Colonne]
-    refs = {(normalize(t), normalize(c)) for t, c in qualified}
-    return refs
+usage_index = {
+    ("TABLE", "COLUMN"): {
+        "dax": [],
+        "relationships": [],
+        "sort_by": [],
+        "hierarchies": [],
+        "roles": [],
+        "report_visuals": [],
+        "report_filters": [],
+        "report_sort": [],
+        "drillthrough": [],
+        "tooltips": [],
+        "other": [],
+    }
+}
 ```
 
-**Repérage des références dans les visuels** — le format PBIR (`visual.json`) exprime les champs sous forme de structures imbriquées (`prototypeQuery.Select`, `Column.Property`, `Entity`). L'agent doit parcourir récursivement le JSON et collecter toutes les paires `(Entity, Property)` rencontrées, sans dépendre d'un chemin fixe dans l'arborescence JSON (la structure exacte varie selon le type de visuel).
-
-```python
-def extract_fields_from_visual(visual_json):
-    refs = set()
-    def walk(node):
-        if isinstance(node, dict):
-            if "Entity" in node and "Property" in node:
-                refs.add((normalize(node["Entity"]), normalize(node["Property"])))
-            for v in node.values():
-                walk(v)
-        elif isinstance(node, list):
-            for item in node:
-                walk(item)
-    walk(visual_json)
-    return refs
-```
-
-**Normalisation des noms** : comparaison insensible à la casse, suppression des espaces superflus, dépouillement des guillemets simples autour des noms composés (`D_CHOICE.'ID '`).
-
-**Colonnes de tri (`sortByColumn`)** : une colonne visible peut n'être référencée par aucune mesure ni aucun visuel mais rester utile car elle sert de colonne de tri à une autre colonne visible et utilisée (cas de `INTEREST_LEGEND_ORDER`, masquée, qui trie `INTEREST_LEVEL`, visible et utilisée) — dans ce sens, une colonne visible qui **est elle-même** une colonne de tri utilisée doit être considérée comme référencée.
-
-**Filtres de rapport/page** : les filtres définis au niveau rapport ou page (et pas seulement au niveau visuel) doivent être inclus dans l'index de référencement — une colonne uniquement utilisée comme filtre de page reste une colonne utile.
+Chaque référence conserve sa provenance.
 
 ---
 
-## 7. Pseudo-code détaillé
+## 5. Références à rechercher
+
+Une colonne est considérée comme utilisée si elle apparaît de manière résolue dans au moins une catégorie pertinente.
+
+### 5.1 DAX
+
+Inclure les références provenant notamment :
+
+- des mesures ;
+- des colonnes calculées ;
+- des tables calculées ;
+- des expressions de calculation groups lorsque disponibles ;
+- des expressions RLS si elles sont présentes dans le contexte.
+
+### 5.2 Modèle
+
+Inclure :
+
+- `fromColumn` / `toColumn` des relations ;
+- `sortByColumn` ;
+- hiérarchies ;
+- propriétés de modèle faisant explicitement référence à une colonne.
+
+### 5.3 Rapport
+
+Inclure les usages dans :
+
+- axes ;
+- valeurs ;
+- légendes ;
+- lignes / colonnes de matrices ;
+- info-bulles ;
+- tris ;
+- slicers ;
+- filtres de visuel ;
+- filtres de page ;
+- filtres de rapport ;
+- drillthrough ;
+- autres projections PBIR structurées.
+
+---
+
+## 6. Ne pas parser le DAX avec un regex unique
+
+Le pseudo-code suivant est insuffisant :
 
 ```python
-def build_reference_index(tables, relationships, visual_jsons):
-    index = set()
+re.findall(r"([A-Za-z_][\w]*)\[([^\]]+)\]", dax)
+```
 
-    for table in tables:
-        for m in table.measures:
-            index |= extract_column_references(remove_comments(m.expression), tables)
+Il ne couvre correctement qu'une partie des références qualifiées et ne résout pas les ambiguïtés de contexte.
 
-    for rel in relationships:
-        index.add((normalize(rel.from_table), normalize(rel.from_column)))
-        index.add((normalize(rel.to_table), normalize(rel.to_column)))
+Le moteur doit préférer :
 
-    for table in tables:
-        for column in table.columns:
-            sort_ref = column.get_property("sortByColumn")
-            if sort_ref:
-                index.add((normalize(table.name), normalize(sort_ref)))
+```text
+tokenizer / parser / AST DAX
+```
 
-    for visual_json in visual_jsons:
-        index |= extract_fields_from_visual(visual_json)
+ou un index de références déjà produit par l'extracteur DAX partagé.
 
-    return index
+Pseudo-code :
 
+```python
+def extract_dax_column_references(expression, host_object, context):
+    parsed = context.dax_parser.parse(expression)
 
-def evaluate_column(table, column, reference_index):
-    if column.has_property("isHidden"):
-        return {"table": table.name, "column": column.name, "status": "NA",
-                "reason": "Colonne déjà masquée, hors périmètre prioritaire"}
+    if not parsed.success:
+        return ReferenceExtraction(
+            resolved=set(),
+            unresolved=[{
+                "expression": expression,
+                "reason": parsed.error,
+            }],
+        )
 
-    key = (normalize(table.name), normalize(column.name))
-    if key in reference_index:
-        return {"table": table.name, "column": column.name, "status": "OK"}
+    resolved = set()
+    unresolved = []
 
-    return {"table": table.name, "column": column.name, "status": "KO",
-            "reason": "Colonne visible non référencée par une mesure, un visuel, une relation ou un tri"}
+    for ref in parsed.references:
+        if ref.kind == "COLUMN" and ref.is_resolved:
+            resolved.add((ref.table_name, ref.column_name))
 
+        elif ref.may_reference_column and not ref.is_resolved:
+            unresolved.append(ref)
 
-tables = parse_all_tables(table_files)
-relationships = parse_relationships(relationships_file)
-visual_jsons = load_all_visual_json(report_path)
-
-if not visual_jsons:
-    execution_status = "PARTIAL"   # analyse du modèle possible, analyse du rapport incomplète
-
-reference_index = build_reference_index(tables, relationships, visual_jsons)
-
-results = [
-    evaluate_column(table, column, reference_index)
-    for table in tables
-    for column in table.columns
-]
+    return ReferenceExtraction(
+        resolved=resolved,
+        unresolved=unresolved,
+    )
 ```
 
 ---
 
-## 8. Calcul du statut global
+## 7. Références non qualifiées ou ambiguës
 
-```python
-if any(r["status"] == "KO" for r in results):
-    rule_status = "KO"
-elif any(r["status"] == "NA" for r in results and no visual_jsons found):
-    rule_status = "NA"
-else:
-    rule_status = "OK"
+Une référence comme :
+
+```dax
+[Amount]
 ```
 
-Priorité des statuts : `KO > NA > OK`. Les colonnes déjà masquées, classées `NA` par choix de conception (hors périmètre prioritaire), ne font **pas** basculer le statut global en `NA` : seule l'incapacité à analyser le rapport (aucun `visual.json` accessible) doit produire un statut global `NA`, car dans ce cas les colonnes visibles ne peuvent être validées qu'à moitié (mesures et relations, mais pas usage visuel).
+ne doit jamais être attribuée arbitrairement à toutes les colonnes nommées `Amount`.
 
-| Résultat de l'analyse | Statut global |
+Selon le contexte DAX, elle peut représenter :
+
+- une mesure ;
+- une colonne en contexte de ligne ;
+- une référence non résolue.
+
+Le moteur doit utiliser :
+
+- le type d'objet hôte ;
+- la table hôte ;
+- le contexte de ligne ;
+- les symboles disponibles ;
+- l'AST DAX.
+
+Si la référence ne peut pas être résolue de manière fiable :
+
+```text
+unresolved_reference
+```
+
+Cette ambiguïté doit empêcher un `KO` pour toute colonne candidate potentiellement concernée.
+
+---
+
+## 8. Extraction PBIR
+
+Le moteur ne doit pas dépendre d'un chemin JSON unique.
+
+Il doit parcourir les objets structurés et collecter les références reconnues.
+
+Exemple :
+
+```python
+def collect_report_field_references(node, refs, unresolved):
+    if isinstance(node, dict):
+        field = try_resolve_pbir_field(node)
+
+        if field.is_resolved:
+            refs.add((field.entity, field.property))
+
+        elif field.looks_like_field_reference:
+            unresolved.append(field.raw)
+
+        for value in node.values():
+            collect_report_field_references(
+                value,
+                refs,
+                unresolved,
+            )
+
+    elif isinstance(node, list):
+        for item in node:
+            collect_report_field_references(
+                item,
+                refs,
+                unresolved,
+            )
+```
+
+Le parser PBIR doit être versionné ou tolérant aux variations de structure.
+
+---
+
+## 9. Complétude de l'analyse
+
+Pour produire un `KO`, la règle doit savoir si les principales surfaces d'usage ont été analysées.
+
+Exemple :
+
+```python
+coverage = {
+    "semantic_model": True,
+    "relationships": True,
+    "dax": True,
+    "report": True,
+    "report_filters": True,
+}
+```
+
+Si le rapport est attendu mais absent ou illisible :
+
+```text
+coverage.report = False
+```
+
+Une colonne visible non utilisée dans le modèle ne peut alors pas être déclarée inutilisée avec certitude dans le PBIP complet.
+
+Elle devient :
+
+```text
+NA
+```
+
+sauf si la politique de la règle a explicitement été configurée pour analyser uniquement le modèle sémantique.
+
+---
+
+## 10. Décision par colonne
+
+### Colonne masquée
+
+La bonne pratique cible les colonnes visibles.
+
+```text
+isHidden présent -> NA
+```
+
+avec éventuellement :
+
+```text
+diagnostic_level = INFO
+```
+
+si la colonne semble également inutilisée.
+
+### Colonne visible avec usage résolu
+
+```text
+au moins une référence fiable -> OK
+```
+
+### Colonne visible sans usage résolu
+
+Avant de produire `KO`, vérifier :
+
+1. la couverture d'analyse ;
+2. les références non résolues ;
+3. les erreurs de parsing pouvant concerner cette colonne.
+
+```python
+def evaluate_column(table, column, context):
+    if column.is_hidden:
+        return finding_na(
+            object=column.qualified_name,
+            reason="Colonne masquée : hors périmètre de la règle",
+        )
+
+    key = canonical_column_key(
+        table.name,
+        column.name,
+    )
+
+    usages = context.usage_index.get(key, [])
+
+    if usages:
+        return finding_ok(
+            object=column.qualified_name,
+            evidence={"usages": usages},
+        )
+
+    blockers = find_uncertainty_blockers(
+        column=column,
+        unresolved_references=context.unresolved_references,
+        coverage=context.usage_coverage,
+    )
+
+    if blockers:
+        return finding_na(
+            object=column.qualified_name,
+            reason="Absence d'usage non démontrable avec certitude",
+            evidence={
+                "blockers": blockers,
+                "usage_scope": "CURRENT_PBIP",
+            },
+        )
+
+    return finding_ko(
+        object=column.qualified_name,
+        reason="Colonne visible sans aucune utilisation détectée dans le PBIP analysé",
+        evidence={
+            "usage_scope": "CURRENT_PBIP",
+            "searched_surfaces": context.usage_coverage,
+        },
+    )
+```
+
+---
+
+## 11. Matrice de décision
+
+| Situation | Statut |
 |---|---|
-| Toutes les colonnes visibles sont référencées quelque part | `OK` |
-| Au moins une colonne visible n'est référencée nulle part | `KO` |
-| Modèle analysable mais aucun visuel de rapport accessible pour confirmer l'usage | `NA` |
-| Colonnes `KO` détectées malgré une analyse partielle du rapport | `KO`, avec analyse partielle signalée |
+| colonne masquée | `NA` |
+| colonne visible, au moins un usage résolu | `OK` |
+| colonne visible, aucun usage, couverture complète, aucune ambiguïté | `KO` |
+| colonne visible, aucun usage, rapport absent/incomplet | `NA` |
+| colonne visible potentiellement concernée par une référence DAX non résolue | `NA` |
+| parsing TMDL/PBIR insuffisant pour la colonne | `NA` |
 
 ---
 
-## 9. Structure du résultat
+## 12. Statut global
 
-Exemple lorsque toutes les colonnes visibles sont utilisées :
+Les colonnes masquées classées `NA` car hors périmètre ne doivent pas à elles seules faire basculer la règle globale en `NA`.
 
-```json
-{
-  "rule_id": "BP-07",
-  "rule_name": "Éliminer les colonnes visibles et inutilisées du modèle",
-  "execution_status": "SUCCESS",
-  "rule_status": "OK",
-  "total_columns": 69,
-  "hidden_columns": 24,
-  "visible_columns": 45,
-  "ok_columns": 45,
-  "ko_columns": 0,
-  "ko_details": []
-}
+Pseudo-code :
+
+```python
+evaluable = [
+    r for r in results
+    if not r.reason_code == "HIDDEN_OUT_OF_SCOPE"
+]
+
+if any(r.status == "KO" for r in evaluable):
+    rule_status = "KO"
+
+elif any(r.status == "NA" for r in evaluable):
+    rule_status = "NA"
+
+elif evaluable:
+    rule_status = "OK"
+
+else:
+    rule_status = "NA"
 ```
 
-Exemple avec colonnes inutilisées :
+Priorité sur le périmètre évaluable :
+
+```text
+KO > NA > OK
+```
+
+---
+
+## 13. Preuve obligatoire pour `KO`
+
+Chaque colonne `KO` doit comporter au minimum :
+
+```text
+table
+column
+visibility
+usage_scope
+searched_surfaces
+resolved_usage_count = 0
+unresolved_reference_count_relevant = 0
+coverage_complete = true
+evidence
+```
+
+Sans preuve de couverture suffisante :
+
+```text
+NA
+```
+
+---
+
+## 14. Exemple de résultat
 
 ```json
 {
   "rule_id": "BP-07",
-  "rule_name": "Éliminer les colonnes visibles et inutilisées du modèle",
-  "execution_status": "SUCCESS",
   "rule_status": "KO",
-  "total_columns": 71,
-  "hidden_columns": 24,
-  "visible_columns": 47,
-  "ok_columns": 45,
-  "ko_columns": 2,
-  "ko_details": [
-    {"table": "D_USERS", "column": "LEGACY_COMMENT_FIELD", "reason": "Non référencée par une mesure, un visuel, une relation ou un tri"},
-    {"table": "D_CAMPAIGNS", "column": "CAMPAIGN_INTERNAL_NOTE", "reason": "Non référencée par une mesure, un visuel, une relation ou un tri"}
-  ]
+  "usage_scope": "CURRENT_PBIP",
+  "coverage": {
+    "semantic_model": true,
+    "relationships": true,
+    "dax": true,
+    "report": true,
+    "report_filters": true
+  },
+  "ko_items": [
+    {
+      "table": "D_USERS",
+      "column": "LEGACY_COMMENT_FIELD",
+      "resolved_usage_count": 0,
+      "unresolved_reference_count_relevant": 0,
+      "coverage_complete": true
+    }
+  ],
+  "na_items": []
 }
 ```
 
 ---
 
-## 10. Message présenté à l'utilisateur
-
-### Exemple `OK`
-
-```text
-BP-07 — Colonnes visibles inutilisées : OK
-
-45 colonnes visibles analysées sur 69 colonnes au total (24 déjà
-masquées). Toutes les colonnes visibles sont référencées par au
-moins une mesure DAX, un visuel du rapport, une relation ou un tri.
-```
-
-### Exemple `KO`
-
-```text
-BP-07 — Colonnes visibles inutilisées : KO
-
-45 colonnes utilisées sur 47 colonnes visibles analysées.
-
-Colonnes non conformes :
-- D_USERS[LEGACY_COMMENT_FIELD] : visible, absente de toute mesure,
-  tout visuel et toute relation.
-- D_CAMPAIGNS[CAMPAIGN_INTERNAL_NOTE] : visible, absente de toute
-  mesure, tout visuel et toute relation.
-
-Correction attendue :
-masquer ces colonnes (isHidden) si elles peuvent rester utiles en
-libre-service, ou les supprimer du modèle et de la requête Power
-Query source si elles sont définitivement obsolètes, afin de réduire
-la taille du modèle et la charge cognitive du volet des champs.
-```
-
----
-
-## 11. Conditions empêchant un faux `OK`
-
-L'agent ne doit déclarer la bonne pratique `OK` que si toutes les conditions suivantes sont réunies :
-
-- tous les fichiers `tables/*.tmdl` ont été chargés et toutes les colonnes inventoriées avec leur statut de visibilité ;
-- `relationships.tmdl` a été chargé pour couvrir le référencement par relation ;
-- l'ensemble des fichiers `visual.json` du rapport a été localisé et parsé (si le rapport est indisponible ou partiellement lu, le statut global doit refléter cette limite en `NA`, pas en `OK`) ;
-- l'index de référencement croise mesures, relations, tris et visuels avant de conclure sur chaque colonne visible ;
-- aucune colonne visible n'a été omise de l'analyse ;
-- une colonne visible référencée uniquement par un filtre de page/rapport (et non par un visuel classique) a bien été prise en compte.
-
-L'agent ne doit jamais produire `OK` si l'accès aux fichiers `visual.json` du rapport a échoué ou a été partiel : dans ce cas, l'usage réel des colonnes visibles ne peut être confirmé que partiellement, et le statut global doit être `NA`.
-
----
-
-## 12. Résumé de la règle
+## 15. Résumé
 
 ```text
 RÈGLE BP-07
 
-CONSTRUIRE l'inventaire de toutes les colonnes de toutes les tables
-CONSTRUIRE l'index de référencement :
-    POUR chaque mesure DAX -> extraire Table[Colonne]
-    POUR chaque relation -> ajouter fromColumn / toColumn
-    POUR chaque colonne avec sortByColumn -> ajouter la colonne de tri référencée
-    POUR chaque visual.json du rapport -> extraire tous les champs (Entity, Property)
+CONSTRUIRE une seule fois usage_index
 
 POUR chaque colonne
-    SI isHidden présent
-        colonne = NA (hors périmètre prioritaire)
-    SINON SI colonne présente dans l'index de référencement
-        colonne = OK
+    SI colonne masquée
+        -> NA hors périmètre
+
+    SINON SI usage résolu présent
+        -> OK
+
     SINON
-        colonne = KO
+        VÉRIFIER couverture + références non résolues
 
-    ENREGISTRER le résultat avec preuve
-FIN POUR
+        SI analyse incomplète ou ambiguë
+            -> NA
 
-SI au moins une colonne visible est KO
-    règle = KO
-SINON SI le rapport n'a pas pu être analysé intégralement
-    règle = NA
-SINON
-    règle = OK
-
-AFFICHER toutes les colonnes KO avec recommandation (masquer ou supprimer)
+        SINON
+            -> KO
+FIN
 ```
 
----
-
-## Annexe — Schéma de flux de l'algorithme
-
-```text
-┌───────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-07 — Colonnes visibles et inutilisées du modèle      │
-└────────────────────────┬────────────────────────────────────────┘
-                          │
-                          ▼
-          ┌──────────────────────────────────┐
-          │ Charger tables/*.tmdl              │
-          │ Charger relationships.tmdl          │
-          │ Lister tous les visual.json du      │
-          │ rapport (pages/*/visuals/*)          │
-          └──────────────┬────────────────────┘
-                          │
-               ┌──────────┴──────────┐
-               ▼                     ▼
-         ╔═════════════╗    ┌──────────────────────┐
-         ║ tables/      ║    │ Dossier tables/        │
-         ║ trouvé ✅    ║    │ introuvable ❌         │
-         ╚════╤════════╝    └──────────┬────────────┘
-              │                        ▼
-              │                ┌───────────────────┐
-              │                │ Retour : NON_EVALUE│
-              │                └───────────────────┘
-              ▼
-   ┌───────────────────────────────────────────┐
-   │ CONSTRUIRE l'index de référencement :       │
-   │  - mesures DAX → Table[Colonne]             │
-   │  - relations → fromColumn/toColumn          │
-   │  - sortByColumn → colonne de tri référencée │
-   │  - visual.json → (Entity, Property)          │
-   └──────────────────┬──────────────────────────┘
-                       ▼
-   ┌───────────────────────────────────────────┐
-   │ POUR chaque colonne de chaque table         │
-   │ (boucle, aucune colonne visible omise)      │
-   └──────────────────┬──────────────────────────┘
-                       ▼
-        ┌────────────────────────────────────┐
-        │ isHidden présent ?                    │
-        └───────┬──────────────────┬───────────┘
-              oui│                  │non (visible)
-                 ▼                  ▼
-         ╔═══════════════╗  ┌────────────────────────────┐
-         ║ colonne = NA  ║  │ Colonne présente dans        │
-         ║ (hors périmètre║  │ l'index de référencement ?   │
-         ║  prioritaire)  ║  └───────┬──────────────┬────────┘
-         ╚═══════════════╝       oui│                │non
-                                     ▼                ▼
-                          ╔═══════════════╗  ╔═══════════════╗
-                          ║ colonne = OK  ║  ║ colonne = KO  ║
-                          ╚═══════════════╝  ╚═══════════════╝
-                       │
-                       ▼ (ENREGISTRER avec preuve, boucle suivante)
-   ┌──────────────────────────────────────────────────────┐
-   │ CALCUL DU STATUT GLOBAL                                │
-   │ SI au moins une colonne visible KO    → règle = KO     │
-   │ SINON SI aucun visual.json accessible → règle = NA     │
-   │        (analyse du rapport incomplète)                 │
-   │ SINON                                  → règle = OK    │
-   │ (les colonnes déjà masquées, classées NA, ne font       │
-   │  JAMAIS basculer le statut global en NA à elles seules) │
-   └───────────────────────┬────────────────────────────────┘
-                            ▼
-                RETOUR rule_status (OK / KO / NA)
-```
+La règle ne doit jamais produire `KO` uniquement parce qu'une recherche regex n'a trouvé aucune occurrence.

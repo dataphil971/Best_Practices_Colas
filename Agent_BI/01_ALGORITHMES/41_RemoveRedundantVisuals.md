@@ -1,381 +1,570 @@
 # BP-41 — Détection des visuels redondants ou dupliqués
 
-## 1. Objectif de la bonne pratique
+## 1. Objectif
 
-Un rapport qui évolue au fil des itérations accumule parfois des visuels quasi identiques : un graphique dupliqué pour tester une variante puis oublié, un visuel copié-collé d'une page à l'autre sans réel besoin de le répéter, ou deux tableaux affichant strictement les mêmes champs et les mêmes filtres avec une présentation différente. Ces doublons alourdissent le temps de chargement du rapport (chaque visuel génère sa propre requête DAX), complexifient la maintenance (une correction doit être répercutée sur chaque copie) et n'apportent aucune valeur analytique supplémentaire à l'utilisateur final.
+Détecter de manière déterministe les **candidats** à la redondance visuelle, puis séparer cette détection technique du jugement portant sur leur utilité réelle.
 
-L'objectif de cette règle est de détecter les visuels dont la **signature analytique** — type de visuel, champs projetés sur chaque rôle (`Category`, `Values`, `Legend`, `Rows`, `Columns`...) et filtres propres au visuel — est strictement identique à celle d'un autre visuel, que ce soit sur la même page ou sur des pages différentes du rapport.
+Deux visuels présentant la même signature analytique ne sont pas nécessairement inutiles.
 
-La règle doit être générique et fonctionner indépendamment :
+Exemples de répétitions potentiellement justifiées :
 
-- du nom du rapport Power BI ;
-- du nombre de pages et de visuels ;
-- des identifiants techniques hexadécimaux des pages et des visuels ;
-- de la mise en forme (couleurs, titre, position, taille) des visuels comparés, qui n'entre pas dans la signature analytique.
+- même KPI repris sur plusieurs pages ;
+- rappel d'un indicateur de synthèse ;
+- même donnée utilisée dans deux contextes narratifs différents ;
+- visuel similaire sur une page principale et une page de détail ;
+- visuel dupliqué volontairement pour un scénario de navigation.
 
----
-
-## 2. Emplacement des fichiers concernés
+Par conséquent :
 
 ```text
-<REPORT_PATH>\definition\pages\<pageId>\visuals\<visualId>\visual.json
+signature identique ≠ redondance métier prouvée
 ```
 
-L'agent doit parcourir l'ensemble des visuels de l'ensemble des pages du rapport, par exemple :
+Statuts Agent BI :
 
 ```text
-AI_BAROMETER_BI-CDS.Report\definition\pages\81a74ceaa660678035ae\visuals\40e24ea779a62934c9c1\visual.json
-AI_BAROMETER_BI-CDS.Report\definition\pages\23ff3fc10a020bb396d9\visuals\42429c460c8e29129420\visual.json
-...
+OK / KO / NA
 ```
 
 ---
 
-## 3. Élément(s) / propriété(s) à contrôler
+## 2. Architecture de la règle
 
-### 3.1. Type de visuel et projections de champs
+La règle est **hybride**.
+
+### Partie Python déterministe
+
+Elle :
+
+1. parcourt les visuels ;
+2. construit une signature canonique ;
+3. regroupe les signatures identiques ;
+4. produit des `duplicate_candidates`.
+
+### Partie contextuelle / validation
+
+Elle détermine, uniquement pour les candidats :
+
+```text
+JUSTIFIED
+REDUNDANT_CONFIRMED
+UNRESOLVED
+```
+
+Cette validation peut provenir :
+
+- d'une politique d'entreprise explicite ;
+- d'une justification déclarée ;
+- d'un Context Reviewer ;
+- d'une validation humaine.
+
+Le checker Python ne doit jamais transformer seul un candidat en `KO` sur la simple égalité des signatures.
+
+---
+
+## 3. Sources
+
+```text
+<REPORT_PATH>/definition/pages/pages.json
+<REPORT_PATH>/definition/pages/<pageId>/page.json
+<REPORT_PATH>/definition/pages/<pageId>/visuals/<visualId>/visual.json
+```
+
+Le `AnalysisContext` doit fournir si possible :
+
+```text
+page_id
+page_name
+page_visibility
+visual_id
+visual_type
+query_state
+visual_filters
+title
+position
+group
+navigation_context
+parse_status
+```
+
+Les propriétés de présentation ne font pas nécessairement partie de la signature analytique, mais peuvent être conservées comme **contexte de justification**.
+
+---
+
+## 4. Visuels hors périmètre analytique
+
+Exemples :
+
+```text
+textbox
+image
+shape
+actionButton
+basicShape
+visualGroup container
+```
+
+Ils sont classés :
+
+```text
+NA / hors périmètre
+```
+
+Ils ne participent pas à la recherche de doublons analytiques.
+
+---
+
+## 5. Signature analytique canonique
+
+La signature déterministe peut inclure :
+
+1. `visualType` ;
+2. rôles de projection ;
+3. références techniques de champs/mesures ;
+4. filtres propres au visuel normalisés ;
+5. tris analytiques lorsque leur effet sur le résultat est pertinent.
+
+Pseudo-code :
+
+```python
+def build_visual_signature(visual, context):
+    if visual.type in NON_ANALYTICAL_TYPES:
+        return None
+
+    if not visual.query_state_parseable:
+        raise VisualSignatureError(
+            "queryState non interprétable"
+        )
+
+    roles = []
+
+    for role_name in sorted(visual.query_state.roles):
+        projections = visual.query_state.roles[role_name]
+
+        refs = sorted(
+            canonical_query_ref(p)
+            for p in projections
+        )
+
+        roles.append((
+            canonical_role_name(role_name),
+            tuple(refs),
+        ))
+
+    filters = tuple(sorted(
+        canonical_filter(f)
+        for f in visual.visual_filters
+    ))
+
+    analytical_sort = tuple(sorted(
+        canonical_sort(s)
+        for s in visual.analytical_sort
+    ))
+
+    return (
+        visual.type,
+        tuple(roles),
+        filters,
+        analytical_sort,
+    )
+```
+
+---
+
+## 6. Normalisation
+
+La signature ne doit pas dépendre :
+
+- de l'identifiant technique du visuel ;
+- de l'identifiant de page ;
+- de l'ordre JSON ;
+- du formatage du JSON ;
+- de `nativeQueryRef` si `queryRef` permet une référence technique plus stable ;
+- de la couleur ;
+- de la taille ;
+- de la position ;
+- du titre.
+
+Ces éléments peuvent toutefois être conservés pour le contexte de revue.
+
+---
+
+## 7. Détection des candidats
+
+```python
+def detect_duplicate_candidates(report):
+    groups = {}
+
+    for page in report.pages:
+        for visual in page.visuals:
+            if visual.is_group_container:
+                continue
+
+            try:
+                signature = build_visual_signature(
+                    visual,
+                    report.context,
+                )
+            except VisualSignatureError as exc:
+                report.unresolved_visuals.append({
+                    "page": page.name,
+                    "visual": visual.id,
+                    "reason": str(exc),
+                })
+                continue
+
+            if signature is None:
+                report.out_of_scope_visuals.append(
+                    visual.id
+                )
+                continue
+
+            groups.setdefault(signature, []).append({
+                "page_id": page.id,
+                "page_name": page.name,
+                "visual_id": visual.id,
+                "visual_type": visual.type,
+                "title": visual.title,
+                "position": visual.position,
+            })
+
+    return [
+        {
+            "candidate_id": make_candidate_id(sig),
+            "signature": sig,
+            "occurrences": occurrences,
+        }
+        for sig, occurrences in groups.items()
+        if len(occurrences) >= 2
+    ]
+```
+
+Une signature identique produit :
+
+```text
+duplicate_candidate = true
+```
+
+et non :
+
+```text
+rule_status = KO
+```
+
+---
+
+## 8. Contexte de revue d'un candidat
+
+Pour chaque groupe candidat, le moteur fournit au reviewer :
+
+```text
+pages concernées
+page visible / masquée
+titres des visuels
+type de visuel
+champs / mesures
+filtres
+position
+navigation éventuelle
+groupe éventuel
+même page ou pages différentes
+```
+
+Exemple :
 
 ```json
 {
-  "visual": {
-    "visualType": "columnChart",
-    "query": {
-      "queryState": {
-        "Category": {
-          "projections": [
-            { "field": { "Column": { "Expression": { "SourceRef": { "Entity": "F_RESPONSES" } }, "Property": "AI_USAGE_FREQ_LEVEL" } },
-              "queryRef": "F_RESPONSES.AI_USAGE_FREQ_LEVEL" }
-          ]
-        },
-        "Y": {
-          "projections": [
-            { "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "MEASURE" } }, "Property": "Nb_Responses" } },
-              "queryRef": "MEASURE.Nb_Responses" }
-          ]
-        }
-      }
+  "candidate_id": "DUP-004",
+  "same_page": false,
+  "visual_type": "card",
+  "measure": "MEASURE[Nb_Responses]",
+  "filters": [],
+  "occurrences": [
+    {
+      "page": "Overview",
+      "visual_id": "..."
+    },
+    {
+      "page": "Usage",
+      "visual_id": "..."
     }
-  }
+  ]
 }
 ```
 
-Propriétés décisionnelles constituant la signature d'un visuel :
-- `visual.visualType` ;
-- pour chaque rôle visuel présent dans `visual.query.queryState` (`Category`, `Y`, `Values`, `Rows`, `Columns`, `Legend`, `Series`...) : l'ensemble ordonné des `queryRef` projetés sur ce rôle ;
-- les filtres propres au visuel (`visual.filterConfig.filters[]`, résolus en couples `(Entity, Property)` + condition — cf. [BP-39](39_ConfigAndTestFilters.md) pour la structure détaillée).
+---
 
-Les propriétés de mise en forme (`objects`, `visualContainerObjects`, position, couleurs, titre) sont **exclues** de la signature : deux visuels avec des couleurs et des titres différents mais des champs et filtres strictement identiques restent des doublons fonctionnels.
+## 9. Décision contextuelle
+
+Chaque candidat reçoit l'une des décisions suivantes.
+
+### `JUSTIFIED`
+
+Une justification observable ou déclarée explique la répétition.
+
+Exemples :
+
+- KPI de contexte volontairement repris sur plusieurs pages ;
+- page de synthèse et page de détail ;
+- navigation/documentation du rapport indiquant un rôle différent.
+
+### `REDUNDANT_CONFIRMED`
+
+La redondance est explicitement confirmée.
+
+Exemples :
+
+- copie de test oubliée ;
+- doublon déclaré inutile ;
+- politique d'entreprise interdisant explicitement ce cas précis et conditions remplies ;
+- revue contextuelle/humaine concluant que les deux visuels remplissent le même rôle sans justification.
+
+### `UNRESOLVED`
+
+La signature est identique mais l'intention ne peut pas être déterminée de manière fiable.
 
 ---
 
-## 4. Règle(s) d'évaluation
+## 10. Politique déterministe optionnelle
 
-| Situation détectée | Statut | Interprétation |
-|---|---|---|
-| Deux visuels de la page (ou de pages différentes) partagent le même `visualType`, les mêmes champs projetés sur chaque rôle et les mêmes filtres propres | `KO` | Doublon fonctionnel confirmé : les deux visuels affichent strictement la même information. |
-| Deux visuels ont le même type et les mêmes champs mais des filtres de visuel différents | `OK` | Les visuels répondent à des questions analytiques différentes malgré une apparence proche (ex. même graphique, filtré sur des périodes différentes). |
-| Deux visuels ont le même type et les mêmes champs sur `Category`/`Rows` mais des mesures différentes sur `Values`/`Y` | `OK` | Visuels complémentaires, pas redondants. |
-| Visuel de type `textbox`, `image`, `shape` ou `actionButton` comparé à un autre visuel | `NA` (hors périmètre) | Ces types n'ont pas de signature analytique comparable : ils sont exclus de la détection de redondance. |
-| Visuel sans bloc `query.queryState` interprétable (visuel custom, structure non standard) | `NA` | Signature non déterminable avec cette lecture. |
+Une entreprise peut définir une règle stricte, par exemple :
 
----
+```yaml
+bp_41:
+  forbid_identical_signature_same_page: true
+```
 
-## 5. Parcours complet du rapport
+Dans ce cas uniquement, un groupe peut produire directement `KO` si toutes les conditions techniques de la politique sont démontrées.
 
-### Étape 1 — Localiser tous les visuels
-1. Lire `pages.json` pour la liste complète des pages.
-2. Pour chaque page, lister tous les fichiers `visuals\<visualId>\visual.json`.
+Exemple :
 
-### Étape 2 — Construire la signature de chaque visuel
-Pour chaque visuel analytique (hors `textbox`/`image`/`shape`/`actionButton`) : extraire `visualType` ; pour chaque rôle de `query.queryState`, extraire la liste triée des `queryRef` ; extraire et normaliser les filtres propres au visuel ; construire une signature canonique combinant ces trois éléments.
+```text
+même page
++ même signature
++ règle COMPANY_POLICY explicite
+-> KO
+```
 
-### Étape 3 — Comparer toutes les paires de visuels
-Regrouper les visuels par signature identique, sur l'ensemble du rapport (pas seulement au sein d'une même page). Toute paire ou groupe de visuels partageant exactement la même signature est un doublon candidat.
+Sans cette politique :
 
-### Étape 4 — Qualifier chaque doublon détecté
-Pour chaque groupe de signature identique : vérifier qu'il s'agit bien d'au moins deux visuels distincts (pas une comparaison d'un visuel avec lui-même) ; enregistrer les pages et identifiants concernés.
-
-### Étape 5 — Terminer l'analyse
-Parcourir l'intégralité des pages et des visuels avant de conclure — ne jamais s'arrêter au premier doublon trouvé. Produire : le nombre total de visuels analytiques analysés, le nombre de groupes de doublons détectés, le détail de chaque groupe (pages et visuels concernés), le nombre de visuels exclus du périmètre (`NA`).
-
----
-
-## 6. Détection robuste / normalisation
-
-- Les identifiants de page et de visuel (hexadécimaux) ne doivent jamais entrer dans le calcul de la signature : deux visuels identiques sur deux pages différentes restent des doublons malgré des `name` totalement différents.
-- L'ordre des rôles dans `query.queryState` n'est pas garanti stable d'un export à l'autre : la signature doit trier les rôles par nom avant comparaison.
-- Au sein d'un même rôle, l'ordre des projections doit également être normalisé (trié par `queryRef`) avant comparaison, pour ne pas considérer comme différents deux visuels dont les champs sont identiques mais déclarés dans un ordre différent.
-- Les filtres de visuel doivent être normalisés selon la même logique que celle décrite en [BP-39](39_ConfigAndTestFilters.md) (résolution en ensembles de valeurs autorisées/exclues) avant comparaison, plutôt qu'une comparaison textuelle brute du JSON, qui échouerait sur de simples différences de formatage ou d'ordre de conditions.
-- Un visuel présent dans un groupe de visuels (`visualGroup`, cf. [BP-37](37_OrganizeVisualsBookmarks.md)) reste comparé normalement : l'appartenance à un groupe ne fait pas partie de la signature.
-- Les pages masquées (`HiddenInViewMode`) sont incluses dans la comparaison : un visuel dupliqué entre une page technique et une page visible reste un doublon à signaler, même si son impact utilisateur est moindre.
-- Deux visuels avec des `nativeQueryRef` (libellés lisibles) différents mais des `queryRef` techniques identiques doivent être considérés comme identiques : seule la référence technique compte, jamais le libellé d'affichage.
-
----
-
-## 7. Pseudo-code détaillé
-
-```python
-NON_ANALYTICAL_TYPES = {"textbox", "image", "shape", "actionButton", "basicShape"}
-
-def build_visual_signature(visual_json):
-    visual = visual_json.get("visual", {})
-    visual_type = visual.get("visualType")
-    if visual_type in NON_ANALYTICAL_TYPES:
-        return None
-
-    query_state = visual.get("query", {}).get("queryState")
-    if not query_state:
-        return None
-
-    role_signature = {}
-    for role_name, role_data in query_state.items():
-        refs = sorted(p.get("queryRef", "") for p in role_data.get("projections", []))
-        role_signature[role_name] = tuple(refs)
-
-    filters = visual.get("filterConfig", {}).get("filters", [])
-    normalized_filters = tuple(sorted(normalize_filter(f) for f in filters))
-
-    signature = (
-        visual_type,
-        tuple(sorted(role_signature.items())),
-        normalized_filters,
-    )
-    return signature
-
-
-def analyze_redundant_visuals(report_path, pages):
-    signatures = {}   # signature -> [{"page": ..., "visual_id": ...}]
-    na_visuals = []
-
-    for page in pages:
-        for vfile in list_visual_json_files(report_path, page.id):
-            data = read_json(vfile)
-            if "visualGroup" in data:
-                continue   # conteneur de groupe, pas un visuel analytique
-
-            signature = build_visual_signature(data)
-            if signature is None:
-                na_visuals.append({"page": page.display_name, "visual_id": data["name"]})
-                continue
-
-            signatures.setdefault(signature, []).append({
-                "page": page.display_name, "visual_id": data["name"],
-            })
-
-    duplicate_groups = [
-        {"visual_type": sig[0], "occurrences": occ, "count": len(occ)}
-        for sig, occ in signatures.items()
-        if len(occ) > 1
-    ]
-
-    return duplicate_groups, na_visuals
+```text
+même page + même signature
+-> candidat à revoir
 ```
 
 ---
 
-## 8. Calcul du statut global
+## 11. Décision du statut de la règle
+
+```python
+def evaluate_bp41(
+    candidates,
+    reviews,
+    unresolved_visuals,
+    company_policy,
+):
+    if not candidates:
+        if unresolved_visuals:
+            return "NA"
+
+        return "OK"
+
+    decisions = []
+
+    for candidate in candidates:
+        policy_decision = evaluate_company_policy(
+            candidate,
+            company_policy,
+        )
+
+        if policy_decision is not None:
+            decisions.append(policy_decision)
+            continue
+
+        review = reviews.get(candidate["candidate_id"])
+
+        if review is None:
+            decisions.append("UNRESOLVED")
+        else:
+            decisions.append(review.decision)
+
+    if "REDUNDANT_CONFIRMED" in decisions:
+        return "KO"
+
+    if "UNRESOLVED" in decisions:
+        return "NA"
+
+    if all(d == "JUSTIFIED" for d in decisions):
+        return "OK"
+
+    return "NA"
+```
+
+---
+
+## 12. Matrice de décision
+
+| Situation | Statut |
+|---|---|
+| aucun candidat et tous les visuels comparables analysés | `OK` |
+| aucun candidat mais certains visuels analytiques illisibles pouvant masquer un doublon | `NA` |
+| candidat(s) détecté(s), pas encore qualifié(s) | `NA` |
+| tous les candidats sont explicitement justifiés | `OK` |
+| au moins un candidat est confirmé redondant | `KO` |
+| politique d'entreprise interdit explicitement un cas et le cas est démontré | `KO` |
+| uniquement visuels non analytiques | `NA` |
+
+---
+
+## 13. Pourquoi l'ancienne logique est insuffisante
+
+Cette logique :
 
 ```python
 if duplicate_groups:
     rule_status = "KO"
-elif na_visuals and not any_analytical_visual_found:
-    rule_status = "NA"
-else:
-    rule_status = "OK"
 ```
 
-| Résultat de l'analyse | Statut global |
-|---|---|
-| Aucun groupe de visuels à signature identique détecté | `OK` |
-| Au moins un groupe de deux visuels ou plus partage exactement la même signature | `KO` |
-| Aucun visuel analytique comparable trouvé dans le rapport (uniquement textbox/images) | `NA` |
+est trop forte.
+
+Elle confond :
+
+```text
+égalité technique
+```
+
+et :
+
+```text
+absence de valeur métier
+```
+
+Le checker déterministe peut prouver que deux visuels ont la même signature.
+
+Il ne peut pas prouver à lui seul qu'ils n'ont aucune raison d'être présents à deux endroits.
 
 ---
 
-## 9. Structure du résultat
+## 14. Résultat attendu
 
-Exemple `OK` :
-
-```json
-{
-  "rule_id": "BP-41",
-  "rule_name": "Détection des visuels redondants ou dupliqués",
-  "execution_status": "SUCCESS",
-  "rule_status": "OK",
-  "total_analytical_visuals": 62,
-  "duplicate_groups": [],
-  "na_visuals": []
-}
-```
-
-Exemple `KO` :
+Exemple avec candidats non résolus :
 
 ```json
 {
   "rule_id": "BP-41",
-  "rule_name": "Détection des visuels redondants ou dupliqués",
-  "execution_status": "SUCCESS",
-  "rule_status": "KO",
-  "total_analytical_visuals": 62,
-  "duplicate_groups": [
+  "rule_status": "NA",
+  "duplicate_candidates": [
     {
-      "visual_type": "columnChart",
-      "count": 2,
-      "occurrences": [
-        {"page": "Adoption", "visual_id": "4f36c5d7ccc129a12ccd"},
-        {"page": "Adoption", "visual_id": "7645f16326d020ca0620"}
-      ]
-    },
-    {
+      "candidate_id": "DUP-004",
       "visual_type": "card",
-      "count": 2,
       "occurrences": [
-        {"page": "Overview", "visual_id": "5ab2ce08ed12dee71131"},
-        {"page": "Usage", "visual_id": "2c471defb41934090d39"}
-      ]
+        {
+          "page": "Overview",
+          "visual_id": "5ab2..."
+        },
+        {
+          "page": "Usage",
+          "visual_id": "2c47..."
+        }
+      ],
+      "review_status": "UNRESOLVED"
     }
   ],
-  "na_visuals": []
+  "diagnostic_level": "WARNING"
+}
+```
+
+Exemple après revue :
+
+```json
+{
+  "rule_id": "BP-41",
+  "rule_status": "KO",
+  "duplicate_candidates": [
+    {
+      "candidate_id": "DUP-004",
+      "review_status": "REDUNDANT_CONFIRMED",
+      "reason": "Copie de test oubliée sans différence fonctionnelle"
+    }
+  ]
 }
 ```
 
 ---
 
-## 10. Message présenté à l'utilisateur
+## 15. Preuve obligatoire
 
-### Exemple `OK`
+Chaque candidat doit conserver :
 
 ```text
-BP-41 — Détection des visuels redondants ou dupliqués : OK
-
-62 visuels analytiques comparés sur l'ensemble du rapport. Aucun visuel ne
-partage exactement le même type, les mêmes champs projetés et les mêmes
-filtres qu'un autre — pas de doublon fonctionnel détecté.
+candidate_id
+visual_type
+canonical_signature
+page_id
+page_name
+visual_id
+title
+fields
+measures
+filters
+sorts
+review_status
+review_source
+review_evidence
 ```
 
-### Exemple `KO`
+Un `KO` doit disposer de :
 
 ```text
-BP-41 — Détection des visuels redondants ou dupliqués : KO
+REDUNDANT_CONFIRMED
+```
 
-2 groupes de visuels redondants détectés :
-- Page "Adoption" : les visuels "4f36c5d7ccc129a12ccd" et
-  "7645f16326d020ca0620" sont deux graphiques en colonnes (columnChart)
-  affichant strictement les mêmes champs et les mêmes filtres.
-- Page "Overview" / "Usage" : les cartes "5ab2ce08ed12dee71131" et
-  "2c471defb41934090d39" affichent exactement le même indicateur avec les
-  mêmes filtres, sur deux pages différentes.
+ou d'une violation explicite d'une `COMPANY_POLICY`.
 
-Correction attendue :
-supprimer l'un des deux visuels de chaque groupe, ou différencier leur
-filtre/leurs champs s'ils répondent réellement à des questions analytiques
-distinctes malgré une apparence actuellement identique.
+Sans cela :
+
+```text
+NA
 ```
 
 ---
 
-## 11. Conditions empêchant un faux OK
-
-- toutes les pages du rapport ont été parcourues et tous les visuels de chaque page lus, y compris sur les pages masquées ;
-- pour chaque visuel analytique, la signature (type + champs par rôle + filtres normalisés) a été correctement construite, sans dépendre de l'ordre d'origine des projections ni des identifiants techniques ;
-- la comparaison a été effectuée sur l'ensemble du rapport, pas uniquement au sein de chaque page prise isolément ;
-- les filtres propres au visuel ont été normalisés (ensembles de valeurs) avant comparaison, pas comparés textuellement ;
-- aucun groupe de deux visuels ou plus ne partage une signature strictement identique.
-
----
-
-## 12. Résumé de la règle
+## 16. Résumé
 
 ```text
 RÈGLE BP-41
 
-POUR chaque page
-    POUR chaque visual.json analytique (hors textbox/image/shape/bouton)
-        CONSTRUIRE la signature : (visualType, champs par rôle triés, filtres normalisés triés)
-        REGROUPER par signature sur l'ensemble du rapport
-    FIN POUR
-FIN POUR
+POUR chaque visuel analytique
+    CONSTRUIRE une signature canonique
+FIN
 
-POUR chaque groupe de signature identique
-    SI le groupe contient 2 visuels ou plus
-        groupe = doublon détecté (KO)
+REGROUPER les signatures identiques
 
-SI au moins un groupe de doublons détecté
-    règle = KO
-SINON SI aucun visuel analytique comparable trouvé
-    règle = NA
+SI aucun candidat
+    SI analyse complète
+        -> OK
+    SINON
+        -> NA
+
 SINON
-    règle = OK
+    POUR chaque candidat
+        SI politique explicite violée
+            -> REDUNDANT_CONFIRMED
+
+        SINON
+            DEMANDER / CONSOMMER une qualification contextuelle
+    FIN
+
+    SI au moins un REDUNDANT_CONFIRMED
+        -> KO
+
+    SINON SI au moins un UNRESOLVED
+        -> NA
+
+    SINON
+        -> OK
 ```
 
----
+Le rôle de Python est de détecter les candidats de manière reproductible.
 
-## Annexe — Schéma de flux de l'algorithme
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ DÉBUT : BP-41 — Détection des visuels redondants ou dupliqués     │
-└────────────────────────┬───────────────────────────────────────────┘
-                          │
-                          ▼
-          ┌───────────────────────────────┐
-          │ Lire pages.json (liste pages)  │
-          └──────────────┬──────────────────┘
-                          │
-                          ▼
-     ┌──────────────────────────────────────────────────┐
-     │ POUR chaque page                                   │
-     │  POUR chaque visual.json (hors conteneur de groupe) │
-     └──────────────┬─────────────────────────────────────┘
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-   ╔═════════════════╗   ┌────────────────────────────┐
-   │ textbox/image/    │   │ Visuel analytique           │
-   │ shape/actionButton │   │ (query.queryState présent)  │
-   │ -> NA (hors        │   └──────────────┬────────────────┘
-   │ périmètre)          │                  ▼
-   ╚═════════════════╝     ┌──────────────────────────────────┐
-                            │ CONSTRUIRE la signature :         │
-                            │ (visualType, champs par rôle      │
-                            │ triés, filtres normalisés triés)  │
-                            └──────────────┬───────────────────────┘
-                                           ▼
-                            ┌──────────────────────────────────┐
-                            │ REGROUPER par signature identique │
-                            │ sur l'ENSEMBLE du rapport          │
-                            │ (toutes pages confondues)          │
-                            └──────────────┬───────────────────────┘
-                                           ▼
-                                  ┌────────┴─────────┐
-                                  ▼                   ▼
-                           ╔═════════════════╗  ┌─────────────────────┐
-                           ║ Groupe de        ║  │ Chaque signature     │
-                           ║ signature avec    ║  │ apparaît une seule   │
-                           ║ 2 visuels ou plus ║  │ fois                │
-                           ║ -> doublon        ║  └─────────────────────┘
-                           ╚════════╤═════════╝
-                                    ▼
-                              ┌─────────────┐
-                              │ Groupe = KO │
-                              └─────────────┘
-                          │
-                          ▼
-     ┌──────────────────────────────────────────┐
-     │ CALCUL DU RÉSULTAT FINAL                  │
-     │ Priorité : KO > NA > OK                   │
-     └──────────────┬─────────────────────────────┘
-                     │
-    ┌────────────────┼─────────────────┐
-    ▼                ▼                 ▼
-╔═════════╗   ┌──────────────────┐  ┌─────────────┐
-║ 1+ groupe║   │ Aucun visuel      │  │ Aucun groupe │
-║ de       ║   │ analytique        │  │ dupliqué,    │
-║ doublons ║   │ comparable trouvé │  │ visuels      │
-║ -> KO    ║   │ -> NA             │  │ analysés     │
-╚═════════╝   └──────────────────┘  │ -> OK        │
-                                      └─────────────┘
-                     │
-                     ▼
-        RETOUR rule_status (OK/KO/NA)
-```
+Le rôle du reviewer contextuel ou humain est de déterminer si la duplication est réellement injustifiée.
