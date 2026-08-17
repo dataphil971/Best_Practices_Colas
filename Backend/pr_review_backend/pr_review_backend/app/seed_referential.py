@@ -108,6 +108,7 @@ def run(actor_email: str | None = None) -> None:
                         checklist_type=ct,
                         category_id=category.id,
                         status="active",
+                        code=rule_data.get("code"),
                         created_by=actor.id,
                     )
                     db.add(rule)
