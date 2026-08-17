@@ -272,17 +272,16 @@ Architecture cible :
 ```text
 03_PYTHON/
 |
-├── main.py
-├── engine/
-├── powerbi/
-├── rules/
-│   ├── semantic_model/
-│   └── report/
-├── fixes/
-│   ├── semantic_model/
-│   └── report/
+├── main.py           point d'entrée (appelé par run-agent.ps1)
+├── engine/            contexte d'analyse partagé, orchestrateur de règles, modèles (Finding, RuleResult)
+├── powerbi/            parseurs TMDL / PBIR
+├── rules/               une règle par fichier, à plat : bp_21.py, bp_22.py, ...
+├── fixes/                une correction par fichier, à plat : bp_22.py, ...
 └── tests/
+    └── fixtures/          fixtures minimales par règle : fixtures/bp_22/ok|ko|na/
 ```
+
+`rules/` et `fixes/` sont à plat, sans sous-dossiers `semantic_model/`/`report/` : comme pour `01_ALGORITHMES/`, le périmètre se déduit du contenu de chaque fichier, pas de son emplacement (cf. `Convention des règles`).
 
 ### Principe important
 

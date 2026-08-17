@@ -1,0 +1,13 @@
+table D_TEST
+	lineageTag: 77777777-7777-7777-7777-777777777777
+
+	column MISSING_PROP
+		dataType: string
+		lineageTag: 88888888-8888-8888-8888-888888888888
+		sourceColumn: MISSING_PROP
+
+	column WEIRD_VALUE
+		dataType: string
+		lineageTag: 99999999-9999-9999-9999-999999999999
+		summarizeBy: unknownvalue
+		sourceColumn: WEIRD_VALUE
