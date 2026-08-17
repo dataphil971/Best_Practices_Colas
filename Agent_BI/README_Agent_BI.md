@@ -84,6 +84,8 @@ Agent_BI/
 │
 ├── 04_DOCS/
 │
+├── 05_NODE/
+│
 ├── SKILLS/
 │
 ├── Agent_BI_Algorithmie_Regles_v1.xlsx
@@ -97,7 +99,7 @@ Agent_BI/
 └── README.md
 ```
 
-L'architecture cible repose principalement sur les quatre dossiers numérotés :
+L'architecture cible repose principalement sur les cinq dossiers numérotés :
 
 ```text
 01_ALGORITHMES
@@ -110,9 +112,11 @@ L'architecture cible repose principalement sur les quatre dossiers numérotés :
       |
       v
 04_DOCS
+
+05_NODE (transverse : pont local entre un futur frontend et 03_PYTHON)
 ```
 
-Ils séparent volontairement la **définition fonctionnelle**, la **couche agentique**, l'**implémentation technique** et la **documentation transverse**.
+Ils séparent volontairement la **définition fonctionnelle**, la **couche agentique**, l'**implémentation technique**, la **documentation transverse** et le **pont d'intégration local**. `05_NODE` est transverse plutôt que séquentiel : il ne produit pas de bonne pratique, il expose `03_PYTHON` à un appelant externe (navigateur).
 
 ---
 
@@ -420,6 +424,57 @@ P_  -> Table de paramètres
 ```
 
 si ces conventions font partie des standards internes.
+
+---
+
+## `05_NODE`
+
+Ce dossier contient le serveur local (`127.0.0.1` uniquement — jamais exposé sur le réseau) qui relie un appelant externe (navigateur) au moteur Python (`03_PYTHON`).
+
+Architecture :
+
+```text
+05_NODE/
+|
+├── package.json
+├── server.js               routage HTTP, CORS, jeton d'appairage
+└── services/
+    ├── pairing.js            appairage par code (TTL 60s), émission de jetons
+    ├── analyses.js           registre en mémoire des analyses lancées
+    └── python-runner.js      spawn de 03_PYTHON/main.py (jamais shell: true)
+```
+
+### Protocole
+
+Compatible avec `Backend/pbi-agent-overlay-v2.js` (prototype frontend déjà écrit mais jamais branché à un vrai agent) : port `27841` par défaut, préfixe `/api/v1`, en-têtes `X-Agent-Protocol` / `X-Agent-Token`.
+
+```text
+GET  /api/v1/health
+POST /api/v1/pairing/request     { origin } -> {}  (code affiché côté agent, jamais renvoyé au navigateur)
+POST /api/v1/pairing/confirm     { code }   -> { token }
+POST /api/v1/analyses            { project_path } -> 202 { analysis_id, status }   (jeton requis)
+GET  /api/v1/analyses/{id}       -> { analysis_id, status, result, error }         (jeton requis)
+```
+
+### Principes de sécurité
+
+- Le serveur n'écoute que sur `127.0.0.1` : il exécute du code Python arbitraire sur la machine locale, il ne doit jamais être accessible depuis le réseau.
+- Le code d'appairage n'est **jamais** renvoyé par `/pairing/request` : il est affiché dans la console du process Node, pour garantir qu'un site web quelconque ne peut pas s'auto-appairer sans qu'un humain lise le code sur la machine.
+- `/analyses` exige le jeton obtenu après appairage (`X-Agent-Token`) — le CORS ouvert au navigateur ne remplace pas cette vérification.
+- Python est lancé via `spawn(executable, [main.py, project_path])`, jamais `{ shell: true }` : aucune interpolation de chaîne dans une commande shell, donc aucune injection possible via le chemin du projet.
+- `project_path` est validé (chemin non vide, dossier existant) avant tout `spawn`.
+
+### Hors périmètre (volontairement)
+
+Ce que `Backend/pbi-agent-overlay-v2.js` prévoit mais que `05_NODE` n'implémente pas :
+
+```text
+Connexion TOM/AMO live à une instance Power BI Desktop ouverte
+Sélecteur de fichier natif Windows
+Plans de correction (dry-run, ops à risque, jetons haute confiance)
+```
+
+Ces fonctionnalités appartiennent à une itération ultérieure, hors du périmètre Python + Node décidé pour ce projet.
 
 ---
 

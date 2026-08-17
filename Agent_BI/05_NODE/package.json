@@ -1,0 +1,14 @@
+{
+  "name": "agent-bi-node-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Serveur local (127.0.0.1) reliant le frontend au moteur Python Agent BI (03_PYTHON).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
