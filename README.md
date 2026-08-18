@@ -2,518 +2,1279 @@
 
 # Best Practices Colas
 
-### Plateforme de Peer Review Power BI
+### Plateforme de gouvernance, Peer Review & Agent BI pour Power BI
 
-**Centraliser les contrôles, fiabiliser les validations et assurer la traçabilité des bonnes pratiques BI.**
+**Standardiser les bonnes pratiques, automatiser les contrôles et rendre les revues Power BI plus fiables, traçables et reproductibles.**
 
-[![Version](https://img.shields.io/badge/version-MVP%201.0.0-2563EB?style=flat-square)](https://github.com/dataphil971/Best_Practices_Colas)
-[![Backend](https://img.shields.io/badge/backend-0.7.0%20(lot%207)-7C3AED?style=flat-square)](https://github.com/dataphil971/Best_Practices_Colas)
-[![Statut](https://img.shields.io/badge/statut-prototype-F59E0B?style=flat-square)](#statut-du-projet)
-[![Documentation](https://img.shields.io/badge/documentation-v1.2-16A34A?style=flat-square)](./Spec_Backend_PR_Review.md)
-[![Power BI](https://img.shields.io/badge/Power%20BI-Peer%20Review-F2C811?style=flat-square&logo=powerbi&logoColor=000000)](#fonctionnalités-clés)
+[![Project](https://img.shields.io/badge/project-Power%20BI%20Governance-2563EB?style=flat-square)](#vision-du-projet)
+[![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20TypeScript-61DAFB?style=flat-square&logo=react&logoColor=000000)](./frontend)
+[![Backend](https://img.shields.io/badge/backend-FastAPI%20%2B%20PostgreSQL-009688?style=flat-square&logo=fastapi&logoColor=ffffff)](./Backend/pr_review_backend/pr_review_backend)
+[![Agent BI](https://img.shields.io/badge/Agent%20BI-Python%20%2B%20Node.js-3776AB?style=flat-square&logo=python&logoColor=ffffff)](./Agent_BI)
+[![Power BI](https://img.shields.io/badge/Power%20BI-PBIP%20%2F%20TMDL-F2C811?style=flat-square&logo=powerbi&logoColor=000000)](./Agent_BI/README_Agent_BI.md)
+[![Status](https://img.shields.io/badge/status-MVP%20en%20industrialisation-F59E0B?style=flat-square)](#statut-du-projet)
 
 </div>
 
 > [!IMPORTANT]
-> Le dépôt contient un **prototype d'interface exécutable dans le navigateur**, un **backend FastAPI consolidé et testable** (lots 1 à 7), une **spécification backend détaillée** et un **volet exploratoire « agent BI »** décrit plus bas. Il ne constitue pas encore une application prête pour un déploiement en production.
+> Ce dépôt présente un **projet personnel développé à partir d'un cas d'usage rencontré dans un contexte de stage chez Colas Digital Solutions**.
+>
+> Il ne constitue ni une publication officielle de Colas, ni une solution de production validée par l'entreprise. Le dépôt est public : aucune donnée métier confidentielle, aucun secret et aucun document interne non autorisé ne doivent y être versionnés.
 
 ---
 
 ## Sommaire
 
-- [Pourquoi ce projet ?](#pourquoi-ce-projet-)
-- [Le projet en un coup d'œil](#le-projet-en-un-coup-dœil)
-- [Fonctionnalités clés](#fonctionnalités-clés)
-- [Volet exploratoire : agent BI local](#volet-exploratoire--agent-bi-local)
-- [Parcours d'une revue](#parcours-dune-revue)
-- [Architecture cible](#architecture-cible)
+- [Présentation](#présentation)
+- [Contexte et problématique](#contexte-et-problématique)
+- [Vision du projet](#vision-du-projet)
+- [Objectifs](#objectifs)
+- [Ce que la solution apporte](#ce-que-la-solution-apporte)
+- [Architecture globale](#architecture-globale)
+- [Agent BI](#agent-bi)
+- [Plateforme de Peer Review](#plateforme-de-peer-review)
+- [Frontend](#frontend)
+- [Backend](#backend)
 - [Stack technique](#stack-technique)
 - [Structure du dépôt](#structure-du-dépôt)
-- [Lancer le prototype](#lancer-le-prototype)
-- [Lancer le backend](#lancer-le-backend)
-- [Roadmap](#roadmap)
+- [Démarrage rapide](#démarrage-rapide)
+- [Tests](#tests)
 - [Sécurité et gouvernance](#sécurité-et-gouvernance)
+- [État actuel](#état-actuel)
+- [Roadmap](#roadmap)
 - [Documentation](#documentation)
-- [Contribution](#contribution)
-- [Auteur et licence](#auteur-et-licence)
+- [Ce que ce projet démontre](#ce-que-ce-projet-démontre)
+- [Auteur](#auteur)
+- [Licence](#licence)
 
 ---
 
-## Pourquoi ce projet ?
+# Présentation
 
-La revue qualité de projets Power BI peut rapidement devenir difficile à piloter lorsqu'elle repose sur plusieurs fichiers Excel, des échanges dispersés et différentes versions d'un même référentiel.
+**Best Practices Colas** est un projet de gouvernance Power BI conçu pour répondre à une problématique concrète : rendre les revues de rapports et de modèles Power BI plus **standardisées, fiables, explicables et traçables**.
 
-**Best Practices Colas** propose un parcours centralisé permettant de :
+Le projet est né dans le cadre de mon stage de **Data Analyst chez Colas Digital Solutions**, pendant lequel je me suis intéressé à la manière d'intégrer et d'industrialiser la gouvernance tout au long du cycle de vie des produits Power BI.
 
-- évaluer un livrable Power BI à partir d'un référentiel commun ;
-- identifier rapidement les écarts, les risques et les actions correctives ;
-- partager une revue avec un reviewer identifié ;
-- historiser les décisions et les validations ;
-- conserver la version exacte des règles appliquées à chaque revue ;
-- préparer l'import et le rapprochement de données depuis Excel, SharePoint ou OneDrive.
+L'idée initiale était simple :
 
-### Principe structurant : le versionnement immuable
+> Comment éviter qu'une revue Power BI repose uniquement sur des fichiers Excel, des contrôles manuels et des échanges dispersés, tout en conservant une véritable preuve de ce qui a été vérifié ?
 
-Une revue conserve un **snapshot de la version des règles utilisée lors de sa création**. Une modification ultérieure du référentiel n'altère donc pas l'historique des anciennes revues.
+Le projet a progressivement évolué vers une architecture plus complète réunissant :
 
-Ce mécanisme garantit :
-
-- la cohérence des résultats dans le temps ;
-- l'auditabilité des contrôles ;
-- la traçabilité des évolutions du référentiel.
+- un **référentiel de bonnes pratiques** ;
+- une **plateforme de Peer Review** ;
+- un **backend de gouvernance et de traçabilité** ;
+- un **frontend React / TypeScript** ;
+- un **moteur Python de règles déterministes** ;
+- un **Agent BI** capable d'analyser les métadonnées d'un projet Power BI ;
+- une **couche agentique gouvernée** pour les contrôles nécessitant réellement du contexte ou de l'interprétation.
 
 ---
 
-## Le projet en un coup d'œil
+# Contexte et problématique
 
-| Élément | État actuel |
+Dans une organisation où plusieurs produits Power BI sont développés, faire respecter les bonnes pratiques devient rapidement un sujet de gouvernance.
+
+Une revue manuelle peut devenir difficile à industrialiser lorsque :
+
+- plusieurs versions du référentiel circulent ;
+- les contrôles sont réalisés différemment selon la personne ;
+- les résultats sont stockés dans différents fichiers Excel ;
+- les preuves techniques sont difficiles à retrouver ;
+- les validations et corrections sont dispersées dans plusieurs outils ;
+- les évolutions d'une règle ne sont pas historisées ;
+- les mêmes vérifications sont répétées manuellement à chaque nouveau rapport.
+
+La problématique qui structure ce projet est donc :
+
+> **Comment intégrer et industrialiser la gouvernance tout au long du cycle de vie des produits Power BI afin de standardiser les pratiques, garantir la fiabilité des données et assurer la traçabilité des évolutions ?**
+
+Best Practices Colas constitue une réponse expérimentale et technique à cette problématique.
+
+---
+
+# Vision du projet
+
+La vision cible consiste à construire une chaîne de gouvernance dans laquelle les contrôles techniques objectivables sont automatisés et les décisions humaines restent traçables.
+
+```text
+Développement Power BI
+        |
+        v
+Projet PBIP / Modèle / Rapport
+        |
+        v
+Analyse automatique Agent BI
+        |
+        v
+Preuves techniques
+        |
+        +------------------+
+        |                  |
+        v                  v
+Contrôles déterministes   Analyse contextuelle
+Python                    Skills / Agent
+        |                  |
+        +---------+--------+
+                  |
+                  v
+              OK / KO / NA
+                  |
+                  v
+             Peer Review
+                  |
+                  v
+       Remédiation / Validation
+                  |
+                  v
+          Historique / Audit
+```
+
+Le projet repose sur une séparation volontaire entre :
+
+```text
+CE QUI EST OBJECTIVABLE
+        |
+        v
+Code déterministe
+
+CE QUI NÉCESSITE DU JUGEMENT
+        |
+        v
+Agent / Skill
+```
+
+Cette séparation est essentielle pour préserver la reproductibilité des contrôles.
+
+---
+
+# Objectifs
+
+Le projet poursuit plusieurs objectifs complémentaires.
+
+## Gouvernance
+
+Centraliser les règles et garantir que chaque revue soit associée à la version exacte du référentiel utilisée.
+
+## Qualité
+
+Automatiser progressivement les contrôles techniques les plus répétitifs afin de réduire les erreurs de revue.
+
+## Traçabilité
+
+Conserver les résultats, preuves, validations et évolutions d'une revue.
+
+## Explicabilité
+
+Un statut `OK`, `KO` ou `NA` doit pouvoir être justifié par une preuve.
+
+## Industrialisation
+
+Faire évoluer une checklist manuelle vers une architecture exploitable par une application.
+
+## Extensibilité
+
+Permettre l'ajout progressif de nouvelles bonnes pratiques sans devoir réécrire l'ensemble du moteur.
+
+## QCD
+
+L'Agent BI est également pensé autour du triangle :
+
+```text
+Qualité
+Coût
+Délais
+```
+
+L'automatisation ne doit pas dégrader la qualité des contrôles simplement pour gagner du temps.
+
+---
+
+# Ce que la solution apporte
+
+La solution s'articule autour de quatre fonctions principales.
+
+### 1. Gérer un référentiel de bonnes pratiques
+
+Chaque règle peut être versionnée, documentée et historisée.
+
+### 2. Réaliser une Peer Review
+
+Une revue permet d'évaluer un produit Power BI, de suivre les écarts et de préparer les corrections.
+
+### 3. Automatiser les contrôles techniques
+
+Agent BI inspecte les métadonnées Power BI et produit des résultats déterministes.
+
+### 4. Conserver les preuves
+
+Chaque contrôle doit idéalement produire :
+
+```text
+Rule ID
+Object
+Expected
+Actual
+Evidence
+Status
+Reason
+```
+
+---
+
+# Architecture globale
+
+```mermaid
+flowchart LR
+    DEV[Développeur / Analyste BI]
+
+    PBIP[Projet Power BI PBIP]
+    FRONT[Frontend React / TypeScript]
+    API[Backend FastAPI]
+    DB[(PostgreSQL)]
+    NODE[Bridge Agent BI Node.js]
+    PY[Moteur Agent BI Python]
+
+    DEV --> FRONT
+    DEV --> PBIP
+
+    FRONT -->|REST JSON| API
+    API --> DB
+
+    FRONT -->|Loopback local| NODE
+    NODE -->|spawn| PY
+    PBIP --> PY
+
+    PY --> SM[Semantic Model / TMDL]
+    PY --> RP[Report / PBIR]
+    PY --> RULES[Moteur de règles]
+
+    RULES --> RESULT[OK / KO / NA + preuves]
+    RESULT --> FRONT
+    RESULT --> API
+
+    API --> REVIEW[Peer Review / Historique]
+```
+
+---
+
+# Agent BI
+
+## Rôle
+
+Agent BI est le moteur d'analyse automatique du projet.
+
+Son objectif est de lire un projet Power BI au format **PBIP**, d'extraire les informations utiles et d'exécuter les bonnes pratiques compatibles avec une analyse déterministe.
+
+Il peut travailler sur deux grandes zones :
+
+```text
+Projet PBIP
+    |
+    +--------------------------+
+    |                          |
+    v                          v
+Semantic Model               Report
+    |                          |
+    v                          v
+TMDL                        PBIR / JSON
+```
+
+---
+
+## Principe de décision
+
+Chaque règle retourne un des trois statuts suivants :
+
+| Statut | Signification |
 |---|---|
-| Prototype de l'interface de Peer Review | ✅ Disponible au format HTML |
-| Parcours de navigation et de revue | ✅ Démontrable localement |
-| Spécification technique backend | ✅ Version 1.2 documentée |
-| Backend FastAPI consolidé (lots 1 à 7) | ✅ Arborescence unique, versionnée fichier par fichier |
-| Migrations Alembic reproductibles | ✅ 6 migrations (`0001` → `0006`) |
-| Données d'initialisation du référentiel | ✅ Seed JSON (Power BI, App BI, Build) |
-| Configuration Docker Compose de développement | ✅ `docker compose up --build` |
-| Fichier `.env.example` sans secret | ✅ Présent |
-| Tests automatisés (pytest) | ✅ 7 suites de tests |
-| Volet exploratoire « agent BI » local | 🟡 Incrément 0 (starter .NET + overlay) |
-| Frontend React/TypeScript autonome | ⏳ Cible future (le prototype HTML tient lieu de maquette) |
-| Intégration continue (GitHub Actions) | ⏳ Cible future |
-| Déploiement Azure de production | ⏳ Cible future |
+| `OK` | La conformité est démontrée |
+| `KO` | La non-conformité est démontrée |
+| `NA` | Les informations disponibles ne permettent pas de conclure de manière fiable |
 
-### Utilisateurs visés
+Le moteur suit volontairement une logique asymétrique :
 
-| Rôle | Responsabilité principale |
-|---|---|
-| **Utilisateur / auteur** | Créer, compléter et soumettre une revue |
-| **Reviewer** | Examiner une revue partagée, commenter et valider |
-| **Administrateur** | Gérer les règles, les rôles, les connecteurs et l'audit |
+```text
+Pas de preuve
+    ≠
+KO
+```
+
+Si une propriété nécessaire n'est pas accessible ou ne peut pas être interprétée correctement, la règle doit privilégier `NA` plutôt qu'inventer une non-conformité.
 
 ---
 
-## Fonctionnalités clés
+## Architecture fonctionnelle
 
-### 1. Gestion des revues
+```text
+Agent_BI/
+|
+├── 01_ALGORITHMES/
+├── 02_SKILLS/
+├── 03_PYTHON/
+├── 05_NODE/
+├── ALGORITHMIE_AGENT_BI_v1.md
+├── Agent_BI_Algorithmie_Regles_v1.xlsx
+└── README_Agent_BI.md
+```
 
-- création et suivi d'une revue ;
-- évaluation de chaque règle avec les statuts `OK`, `KO`, `Partiel`, `Non applicable` ou `Non renseigné` ;
-- calcul d'un score de conformité ;
-- ajout de commentaires, risques et solutions correctives ;
-- suivi d'un plan de remédiation avec responsable et date cible ;
-- recherche, tri, filtrage et export Excel.
+### `01_ALGORITHMES`
 
-### 2. Référentiel versionné
+Contient la définition fonctionnelle des bonnes pratiques.
 
-- gestion de plusieurs checklists : Power BI, App BI et Build ;
-- proposition, approbation ou rejet de nouvelles règles ;
-- création de versions immuables ;
-- conservation de l'historique complet ;
-- retrait et restauration sans suppression définitive ;
-- journal d'activité du référentiel.
+Une règle doit préciser :
 
-### 3. Validation tierce
+```text
+Bonne pratique
+      |
+      v
+Périmètre
+      |
+      v
+Source
+      |
+      v
+Propriété
+      |
+      v
+Conditions
+      |
+ +----+----+
+ |    |    |
+ v    v    v
+OK   KO   NA
+```
 
-- soumission d'une revue à un ou plusieurs reviewers ;
-- commentaires globaux ou rattachés à un point de contrôle ;
-- validation, refus ou demande de modifications ;
-- nouveau cycle de soumission après correction ;
-- limitation de l'accès aux seules revues explicitement partagées.
-
-### 4. Import intelligent
-
-- import manuel de fichiers Excel ;
-- analyse et rapprochement avec le référentiel ;
-- préremplissage des statuts ;
-- détection des correspondances ambiguës ;
-- validation humaine des cas incertains ;
-- traitement asynchrone des imports volumineux ;
-- synchronisation planifiée depuis SharePoint ou OneDrive.
-
-### 5. Connecteurs configurables
-
-- moteur de matching local basé sur `rapidfuzz` ;
-- connecteurs IA interchangeables : Mistral, IA interne, OpenAI ou Azure OpenAI ;
-- stockage pluggable : Azure Blob, Amazon S3, MinIO ou stockage interne ;
-- changement du fournisseur actif sans modification du cœur applicatif ;
-- solution de repli locale lorsque l'IA est indisponible.
+L'algorithme décrit **ce que la règle doit faire**, indépendamment du langage qui l'implémente.
 
 ---
 
-## Volet exploratoire : agent BI local
+## `03_PYTHON`
 
-Une piste en cours d'exploration vise à **détecter et corriger automatiquement** certaines bonnes pratiques directement sur le modèle sémantique ouvert dans Power BI Desktop, puis à **pré-remplir une revue** dans la plateforme.
+Le moteur Python prend en charge :
 
-Le principe : un petit agent local (loopback, `127.0.0.1`) se connecte au modèle via l'onglet **Outils externes** de Power BI Desktop, l'analyse en lecture seule, propose un plan de corrections classées par risque, applique uniquement les corrections sûres après validation, puis publie une revue rattachée aux versions de règles exactes utilisées.
+- la découverte du projet PBIP ;
+- la lecture du modèle sémantique ;
+- le parsing TMDL ;
+- la construction d'un contexte partagé ;
+- l'exécution des règles ;
+- la génération des résultats ;
+- la production des preuves ;
+- les futures corrections automatisées.
 
-> [!NOTE]
-> Ce volet est au stade **incrément 0** : il valide la chaîne « navigateur ↔ agent ↔ Power BI Desktop » avant d'investir dans un moteur de règles complet. L'agent réel ne fonctionne que sur **Windows avec Power BI Desktop** (le client TOM/AMO est spécifique à Windows). En l'absence d'agent, l'overlay du prototype bascule automatiquement en **mode démonstration** — aucune écriture n'est effectuée.
+Architecture :
 
-Deux fichiers matérialisent ce volet dans le dépôt :
+```text
+03_PYTHON/
+|
+├── main.py
+├── engine/
+├── powerbi/
+├── rules/
+├── fixes/
+└── tests/
+```
 
-| Fichier | Rôle |
-|---|---|
-| `pbi-agent-overlay-v2.js` | Couche d'interface injectée dans le prototype (détection de l'agent, appairage, plan de corrections, dry-run, application, rollback, publication de revue). N'altère pas le bundle existant et suit le thème jour/nuit. |
-| `agent-starter-increment0.zip` | Starter .NET minimal de l'agent local : point de santé `/api/v1/health`, appairage cross-origin, connexion TOM réelle **en lecture seule stricte**, et son manifeste d'outil externe Power BI. |
+### Lecture unique du projet
 
-Principes de sûreté retenus pour ce volet : écoute strictement en loopback, appairage explicite (code affiché dans la fenêtre de l'agent), opérations classées **faible / moyen / élevé** avec les opérations à risque élevé exclues de toute application en lot, revalidation avant écriture, sauvegarde et rollback, et aucune donnée métier transmise à l'interface (métadonnées uniquement).
+Les règles ne doivent pas chacune reparcourir le projet.
+
+```text
+PBIP
+ |
+ v
+AnalysisContext
+ |
+ +-------------------------------+
+ |               |               |
+ v               v               v
+BP-01           BP-02           BP-N
+ |               |               |
+ v               v               v
+OK              KO              NA
+```
+
+Cette architecture évite de multiplier les lectures disque lorsque le nombre de bonnes pratiques augmente.
 
 ---
 
-## Parcours d'une revue
+## Règle de référence : BP-22
+
+Une première règle déterministe sert de référence d'implémentation.
+
+### Désactivation de l'autosummarization
+
+Le moteur parcourt :
+
+```text
+<Project>.SemanticModel/
+└── definition/
+    └── tables/
+        └── <TABLE>.tmdl
+```
+
+Pour chaque colonne, il analyse principalement :
+
+```text
+summarizeBy
+```
+
+Décision :
+
+```text
+summarizeBy: none
+    -> OK
+
+summarizeBy présent avec une autre valeur
+    -> KO
+
+summarizeBy absent, illisible ou inconnu
+    -> NA
+```
+
+L'annotation :
+
+```text
+SummarizationSetBy
+```
+
+reste informative et ne pilote pas la décision de cette règle.
+
+---
+
+## Exemple de résultat
+
+```json
+{
+  "schema_version": "1.0",
+  "engine_version": "0.1.0",
+  "project": {
+    "name": "MyProject",
+    "format": "PBIP",
+    "project_path": "C:\\Project",
+    "semantic_model_path": "C:\\Project\\MyProject.SemanticModel",
+    "fingerprint": "sha256:..."
+  },
+  "results": [
+    {
+      "rule_id": "BP-22",
+      "rule_status": "OK",
+      "findings": [
+        {
+          "object_type": "column",
+          "object": "D_CAMPAIGNS.CAMPAIGN_ID",
+          "expected": "summarizeBy = none",
+          "actual": "none",
+          "status": "OK"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Un `KO` est un résultat métier valide et non une erreur d'exécution.
+
+---
+
+# Skills et couche agentique
+
+Les skills n'ont pas vocation à remplacer les règles déterministes.
+
+Ils servent aux tâches où un modèle apporte réellement de la valeur.
+
+Les skills actuellement structurés dans `.github/skills/` couvrent notamment :
+
+- Rule Engineering ;
+- Rule Review ;
+- BPA mapping ;
+- analyse contextuelle ;
+- préparation des corrections ;
+- génération de tests ;
+- création et évolution de skills.
+
+Le principe reste :
+
+```text
+Déterministe
+    -> Python
+
+Contextuel / interprétatif
+    -> Skill
+```
+
+---
+
+# Bridge Node local
+
+`Agent_BI/05_NODE` permet à un frontend d'appeler le moteur Python local.
+
+Architecture :
+
+```text
+Navigateur
+    |
+    v
+127.0.0.1:27841
+    |
+    v
+Node.js
+    |
+    v
+Python Agent BI
+```
+
+Le bridge implémente :
+
+```text
+GET  /api/v1/health
+POST /api/v1/pairing/request
+POST /api/v1/pairing/confirm
+POST /api/v1/analyses
+GET  /api/v1/analyses/{id}
+```
+
+### Principes de sécurité
+
+- écoute uniquement sur `127.0.0.1` ;
+- appairage explicite ;
+- jeton obligatoire pour lancer une analyse ;
+- code d'appairage affiché localement ;
+- validation du chemin du projet ;
+- lancement de Python avec `spawn(...)` ;
+- aucune utilisation de `shell: true`.
+
+---
+
+# Plateforme de Peer Review
+
+L'Agent BI ne remplace pas la Peer Review.
+
+Il l'alimente.
+
+La plateforme permet d'encadrer tout ce qui relève du suivi, de la collaboration et de la gouvernance.
+
+---
+
+## Référentiel versionné
+
+Chaque règle possède une identité stable et peut évoluer au travers de versions immuables.
+
+Une revue conserve les versions exactes utilisées au moment de sa création.
+
+```text
+Rule
+ |
+ +--> Version 1
+ |
+ +--> Version 2
+ |
+ +--> Version N
+```
+
+Une ancienne revue ne doit donc jamais être recalculée silencieusement avec une nouvelle version de règle.
+
+---
+
+## Cycle d'une revue
 
 ```mermaid
 stateDiagram-v2
     [*] --> Brouillon
-    Brouillon --> En_cours: début de l'évaluation
-    En_cours --> Soumise: envoi au reviewer
-    Soumise --> Validee: validation
-    Soumise --> Modifications_demandees: corrections requises
-    Modifications_demandees --> En_cours: mise à jour
+    Brouillon --> En_cours
+    En_cours --> Soumise
+    Soumise --> Validee
+    Soumise --> Modifications_demandees
+    Modifications_demandees --> En_cours
     Validee --> [*]
 ```
 
-| État technique | Description |
-|---|---|
-| `draft` | La revue vient d'être créée |
-| `in_progress` | La revue est en cours de remplissage |
-| `submitted` | La revue a été soumise pour validation |
-| `validated` | La revue a été validée |
-| `changes_requested` | Des corrections ont été demandées |
-
-<details>
-<summary><strong>Voir les rôles et permissions détaillés</strong></summary>
-
-<br>
-
-| Fonctionnalité | Utilisateur | Reviewer | Administrateur |
-|---|:---:|:---:|:---:|
-| Créer et compléter ses revues | ✅ | ✅ | ✅ |
-| Consulter ses propres revues | ✅ | ✅ | ✅ |
-| Consulter une revue partagée | ✅ | ✅ | ✅ |
-| Consulter toutes les revues | ❌ | ❌ | ✅ |
-| Proposer une règle | ✅ | ✅ | ✅ |
-| Valider ou refuser une revue | ❌ | ✅ | ✅ |
-| Approuver ou rejeter une règle | ❌ | ❌ | ✅ |
-| Retirer ou restaurer une règle | ❌ | ❌ | ✅ |
-| Gérer les utilisateurs et les rôles | ❌ | ❌ | ✅ |
-| Configurer l'IA, le stockage et SharePoint | ❌ | ❌ | ✅ |
-| Consulter le journal complet d'activité | ❌ | ❌ | ✅ |
-
-> Un reviewer accède uniquement aux revues qui lui ont été explicitement partagées ou soumises.
-
-</details>
-
 ---
 
-## Architecture cible
+## Scoring
 
-```mermaid
-flowchart LR
-    U[Utilisateur] -->|HTTPS| F[Frontend React / TypeScript]
-    F -->|API REST JSON| A[API FastAPI]
+Le système historique de Peer Review peut utiliser les statuts :
 
-    A --> P[(PostgreSQL)]
-    A --> R[(Redis)]
-    A --> S[Stockage pluggable]
-    A --> K[Azure Key Vault]
-
-    R --> W[Workers Celery]
-
-    W --> M[Matching local]
-    W --> I[Connecteur IA]
-    W --> G[Microsoft Graph API]
-    W --> S
-
-    G --> SP[SharePoint / OneDrive]
+```text
+OK
+KO
+Partiel
+N/A
+Non renseigné
 ```
 
-### Principes d'architecture
+Le score est calculé sur les éléments réellement évalués :
 
-- le frontend consomme exclusivement l'API ;
-- les autorisations sont contrôlées côté serveur ;
-- les traitements longs sont délégués à des workers asynchrones ;
-- les secrets restent hors du code et du frontend ;
-- les fournisseurs d'IA et de stockage sont interchangeables ;
-- un moteur local reste disponible comme solution de repli ;
-- les actions sensibles sont enregistrées dans un journal d'audit.
+```text
+évalués = OK + KO + Partiel
 
-<details>
-<summary><strong>Voir le modèle de données</strong></summary>
+score =
+(OK + 0.5 × Partiel)
+--------------------
+      évalués
+        × 100
+```
 
-<br>
-
-Les principales entités, présentes dans `app/models/`, sont :
-
-- `users` ;
-- `categories` ;
-- `rules` et `rule_versions` ;
-- `reviews` et `review_items` ;
-- `validations` et `validation_item_comments` ;
-- `share_links` et `share_targets` ;
-- `audit_log` et `rule_activity` ;
-- `import_jobs` ;
-- `integration_config`.
-
-Une règle possède une identité stable dans `rules` et plusieurs versions immuables dans `rule_versions`. Chaque revue référence directement les versions utilisées au moment de sa création.
-
-</details>
+`N/A` et `Non renseigné` sont exclus du dénominateur.
 
 ---
 
-## Stack technique
+# Frontend
 
-| Couche | Technologies |
+Le dépôt contient désormais un frontend React / TypeScript dédié.
+
+Technologies :
+
+- React 19 ;
+- React DOM ;
+- React Router ;
+- TanStack Query ;
+- TypeScript ;
+- Vite.
+
+Configuration API :
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+Le frontend a vocation à devenir l'interface principale réunissant progressivement :
+
+- référentiel ;
+- revues ;
+- historique ;
+- administration ;
+- résultats Agent BI ;
+- remédiations ;
+- validation.
+
+---
+
+# Backend
+
+Le backend de la plateforme repose sur **FastAPI**.
+
+Il prend notamment en charge :
+
+- les utilisateurs ;
+- l'authentification ;
+- les rôles ;
+- le référentiel ;
+- les règles ;
+- les versions ;
+- les revues ;
+- les review items ;
+- le partage ;
+- les validations ;
+- les imports ;
+- le matching ;
+- les intégrations ;
+- l'audit.
+
+---
+
+## Authentification
+
+Le backend prévoit :
+
+```text
+Microsoft Entra ID / OIDC
+            |
+            +--> authentification principale
+
+Email + mot de passe
+            |
+            +--> fallback local
+```
+
+Les mots de passe du fallback sont protégés avec Argon2id.
+
+---
+
+## Base de données
+
+Stack :
+
+```text
+PostgreSQL
+    |
+    v
+SQLAlchemy
+    |
+    v
+Alembic
+```
+
+Les migrations permettent de faire évoluer le schéma de façon contrôlée.
+
+---
+
+## Import et matching
+
+Le backend contient également une architecture d'import permettant de rapprocher des informations issues de fichiers Excel avec le référentiel.
+
+Le moteur local utilise notamment :
+
+- normalisation ;
+- synonymes ;
+- pondération ;
+- similarité ;
+- seuils de confiance.
+
+Les correspondances ambiguës doivent rester visibles pour validation humaine.
+
+---
+
+# Stack technique
+
+| Domaine | Technologies |
 |---|---|
-| Frontend | React, TypeScript, TanStack Query *(cible ; le prototype HTML tient lieu de maquette)* |
-| API | Python 3.12, **FastAPI 0.115**, **Pydantic 2** |
-| Base de données | **PostgreSQL 16** |
-| ORM et migrations | **SQLAlchemy 2**, **Alembic** |
-| Authentification | Microsoft Entra ID, OIDC (`authlib`, `httpx`) |
-| Authentification de repli | Email, mot de passe, **Argon2id** ; JWT applicatifs |
-| Traitements asynchrones | Celery, Redis *(cible)* |
+| BI | Power BI, PBIP, TMDL, PBIR |
+| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query |
+| Backend | Python, FastAPI, Pydantic |
+| Data | PostgreSQL, SQLAlchemy |
+| Migrations | Alembic |
+| Agent BI | Python |
+| Bridge local | Node.js |
+| Tests Python | pytest |
+| Tests Node | Node Test Runner |
+| Auth | Microsoft Entra ID, OIDC, JWT, Argon2id |
 | Import Excel | openpyxl |
-| Matching local | rapidfuzz, PostgreSQL `pg_trgm` |
-| Intelligence artificielle | Mistral, IA interne, OpenAI, Azure OpenAI |
-| Stockage | Azure Blob, Amazon S3, MinIO, stockage interne |
-| Gestion des secrets | Azure Key Vault |
-| Intégration Microsoft | Microsoft Graph API |
-| Volet agent BI | .NET, client Analysis Services (TOM/AMO) — **Windows uniquement** |
+| Matching | rapidfuzz, `pg_trgm` |
+| Microsoft 365 | Microsoft Graph API |
 | Conteneurisation | Docker, Docker Compose |
-| Hébergement cible | Azure Container Apps ou AKS |
-
-> Certaines briques (Celery/Redis, frontend React, déploiement Azure) sont des **cibles d'architecture** et ne sont pas encore consolidées sur la branche principale.
+| DevOps | Git, GitHub, branches, Pull Requests |
+| Cloud cible | Azure |
 
 ---
 
-## Structure du dépôt
+# Structure du dépôt
 
 ```text
 Best_Practices_Colas/
-├── README.md
-├── PR_Review_PowerBI_avec_agent_v2.html   # prototype d'interface + overlay agent BI
-├── pbi-agent-overlay-v2.js                # overlay agent BI (couche indépendante)
-├── agent-starter-increment0.zip           # starter .NET de l'agent local (incrément 0)
-├── Spec_Backend_PR_Review.md              # spécification backend (Markdown)
-├── Spec_Backend_PR_Review.html            # spécification backend (HTML)
-└── pr_review_backend/
-    └── pr_review_backend/
-        ├── app/                           # code applicatif (api, models, schemas, services…)
-        ├── alembic/                       # migrations 0001 → 0006
-        ├── tests/                         # suites pytest
-        ├── docker-compose.yml
-        ├── Dockerfile
-        ├── requirements.txt
-        ├── .env.example
-        └── README.md                      # guide de démarrage du backend
+|
+├── .github/
+│   ├── copilot-instructions.md
+│   ├── instructions/
+│   └── skills/
+│       ├── agent-bi-bpa-mapper/
+│       ├── agent-bi-context-review/
+│       ├── agent-bi-fix-planner/
+│       ├── agent-bi-rule-engineer/
+│       ├── agent-bi-rule-review/
+│       ├── agent-bi-skill-creator/
+│       └── agent-bi-test-generator/
+│
+├── Agent_BI/
+│   ├── 01_ALGORITHMES/
+│   ├── 02_SKILLS/
+│   ├── 03_PYTHON/
+│   │   ├── engine/
+│   │   ├── fixes/
+│   │   ├── powerbi/
+│   │   ├── rules/
+│   │   ├── tests/
+│   │   ├── main.py
+│   │   └── requirements.txt
+│   ├── 05_NODE/
+│   │   ├── services/
+│   │   ├── tests/
+│   │   ├── package.json
+│   │   └── server.js
+│   ├── ALGORITHMIE_AGENT_BI_v1.md
+│   ├── Agent_BI_Algorithmie_Regles_v1.xlsx
+│   └── README_Agent_BI.md
+│
+├── Backend/
+│   ├── Spec_Backend_PR_Review.md
+│   ├── Spec_Backend_PR_Review.html
+│   ├── pbi-agent-overlay-v2.js
+│   └── pr_review_backend/
+│       └── pr_review_backend/
+│           ├── app/
+│           ├── alembic/
+│           ├── tests/
+│           ├── Dockerfile
+│           ├── docker-compose.yml
+│           ├── requirements.txt
+│           ├── .env.example
+│           └── README.md
+│
+├── frontend/
+│   ├── src/
+│   ├── .env.example
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   └── vite.config.ts
+│
+├── PR_Review_PowerBI_agent_scoring_v9.html
+├── .gitignore
+└── README.md
 ```
-
-| Élément | Description |
-|---|---|
-| `PR_Review_PowerBI_avec_agent_v2.html` | Prototype exécutable de l'interface de Peer Review, avec l'overlay de l'agent BI intégré |
-| `pbi-agent-overlay-v2.js` | Overlay de l'agent BI, réutilisable dans une autre build |
-| `agent-starter-increment0.zip` | Starter .NET de l'agent local (health, appairage, connexion TOM en lecture seule) |
-| `Spec_Backend_PR_Review.md` / `.html` | Spécification technique backend |
-| `pr_review_backend/` | Backend FastAPI consolidé, testable et conteneurisé |
 
 ---
 
-## Lancer le prototype
+# Démarrage rapide
 
-Le prototype est autonome : aucun serveur backend n'est nécessaire pour consulter l'interface. En l'absence d'agent BI local, l'overlay fonctionne en mode démonstration (aucune écriture réelle).
+## Prérequis
 
-### 1. Cloner le dépôt
+Pour utiliser les principales briques du projet :
+
+- Git ;
+- Python ;
+- Node.js 18+ ;
+- npm ;
+- Docker ;
+- Docker Compose ;
+- Power BI Desktop pour manipuler des projets PBIP réels.
+
+---
+
+## Cloner le dépôt
 
 ```bash
 git clone https://github.com/dataphil971/Best_Practices_Colas.git
 cd Best_Practices_Colas
 ```
 
-### 2. Ouvrir l'interface
-
-#### Windows PowerShell
-
-```powershell
-Start-Process .\PR_Review_PowerBI_avec_agent_v2.html
-```
-
-#### Linux
-
-```bash
-xdg-open PR_Review_PowerBI_avec_agent_v2.html
-```
-
-#### macOS
-
-```bash
-open PR_Review_PowerBI_avec_agent_v2.html
-```
-
-Le fichier peut également être ouvert directement depuis l'explorateur de fichiers avec un navigateur moderne. Si le double-clic est bloqué en raison de la taille du fichier, un petit serveur statique lève la restriction :
-
-```bash
-python3 -m http.server 8080
-# puis ouvrir http://localhost:8080/PR_Review_PowerBI_avec_agent_v2.html
-```
-
 ---
 
-## Lancer le backend
-
-Le backend dispose d'une configuration Docker Compose de développement.
+## Backend
 
 ```bash
-cd pr_review_backend/pr_review_backend
-cp .env.example .env          # renseigner si besoin (Entra ID facultatif en dev)
+cd Backend/pr_review_backend/pr_review_backend
+```
+
+### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
 docker compose up --build
 ```
 
-L'API applique les migrations puis démarre sur `http://localhost:8000`.
-Documentation interactive (Swagger) : `http://localhost:8000/docs`.
-
-Voir [`pr_review_backend/pr_review_backend/README.md`](./pr_review_backend/pr_review_backend/README.md) pour le détail (migrations, seed du référentiel, création du compte administrateur, exécution des tests).
-
----
-
-## Roadmap
-
-### Réalisé
-
-- [x] Prototype du parcours de Peer Review — MVP 1.0.0
-- [x] Spécification backend v1.2 (architecture, sécurité, RBAC, modèle de données, endpoints REST)
-- [x] Backend FastAPI consolidé dans une arborescence unique (lots 1 à 7)
-- [x] Migrations Alembic reproductibles et seed du référentiel
-- [x] Fichier `.env.example` sans secret et configuration Docker Compose de développement
-- [x] Suites de tests automatisées (pytest)
-- [x] Volet exploratoire agent BI — overlay + starter .NET (incrément 0)
-- [x] Suivi du thème jour/nuit par l'overlay de l'agent
-
-### Prochaines priorités
-
-- [ ] Développer le frontend React/TypeScript autonome
-- [ ] Configurer l'intégration continue avec GitHub Actions
-- [ ] Documenter le démarrage complet frontend + backend de bout en bout
-- [ ] Ajouter des captures d'écran ou une démonstration du prototype
-- [ ] Poursuivre l'agent BI : snapshot complet, graphe de dépendances, premières règles réelles
-- [ ] Préparer le déploiement Azure et le monitoring
-
-<details>
-<summary><strong>Voir le découpage fonctionnel des lots</strong></summary>
-
-<br>
-
-| Lot | Périmètre principal |
-|---|---|
-| **Lot 1** | Fondations, PostgreSQL, migrations, authentification Entra ID et RBAC |
-| **Lot 2** | Référentiel versionné, approbation, retrait, restauration et historique |
-| **Lot 3** | Gestion des revues, score de conformité, commentaires et remédiations |
-| **Lot 4** | Partage ciblé, validation tierce et cycle de resoumission |
-| **Lot 5** | Import Excel, matching local, préremplissage et stockage pluggable |
-| **Lot 6** | Connecteurs IA configurables et mécanisme de repli local |
-| **Lot 7** | Microsoft Graph, SharePoint, OneDrive et synchronisation planifiée |
-| **Lot 8** | Monitoring, audit, tests de charge et durcissement de la sécurité |
-
-</details>
-
----
-
-## Sécurité et gouvernance
-
-L'architecture prévoit notamment :
-
-- une authentification Microsoft Entra ID ;
-- un contrôle d'accès RBAC côté serveur ;
-- des tokens à durée de vie limitée ;
-- un hachage Argon2id pour l'authentification de repli ;
-- des requêtes SQL paramétrées ;
-- une validation stricte des fichiers importés ;
-- une protection contre l'injection de formules Excel ;
-- un stockage des secrets dans Azure Key Vault ;
-- une journalisation des actions sensibles ;
-- TLS, HSTS, CORS restrictif, protection CSRF et rate limiting ;
-- une rétention configurable des fichiers importés ;
-- une minimisation des données envoyées aux fournisseurs d'IA.
-
-Pour le volet agent BI : écoute loopback exclusive, appairage explicite, opérations à risque élevé exclues de toute application en lot, sauvegarde et rollback, et métadonnées uniquement (aucune donnée métier transmise).
-
-### Confidentialité du dépôt
-
-Ne jamais versionner :
-
-- un mot de passe, un jeton, une clé API ou une chaîne de connexion ;
-- un fichier `.env` réel ;
-- un fichier Power BI ou Excel contenant des données confidentielles ;
-- des informations personnelles non anonymisées ;
-- des captures, documents ou informations internes non autorisés à la publication.
-
-> [!WARNING]
-> Ce dépôt étant public, chaque fichier doit être vérifié avant publication. Le projet doit rester un prototype technique sans données métier confidentielles ni secrets d'entreprise.
-
----
-
-## Documentation
-
-- [Spécification backend — Markdown](./Spec_Backend_PR_Review.md)
-- [Spécification backend — HTML](./Spec_Backend_PR_Review.html)
-- [Guide de démarrage du backend](./pr_review_backend/pr_review_backend/README.md)
-- [Prototype Peer Review Power BI](./PR_Review_PowerBI_avec_agent_v2.html)
-
----
-
-## Contribution
-
-### Workflow recommandé
+### Linux / macOS
 
 ```bash
-# Mettre la branche principale à jour
-git switch main
-git pull origin main
-
-# Créer une branche dédiée
-git switch -c docs/nom-de-la-modification
-
-# Vérifier et enregistrer les changements
-git status
-git add README.md
-git commit -m "docs: improve project README"
-
-# Publier la branche
-git push -u origin docs/nom-de-la-modification
+cp .env.example .env
+docker compose up --build
 ```
 
-Ouvrir ensuite une Pull Request vers `main` en décrivant :
+API :
 
-- le contenu de la modification ;
-- sa raison ;
-- son impact ;
-- les vérifications réalisées.
+```text
+http://localhost:8000
+```
 
-### Convention de commits suggérée
+Swagger :
 
-- `docs:` documentation ;
-- `feat:` nouvelle fonctionnalité ;
-- `fix:` correction ;
-- `refactor:` restructuration sans changement fonctionnel ;
-- `test:` ajout ou modification de tests ;
-- `chore:` maintenance technique.
+```text
+http://localhost:8000/docs
+```
 
 ---
 
-## Statut du projet
+## Frontend
 
-**Best Practices Colas est actuellement un prototype / MVP en cours d'industrialisation.**
+```bash
+cd frontend
+npm install
+```
 
-Les parcours fonctionnels, l'architecture cible et la stratégie backend sont documentés, le backend est consolidé et testable, et un volet exploratoire d'agent BI local est amorcé. Les prochaines étapes consistent principalement à développer le frontend, automatiser l'intégration continue, et préparer un déploiement reproductible.
+### Windows PowerShell
 
-Ce dépôt présente un travail de conception et de prototypage ; il ne constitue pas une publication officielle ni une solution de production validée.
+```powershell
+Copy-Item .env.example .env
+npm run dev
+```
+
+### Linux / macOS
+
+```bash
+cp .env.example .env
+npm run dev
+```
+
+Build :
+
+```bash
+npm run build
+```
 
 ---
 
-## Auteur et licence
+## Agent BI Python
 
-Projet développé et documenté par **[dataphil971](https://github.com/dataphil971)**.
+```bash
+cd Agent_BI/03_PYTHON
+```
 
-- Dépôt : [dataphil971/Best_Practices_Colas](https://github.com/dataphil971/Best_Practices_Colas)
-- Licence : aucune licence open source n'est actuellement définie.
+### Windows PowerShell
 
-En l'absence de fichier `LICENSE`, tous les droits restent réservés à l'auteur du dépôt. Toute réutilisation ou diffusion doit respecter le contexte du projet et les règles de confidentialité applicables.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Puis :
+
+```powershell
+python main.py "C:\chemin\vers\mon_projet_pbip"
+```
+
+Le dossier doit contenir un projet du type :
+
+```text
+MyProject/
+|
+├── MyProject.pbip
+├── MyProject.SemanticModel/
+└── MyProject.Report/
+```
+
+---
+
+## Bridge Node Agent BI
+
+```bash
+cd Agent_BI/05_NODE
+npm install
+npm start
+```
+
+Port local par défaut :
+
+```text
+127.0.0.1:27841
+```
+
+---
+
+# Tests
+
+## Backend
+
+```bash
+cd Backend/pr_review_backend/pr_review_backend
+pytest
+```
+
+## Agent BI
+
+```bash
+cd Agent_BI/03_PYTHON
+pytest
+```
+
+## Node bridge
+
+```bash
+cd Agent_BI/05_NODE
+npm test
+```
+
+## Frontend
+
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+# Sécurité et gouvernance
+
+La gouvernance ne concerne pas uniquement les règles Power BI.
+
+Elle concerne également la façon dont la solution elle-même est construite.
+
+---
+
+## Sécurité applicative
+
+Le projet prévoit notamment :
+
+- authentification ;
+- RBAC ;
+- JWT ;
+- mots de passe Argon2id ;
+- secrets hors du code ;
+- journalisation ;
+- validation des entrées ;
+- isolation du bridge local ;
+- limitation des accès ;
+- séparation frontend / backend.
+
+---
+
+## Sécurité Agent BI
+
+Le bridge local ne doit jamais être exposé sur le réseau.
+
+```text
+127.0.0.1
+    ✅
+
+0.0.0.0
+    ❌
+```
+
+Les analyses nécessitent un appairage et un jeton.
+
+---
+
+## Confidentialité
+
+Ce dépôt étant public, il ne doit contenir aucun :
+
+- secret ;
+- mot de passe ;
+- token ;
+- fichier `.env` réel ;
+- fichier Power BI contenant des données confidentielles ;
+- export métier non anonymisé ;
+- donnée personnelle ;
+- documentation interne non autorisée.
+
+---
+
+# État actuel
+
+Le projet a dépassé le stade de simple maquette mais reste en phase d'industrialisation.
+
+| Brique | État |
+|---|---:|
+| Référentiel / concept de Peer Review | ✅ |
+| Prototype HTML | ✅ |
+| Backend FastAPI | ✅ |
+| Base PostgreSQL / migrations | ✅ |
+| Authentification / RBAC | ✅ |
+| Revues / scoring | ✅ |
+| Validation tierce | ✅ |
+| Imports / matching | ✅ |
+| Frontend React | ✅ en développement |
+| Agent BI — architecture | ✅ |
+| Agent BI — moteur Python | ✅ |
+| Agent BI — AnalysisContext | ✅ |
+| Parsing TMDL initial | ✅ |
+| Contrat JSON | ✅ |
+| BP-22 | ✅ |
+| Tests BP-22 | ✅ |
+| Bridge Node local | ✅ |
+| Skills Agent BI | ✅ |
+| Analyse complète PBIR | ⏳ |
+| Toutes les bonnes pratiques | ⏳ |
+| Auto-fix généralisé | ⏳ |
+| Intégration frontend ↔ backend complète | ⏳ |
+| Intégration frontend ↔ Agent BI complète | ⏳ |
+| CI/CD | ⏳ |
+| Déploiement cloud | ⏳ |
+
+---
+
+# Roadmap
+
+## Phase 1 — Gouvernance et Peer Review
+
+- [x] Structurer le besoin
+- [x] Formaliser le référentiel
+- [x] Créer le prototype
+- [x] Définir le workflow de validation
+- [x] Définir le scoring
+
+## Phase 2 — Backend
+
+- [x] FastAPI
+- [x] PostgreSQL
+- [x] SQLAlchemy
+- [x] Alembic
+- [x] Authentification
+- [x] RBAC
+- [x] Revues
+- [x] Référentiel
+- [x] Validation
+- [x] Imports
+
+## Phase 3 — Frontend
+
+- [x] Initialisation React / TypeScript
+- [x] Vite
+- [x] React Query
+- [ ] Brancher tous les écrans au backend
+- [ ] Consolider la gestion d'état
+- [ ] Ajouter la gestion complète de l'authentification
+
+## Phase 4 — Agent BI
+
+- [x] Architecture
+- [x] Convention des règles
+- [x] Moteur Python
+- [x] AnalyseContext
+- [x] TMDL initial
+- [x] BP-22
+- [x] Tests / fixtures
+- [x] Bridge Node
+- [ ] Industrialiser les autres bonnes pratiques
+- [ ] Étendre les parseurs
+- [ ] Ajouter PBIR
+- [ ] Construire les fixes
+- [ ] Ajouter dry-run / rollback
+
+## Phase 5 — Intégration
+
+- [ ] Frontend ↔ Backend
+- [ ] Frontend ↔ Node
+- [ ] Node ↔ Python
+- [ ] Python ↔ Backend
+- [ ] Publication automatique des résultats dans une revue
+
+## Phase 6 — Industrialisation
+
+- [ ] GitHub Actions
+- [ ] Tests d'intégration
+- [ ] Tests de charge
+- [ ] Observabilité
+- [ ] Monitoring
+- [ ] Sécurité renforcée
+- [ ] Déploiement Azure
+
+---
+
+# Documentation
+
+## Agent BI
+
+- [README Agent BI](./Agent_BI/README_Agent_BI.md)
+- [Algorithmie globale](./Agent_BI/ALGORITHMIE_AGENT_BI_v1.md)
+- [Algorithmes des règles](./Agent_BI/01_ALGORITHMES)
+- [Documentation Skills](./Agent_BI/02_SKILLS)
+- [Moteur Python](./Agent_BI/03_PYTHON)
+- [Bridge Node](./Agent_BI/05_NODE)
+- [Catalogue Excel des règles](./Agent_BI/Agent_BI_Algorithmie_Regles_v1.xlsx)
+
+## Backend
+
+- [Spécification backend](./Backend/Spec_Backend_PR_Review.md)
+- [Spécification backend HTML](./Backend/Spec_Backend_PR_Review.html)
+- [README backend](./Backend/pr_review_backend/pr_review_backend/README.md)
+
+## Interface
+
+- [Frontend React](./frontend)
+- [Prototype historique](./PR_Review_PowerBI_agent_scoring_v9.html)
+- [Overlay Agent BI](./Backend/pbi-agent-overlay-v2.js)
+
+---
+
+# Ce que ce projet démontre
+
+Au-delà du cas d'usage Power BI, ce projet me permet de travailler sur plusieurs dimensions complémentaires d'un produit data.
+
+### Data & BI
+
+- Power BI ;
+- modélisation ;
+- TMDL ;
+- PBIP ;
+- gouvernance ;
+- qualité ;
+- bonnes pratiques.
+
+### Data Engineering
+
+- traitement de métadonnées ;
+- parsing ;
+- normalisation ;
+- pipelines d'analyse ;
+- contrats de données ;
+- orchestration.
+
+### Software Engineering
+
+- architecture modulaire ;
+- API REST ;
+- frontend / backend ;
+- tests ;
+- versionnement ;
+- séparation des responsabilités.
+
+### Agentic Engineering
+
+- distinction déterministe / non déterministe ;
+- skills spécialisés ;
+- orchestration ;
+- preuves ;
+- analyse contextuelle ;
+- préparation des corrections.
+
+### Gouvernance
+
+- référentiel versionné ;
+- historique ;
+- traçabilité ;
+- validation ;
+- RBAC ;
+- audit.
+
+### DevOps
+
+- Git ;
+- branches ;
+- Pull Requests ;
+- Docker ;
+- configuration ;
+- future CI/CD.
+
+L'intérêt du projet n'est donc pas uniquement de construire un outil Power BI.
+
+Il vise surtout à montrer comment un besoin de gouvernance peut être transformé progressivement en une **solution data et logicielle structurée**, en faisant le lien entre :
+
+```text
+Besoin métier
+    |
+    v
+Règles de gouvernance
+    |
+    v
+Architecture
+    |
+    v
+Développement
+    |
+    v
+Automatisation
+    |
+    v
+Tests
+    |
+    v
+Traçabilité
+```
+
+---
+
+# Auteur
+
+Projet conçu et développé par **Philippe Roumbo** — [dataphil971](https://github.com/dataphil971).
+
+Je suis actuellement en fin de **Master Big Data & Business Intelligence** et ce projet a été initié dans le cadre de mon expérience de **Data Analyst chez Colas Digital Solutions**.
+
+Il s'inscrit dans mon intérêt pour les sujets à l'intersection de :
+
+- la Data Analytics ;
+- la Business Intelligence ;
+- la Data Engineering ;
+- la gouvernance ;
+- l'automatisation ;
+- les systèmes agentiques.
+
+---
+
+# Licence
+
+Aucune licence open source n'est actuellement définie dans le dépôt.
+
+En l'absence de fichier `LICENSE`, tous les droits restent réservés à l'auteur.
+
+Toute réutilisation doit également respecter les éventuelles contraintes de confidentialité, de propriété intellectuelle et de marque applicables aux éléments liés au contexte professionnel du projet.
