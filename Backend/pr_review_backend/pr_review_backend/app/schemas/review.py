@@ -72,6 +72,9 @@ class ReviewItemOut(BaseModel):
     priority: str = ""
     responsible: str = ""
     last_update: datetime
+    # Provenance Agent BI (Lot 8) : 'unset' | 'human' | 'agent'.
+    last_update_source: str = "unset"
+    agent_evidence: dict | None = None
 
 
 class CategoryGroup(BaseModel):
