@@ -86,6 +86,8 @@ def review_detail(db: Session, review: Review) -> ReviewDetail:
                 priority=item.priority or "",
                 responsible=item.responsible or "",
                 last_update=item.last_update,
+                last_update_source=item.last_update_source,
+                agent_evidence=item.agent_evidence,
             )
         )
 

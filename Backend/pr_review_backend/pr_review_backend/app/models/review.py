@@ -23,7 +23,7 @@ from sqlalchemy import (
     ForeignKey,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -112,6 +112,24 @@ class ReviewItem(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
         nullable=False,
     )
+
+    # --- Import Agent BI (Lot 8) --------------------------------------
+    # 'unset' par défaut (jamais touché) ; bascule à 'human' dès qu'un
+    # humain saisit un statut, ou à 'agent' lors d'un import Agent BI. Un
+    # item déjà à 'human' n'est jamais réécrit silencieusement par un
+    # import agent suivant (cf. app/services/agent_results.py). Ne PAS
+    # défaulter à 'human' : cela ferait passer tout item fraîchement créé
+    # (jamais édité) pour un conflit humain dès le premier import agent.
+    last_update_source: Mapped[str] = mapped_column(
+        String, default="unset", nullable=False,
+    )
+    # Preuve complète (Rule ID / Object / Expected / Actual / Evidence)
+    # renvoyée par Agent BI pour cet item — null tant qu'aucun import agent
+    # n'a jamais touché cet item.
+    agent_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Empreinte du projet PBIP au moment du dernier import agent appliqué :
+    # sert d'idempotence naturelle (cf. project.fingerprint du contrat Agent BI).
+    agent_fingerprint: Mapped[str | None] = mapped_column(String, nullable=True)
 
     review: Mapped["Review"] = relationship(back_populates="items")
 

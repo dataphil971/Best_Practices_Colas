@@ -65,7 +65,8 @@
     {
      "text": "Désactiver la synthèse (summarization) automatique (∑) sur les colonnes des valeurs (désactiver les mesures implicites).",
      "criticality": "blocking",
-     "subs": []
+     "subs": [],
+     "code": "BP-22"
     },
     {
      "text": "Masquer les champs techniques, numériques ou ceux non utilisés dans les rapports pour ne pas surcharger la liste des champs.",

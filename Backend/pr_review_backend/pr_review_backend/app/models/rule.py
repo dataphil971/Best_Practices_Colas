@@ -55,6 +55,10 @@ class Rule(Base):
     )
     # 'active' = présente dans le référentiel ; 'retired' = retirée mais conservée.
     status: Mapped[str] = mapped_column(String, default="active", nullable=False)
+    # Identifiant technique stable et immuable (ex. "BP-22"), utilisé pour
+    # relier une règle à son checker Agent_BI/03_PYTHON/rules/. Absent pour
+    # les règles qui n'ont pas (encore) de contrôle déterministe côté agent.
+    code: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )

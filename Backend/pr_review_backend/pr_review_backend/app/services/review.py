@@ -158,6 +158,10 @@ def update_item(
     for field, value in patch.items():
         if field in _EDITABLE_ITEM_FIELDS and value is not None:
             setattr(item, field, value)
+    if "status" in patch and patch["status"] is not None:
+        # Une saisie humaine du statut reprend toujours la main sur un
+        # éventuel import agent précédent (cf. agent_results.py).
+        item.last_update_source = "human"
     db.flush()
     recompute_and_cache_score(db, review)
     return item

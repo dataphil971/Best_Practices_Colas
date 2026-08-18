@@ -1,0 +1,8 @@
+table D_TEST
+	lineageTag: aaaaaaaa-1111-1111-1111-111111111111
+
+	column TEST_ID
+		dataType: string
+		lineageTag: bbbbbbbb-2222-2222-2222-222222222222
+		summarizeBy: none
+		sourceColumn: TEST_ID

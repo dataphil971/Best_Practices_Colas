@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.api.routes import auth, profile, users, referentials, rules, reviews, share
 from app.api.routes import imports, integrations  # Lot 5
 from app.api.routes import monitoring, admin_settings  # Lot 7
+from app.api.routes import agent_results  # Lot 8
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -72,3 +73,5 @@ app.include_router(integrations.router, prefix=settings.API_V1_PREFIX)
 # Lot 7 — monitoring, paramètres admin & audit
 app.include_router(monitoring.router, prefix=settings.API_V1_PREFIX)
 app.include_router(admin_settings.router, prefix=settings.API_V1_PREFIX)
+# Lot 8 — import des résultats Agent BI
+app.include_router(agent_results.router, prefix=settings.API_V1_PREFIX)
