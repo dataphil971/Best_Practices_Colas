@@ -1,0 +1,14 @@
+table F_A
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column ID
+		dataType: string
+		summarizeBy: none
+
+	partition F_A = m
+		mode: import
+		source =
+				let
+					Source = Sql.Database("server.database.windows.net", "SalesDB")
+				in
+					Source

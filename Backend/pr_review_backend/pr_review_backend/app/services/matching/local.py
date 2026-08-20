@@ -26,11 +26,9 @@ from pathlib import Path
 
 from app.models.enums import ItemStatus
 from app.services.matching.base import (
-    MatchProvider,
     MatchResult,
     RuleRef,
     verdict_for,
-    THRESHOLD_PROBABLE,
 )
 
 _LEXICON_PATH = Path(__file__).resolve().parents[2] / "data" / "matching_lexicon.json"

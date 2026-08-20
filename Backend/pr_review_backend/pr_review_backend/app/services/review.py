@@ -15,7 +15,6 @@ Concentre les invariants métier des revues :
   3. TRANSITIONS de statut contrôlées (draft/in_progress → submitted → validated
      | changes_requested), avec horodatage de soumission.
 """
-import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -145,6 +144,11 @@ _EDITABLE_ITEM_FIELDS = {
     "responsible",
 }
 
+# Seuls champs éditables dont la colonne est NULLABLE : eux seuls acceptent un
+# `null` explicite (c'est ainsi que le client efface une échéance). Pour les
+# autres, un `null` reçu serait une violation NOT NULL — on l'ignore.
+_NULLABLE_ITEM_FIELDS = {"target_date"}
+
 
 def update_item(
     db: Session, *, review: Review, item: ReviewItem, patch: dict
@@ -154,10 +158,17 @@ def update_item(
 
     Seuls les champs autorisés sont pris en compte ; les clés inconnues sont
     ignorées silencieusement (le schéma Pydantic les a déjà filtrées en amont).
+
+    `patch` provient d'un `model_dump(exclude_unset=True)` : une clé présente
+    signifie donc « le client a explicitement envoyé cette valeur ». Un `null`
+    sur un champ nullable est une demande d'effacement, pas une absence.
     """
     for field, value in patch.items():
-        if field in _EDITABLE_ITEM_FIELDS and value is not None:
-            setattr(item, field, value)
+        if field not in _EDITABLE_ITEM_FIELDS:
+            continue
+        if value is None and field not in _NULLABLE_ITEM_FIELDS:
+            continue
+        setattr(item, field, value)
     if "status" in patch and patch["status"] is not None:
         # Une saisie humaine du statut reprend toujours la main sur un
         # éventuel import agent précédent (cf. agent_results.py).

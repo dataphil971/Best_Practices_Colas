@@ -1,0 +1,14 @@
+table D_CHOICE
+	lineageTag: 20000000-0000-0000-0000-000000000001
+
+	column 'ID '
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: "ID "
+		displayFolder: usage
+
+	column USAGE_LEVEL
+		dataType: string
+		summarizeBy: none
+		sourceColumn: USAGE_LEVEL
+		displayFolder: USAGE

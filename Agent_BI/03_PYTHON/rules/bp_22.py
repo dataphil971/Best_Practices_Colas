@@ -57,6 +57,16 @@ def check(context: AnalysisContext) -> RuleResult:
                     rule_id=RULE_ID, object_type="column", object=object_name,
                     expected="summarizeBy = none", actual=None, status="NA",
                     reason="Propriété summarizeBy absente", evidence=evidence,
+                    location=column.locate(context_lines=1),
+                    explanation=(
+                        "La propriété summarizeBy n'est pas écrite dans le TMDL pour cette "
+                        "colonne : son comportement d'agrégation dépend alors du défaut "
+                        "appliqué par Power BI, que ce fichier ne permet pas de connaître."
+                    ),
+                    remediation=(
+                        f"Ouvrir {column.source_file} au bloc `column {column.raw_name}` et "
+                        "ajouter explicitement `summarizeBy: none` pour lever l'ambiguïté."
+                    ),
                 ))
                 na_details.append({
                     "table": table.name, "column": column.raw_name,
@@ -72,12 +82,32 @@ def check(context: AnalysisContext) -> RuleResult:
                     rule_id=RULE_ID, object_type="column", object=object_name,
                     expected="summarizeBy = none", actual=normalized, status="OK",
                     evidence=evidence,
+                    location=column.locate("summarizeBy"),
+                    explanation=(
+                        "Aucune agrégation automatique n'est appliquée à cette colonne : "
+                        "elle ne génère donc pas de mesure implicite."
+                    ),
                 ))
             elif normalized in KNOWN_NONCONFORMING_VALUES:
                 findings.append(Finding(
                     rule_id=RULE_ID, object_type="column", object=object_name,
                     expected="summarizeBy = none", actual=normalized, status="KO",
                     reason="Valeur différente de none", evidence=evidence,
+                    location=column.locate("summarizeBy", context_lines=1),
+                    explanation=(
+                        f"Power BI agrège automatiquement cette colonne avec `{normalized}` "
+                        "dès qu'un utilisateur la glisse dans un visuel. Cela crée une mesure "
+                        "IMPLICITE : le calcul n'est écrit nulle part, il ne peut être ni relu, "
+                        "ni réutilisé, ni corrigé de façon centralisée — et deux visuels peuvent "
+                        "silencieusement agréger différemment."
+                    ),
+                    remediation=(
+                        f"Remplacer `summarizeBy: {normalized}` par `summarizeBy: none` "
+                        f"(ligne {column.property_lines.get('summarizeBy', '?')} de "
+                        f"{column.source_file}). Si l'agrégation est réellement voulue, "
+                        f"créer une mesure DAX explicite, par exemple "
+                        f"`{normalized.upper()}({table.name}[{column.name}])`."
+                    ),
                 ))
                 ko_details.append({
                     "table": table.name, "column": column.raw_name,

@@ -13,7 +13,7 @@ ses revues et celles qui lui sont partagées.
 """
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.enums import (
@@ -21,7 +21,6 @@ from app.models.enums import (
     ChecklistType,
     ReviewStatus,
     ItemStatus,
-    ProgressState,
     Criticality,
 )
 from app.models.user import User

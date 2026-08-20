@@ -1,0 +1,8 @@
+model Model
+	culture: fr-FR
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+
+annotation PBI_QueryOrder = ["D_TEST"]
+
+ref table D_TEST

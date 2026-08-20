@@ -1,0 +1,16 @@
+table F_A
+	lineageTag: 40000000-0000-0000-0000-000000000001
+
+	column ID
+		dataType: string
+		summarizeBy: none
+
+	partition F_A = m
+		mode: import
+		source =
+				let
+					Conn = Sql.Database("server.database.windows.net", "SalesDB"),
+					Source = Value.NativeQuery(Conn, "SELECT * FROM Sales", null, []),
+					Filtered = Table.SelectRows(Source, each [Amount] > 0)
+				in
+					Filtered

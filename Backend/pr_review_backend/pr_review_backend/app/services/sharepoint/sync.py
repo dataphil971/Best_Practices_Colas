@@ -16,7 +16,6 @@ Le parsing et le matching sont **partagés** avec l'import manuel : un seul mote
 deux sources d'entrée. On ne réimporte pas un fichier déjà traité à la même date
 de modification (déduplication via les `import_jobs` précédents).
 """
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -26,7 +25,7 @@ from app.models.user import User
 from app.models.review import Review
 from app.models.integration import IntegrationConfig, ImportJob
 from app.services import integrations as integ
-from app.services.sharepoint.graph_client import GraphClient, RemoteFile
+from app.services.sharepoint.graph_client import GraphClient
 from app.services.import_runner import run_import_job
 from app.services.review import create_review
 

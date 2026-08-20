@@ -1,0 +1,14 @@
+table D_CLIENT
+	lineageTag: 30000000-0000-0000-0000-000000000001
+
+	column CODE
+		dataType: string
+		summarizeBy: none
+
+	partition D_CLIENT = m
+		mode: import
+		source =
+				let
+					Source = Sql.Database("server.database.windows.net", "SalesDB")
+				in
+					Source

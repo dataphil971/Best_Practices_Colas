@@ -21,7 +21,7 @@ from app.auth.deps import get_current_user, require_reviewer
 from app.models.user import User
 from app.models.enums import UserRole, ReviewStatus
 from app.models.review import Review
-from app.models.share import ShareLink, ShareTarget
+from app.models.share import ShareLink
 from app.schemas.share import (
     ShareCreate,
     ShareLinkOut,

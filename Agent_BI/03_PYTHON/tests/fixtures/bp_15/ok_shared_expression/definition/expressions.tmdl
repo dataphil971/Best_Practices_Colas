@@ -1,0 +1,15 @@
+expression D_STRUCTURES = ```
+		let
+			Source =
+		    Value.NativeQuery(
+		        Databricks.Catalogs(SPARK_Hostname, SPARK_HTTP_Path, [Catalog=Env, Database=null])
+		        {[Name=Env,Kind="Database"]}[Data],
+		        "SELECT * FROM structures",
+		        null, [EnableFolding=true])
+		in
+		    Source
+		```
+	lineageTag: aaaaaaaa-0000-0000-0000-000000000000
+	queryGroup: DIMENSIONS
+
+	annotation PBI_ResultType = Table

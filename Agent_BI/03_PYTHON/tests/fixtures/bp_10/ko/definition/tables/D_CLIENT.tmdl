@@ -1,0 +1,7 @@
+table D_CLIENT
+	lineageTag: 20000000-0000-0000-0000-000000000002
+
+	column CODE_CLIENT
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CODE_CLIENT

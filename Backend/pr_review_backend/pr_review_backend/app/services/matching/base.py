@@ -4,7 +4,7 @@ Interface commune des fournisseurs de correspondance (Lot 5, §6.1).
 Tous les fournisseurs (local par défaut, IA optionnels) implémentent le même
 protocole, ce qui permet de les interchanger sans toucher au reste du code.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Protocol
 
 from app.models.enums import ItemStatus

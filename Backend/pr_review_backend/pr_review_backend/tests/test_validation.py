@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from app.models.category import Category
 from app.models.review import ReviewItem
-from app.models.share import ShareLink, ShareTarget, ValidationItemComment
+from app.models.share import ShareTarget, ValidationItemComment
 from app.models.enums import ChecklistType, Criticality, ReviewStatus
 from app.services import referential as ref_svc
 from app.services import review as rev_svc

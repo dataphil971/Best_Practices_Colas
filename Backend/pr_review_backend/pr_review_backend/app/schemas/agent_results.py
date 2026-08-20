@@ -7,7 +7,23 @@ rule_status, findings) sont garantis par ce contrat et donc strictement
 typés ; le reste de chaque résultat (ko_details, total_columns, etc.) varie
 par règle — on l'accepte tel quel plutôt que de le remodéliser ici.
 """
+from typing import Any
+
 from pydantic import BaseModel, Field
+
+
+class AgentSourceLocationIn(BaseModel):
+    """Où se trouve le constat dans le projet analysé, à la ligne près.
+
+    `line` est 1-indexée (comme un éditeur). `excerpt` porte le code réel :
+    le frontend l'affiche sans jamais avoir accès au projet, qui reste sur le
+    poste de l'utilisateur.
+    """
+
+    source_file: str
+    line: int | None = None
+    end_line: int | None = None
+    excerpt: str | None = None
 
 
 class AgentFindingIn(BaseModel):
@@ -15,10 +31,20 @@ class AgentFindingIn(BaseModel):
     object_type: str
     object: str
     expected: str
-    actual: str | int | float | bool | None = None
+    # `actual` est typé `Any` dans le contrat (engine/models.py, Finding.actual) :
+    # selon la règle c'est un scalaire, mais rien n'interdit une liste ou un
+    # objet. Le restreindre aux scalaires ferait rejeter en 422 l'enveloppe
+    # ENTIÈRE pour un seul finding non scalaire — on l'accepte tel quel.
+    actual: Any = None
     status: str  # OK | KO | NA
     evidence: dict = Field(default_factory=dict)
     reason: str = ""
+    # Champs d'EXPLICABILITÉ. Doivent être déclarés ici : sans eux, Pydantic
+    # les écarte silencieusement et `agent_evidence` perdrait exactement
+    # l'information que l'utilisateur doit voir (ligne fautive, remédiation).
+    location: AgentSourceLocationIn | None = None
+    remediation: str = ""
+    explanation: str = ""
 
 
 class AgentResultIn(BaseModel):

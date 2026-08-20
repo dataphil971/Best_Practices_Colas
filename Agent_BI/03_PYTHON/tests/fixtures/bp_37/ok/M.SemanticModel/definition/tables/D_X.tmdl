@@ -1,0 +1,5 @@
+table D_X
+	lineageTag: x
+
+	column A
+		dataType: string

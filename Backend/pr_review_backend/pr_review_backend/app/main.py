@@ -15,7 +15,7 @@ from app.api.routes import agent_results  # Lot 8
 
 app = FastAPI(
     title=settings.APP_NAME,
-    version="0.7.0 (Lot 7)",
+    version="0.8.0 (Lot 8)",
     docs_url="/docs",
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
 )

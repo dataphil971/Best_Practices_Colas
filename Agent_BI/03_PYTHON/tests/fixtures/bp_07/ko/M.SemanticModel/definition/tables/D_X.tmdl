@@ -1,0 +1,32 @@
+table D_X
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column UTILISEE_RAPPORT
+		dataType: string
+		summarizeBy: none
+		sourceColumn: UTILISEE_RAPPORT
+
+	column UTILISEE_DAX
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: UTILISEE_DAX
+
+	column INUTILISEE
+		dataType: string
+		summarizeBy: none
+		sourceColumn: INUTILISEE
+
+	column MASQUEE_INUTILISEE
+		dataType: string
+		isHidden
+		summarizeBy: none
+		sourceColumn: MASQUEE_INUTILISEE
+
+	column CITEE_EN_COMMENTAIRE
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CITEE_EN_COMMENTAIRE
+
+	measure Total =
+			-- D_X[CITEE_EN_COMMENTAIRE] ne doit PAS compter comme un usage
+			SUM(D_X[UTILISEE_DAX])

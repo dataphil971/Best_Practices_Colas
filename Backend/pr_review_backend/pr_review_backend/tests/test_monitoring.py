@@ -16,9 +16,9 @@ from sqlalchemy import select
 from app.models.category import Category
 from app.models.review import Review, ReviewItem
 from app.models.integration import ImportJob, IntegrationConfig
-from app.models.audit import AuditLog, AppSetting
+from app.models.audit import AuditLog
 from app.models.enums import (
-    ChecklistType, Criticality, ItemStatus, ProgressState, ReviewStatus,
+    ChecklistType, Criticality, ItemStatus,
 )
 from app.services import referential as ref_svc
 from app.services import review as rev_svc

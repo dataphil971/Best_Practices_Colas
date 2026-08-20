@@ -19,7 +19,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -125,13 +125,15 @@ def list_reviews(
     if status_filter:
         try:
             query = query.where(Review.status == ReviewStatus(status_filter))
-        except ValueError:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Statut inconnu.")
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Statut inconnu.") from exc
     if type:
         try:
             query = query.where(Review.checklist_type == ChecklistType(type))
-        except ValueError:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Type de référentiel inconnu.")
+        except ValueError as exc:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Type de référentiel inconnu."
+            ) from exc
 
     query = query.order_by(Review.created_at.desc())
     reviews = db.scalars(query).all()
@@ -270,10 +272,12 @@ def export_review(
                "OK", "KO", "Partiel", "N/A",
                "Progression", "Risque", "Solution proposée",
                "Jours estimés", "Échéance", "Responsable", "Priorité", "DoD", "Commentaire"]
-    ws.append([])  # ligne 5 vide
-    for _ in range(header_row - ws.max_row - 1):
-        ws.append([])
-    ws.append(headers)
+    # Écriture positionnelle : `ws.append([])` n'écrit aucune cellule, donc
+    # `max_row` ne bouge pas et un calcul de décalage relatif ferait glisser les
+    # en-têtes hors de `header_row` (le style et le figeage, eux, restant sur
+    # header_row). On écrit donc directement à la ligne voulue.
+    for col, title in enumerate(headers, start=1):
+        ws.cell(row=header_row, column=col, value=title)
 
     header_fill = PatternFill("solid", fgColor="454B66")
     header_font = Font(color="FFFFFF", bold=True)

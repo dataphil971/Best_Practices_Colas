@@ -1,0 +1,12 @@
+{
+  "name": "page1",
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "f1",
+        "type": "Categorical",
+        "field": {"Column": {"Expression": {"SourceRef": {"Entity": "D_CAMPAIGNS"}}, "Property": "CAMPAIGN_SHORT_LABEL"}}
+      }
+    ]
+  }
+}

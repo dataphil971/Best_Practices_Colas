@@ -1,0 +1,14 @@
+table D_CSV
+	lineageTag: 50000000-0000-0000-0000-000000000001
+
+	column ID
+		dataType: string
+		summarizeBy: none
+
+	partition D_CSV = m
+		mode: import
+		source =
+				let
+					Source = Csv.Document(File.Contents("C:\data\ref.csv"), [Delimiter=","])
+				in
+					Source

@@ -1,0 +1,12 @@
+table D_CLIENT
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column CODE_CLIENT
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CODE_CLIENT
+		displayFolder: KPI
+
+	measure Nb_Clients = COUNT(D_CLIENT[CODE_CLIENT])
+		formatString: 0
+		displayFolder: KPI

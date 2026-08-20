@@ -9,7 +9,6 @@ Vérifient :
   - la mise à jour d'item recalcule et met en cache le score ;
   - l'horodatage de soumission.
 """
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -80,7 +79,7 @@ def test_create_review_snapshots_current_versions(db, admin):
 
 
 def test_snapshot_is_immutable_when_referential_changes(db, admin):
-    cat = _seed_referential(db, admin, n_rules=2)
+    _seed_referential(db, admin, n_rules=2)
     review = rev_svc.create_review(
         db, author=admin, report_name="R", checklist_type=ChecklistType.powerbi
     )
