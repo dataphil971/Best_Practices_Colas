@@ -40,11 +40,11 @@ _CRIT_RANK = {Criticality.blocking: 0, Criticality.recommended: 1, Criticality.o
 def _parse_type(type_str: str) -> ChecklistType:
     try:
         return ChecklistType(type_str)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"Référentiel inconnu : '{type_str}'.",
-        )
+        ) from exc
 
 
 # --------------------------------------------------------------------------

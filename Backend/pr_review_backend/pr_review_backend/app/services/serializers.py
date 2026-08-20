@@ -1,7 +1,7 @@
 """Assemblage des objets de sortie du référentiel (règle + catégorie + version)."""
 from sqlalchemy.orm import Session
 
-from app.models.rule import Rule, RuleVersion
+from app.models.rule import Rule
 from app.models.rule_activity import RuleActivity
 from app.models.category import Category
 from app.models.user import User

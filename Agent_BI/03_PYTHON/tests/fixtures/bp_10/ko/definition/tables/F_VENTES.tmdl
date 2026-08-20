@@ -1,0 +1,12 @@
+table F_VENTES
+	lineageTag: 20000000-0000-0000-0000-000000000001
+
+	column CODE_CLIENT
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CODE_CLIENT
+
+	column PRODUIT_KEY
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: PRODUIT_KEY

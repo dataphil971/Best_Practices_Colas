@@ -124,6 +124,69 @@ def test_parser_ignores_measure_blocks(tmp_path):
     assert table.columns == []
 
 
+def test_parser_reads_columns_when_the_file_is_indented_with_spaces(tmp_path):
+    # Un fichier TMDL réel est indenté en tabulations, mais un fichier
+    # réécrit à la main ou recopié depuis un éditeur/un rendu Markdown peut
+    # avoir ses tabulations converties en espaces. Sans tolérance à cela, la
+    # colonne n'est jamais vue : le résultat glisse silencieusement vers
+    # "0 colonne évaluée" plutôt que vers une erreur visible.
+    tmdl_file = tmp_path / "D_CAMPAIGNS.tmdl"
+    tmdl_file.write_text(
+        "table D_CAMPAIGNS\n"
+        "    lineageTag: 6bfd2601-0ebf-442a-8353-f9e5f53901ab\n\n"
+        "    column CAMPAIGN_ID\n"
+        "        dataType: string\n"
+        "        isHidden\n"
+        "        lineageTag: b30938a6-aa65-4080-bd83-dd84d12c599d\n"
+        "        summarizeBy: none\n"
+        "        sourceColumn: CAMPAIGN_ID\n\n"
+        "        changedProperty = IsHidden\n\n"
+        "        annotation SummarizationSetBy = Automatic\n",
+        encoding="utf-8",
+    )
+
+    table = parse_table_file(tmdl_file)
+
+    assert table.name == "D_CAMPAIGNS"
+    assert len(table.columns) == 1
+    assert table.columns[0].name == "CAMPAIGN_ID"
+    assert table.columns[0].get_property("summarizeBy") == "none"
+
+
+def test_ok_and_ko_are_both_detected_on_a_space_indented_file(tmp_path):
+    semantic_model = tmp_path / "Fixture.SemanticModel"
+    tables_dir = semantic_model / "definition" / "tables"
+    tables_dir.mkdir(parents=True)
+    (tables_dir / "D_CONFORME.tmdl").write_text(
+        "table D_CONFORME\n"
+        "    lineageTag: aaaaaaaa-0000-0000-0000-000000000000\n\n"
+        "    column ID\n"
+        "        dataType: string\n"
+        "        summarizeBy: none\n"
+        "        sourceColumn: ID\n",
+        encoding="utf-8",
+    )
+    (tables_dir / "F_NON_CONFORME.tmdl").write_text(
+        "table F_NON_CONFORME\n"
+        "    lineageTag: bbbbbbbb-0000-0000-0000-000000000000\n\n"
+        "    column AMOUNT\n"
+        "        dataType: double\n"
+        "        summarizeBy: sum\n"
+        "        sourceColumn: AMOUNT\n",
+        encoding="utf-8",
+    )
+
+    result = bp_22.check(AnalysisContext.from_semantic_model_path(semantic_model))
+
+    assert result.rule_status == "KO"
+    assert result.summary["total_columns"] == 2
+    assert result.summary["conforming_columns"] == 1
+    assert result.summary["nonconforming_columns"] == 1
+    assert result.summary["ko_details"] == [
+        {"table": "F_NON_CONFORME", "column": "AMOUNT", "summarizeBy": "sum"},
+    ]
+
+
 def test_parser_returns_none_for_a_file_without_a_table_declaration(tmp_path):
     tmdl_file = tmp_path / "empty.tmdl"
     tmdl_file.write_text("", encoding="utf-8")

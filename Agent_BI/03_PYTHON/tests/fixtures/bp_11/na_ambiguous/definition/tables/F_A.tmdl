@@ -1,0 +1,16 @@
+table F_A
+	lineageTag: 40000000-0000-0000-0000-000000000001
+
+	column MONTANT
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: MONTANT
+
+	partition F_A = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("s", "d"),
+				    T = Table.TransformColumnTypes(Source,{{"MONTANT", Int64.Type}})
+				in
+				    T

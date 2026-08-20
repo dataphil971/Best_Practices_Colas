@@ -11,9 +11,8 @@ Bascule à chaud : activer un fournisseur écrit une config active dans
 fournisseur actif à chaque opération — aucun redéploiement. Les secrets ne sont
 jamais stockés en base ni renvoyés au front (seul `secret_ref` est conservé).
 """
-import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -139,7 +138,6 @@ def test_matching(
     Le fournisseur local est toujours opérationnel. Pour un fournisseur IA, on
     vérifie qu'il peut produire un résultat (avec repli local en cas d'échec).
     """
-    from app.services.matching.local import LocalMatchProvider
     from app.services.matching.ai import AIMatchProvider
     from app.services.matching.base import RuleRef
 

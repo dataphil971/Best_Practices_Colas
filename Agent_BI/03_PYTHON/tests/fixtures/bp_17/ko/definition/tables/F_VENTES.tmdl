@@ -1,0 +1,14 @@
+table F_VENTES
+	lineageTag: 20000000-0000-0000-0000-000000000001
+
+	column MONTANT
+		dataType: double
+		summarizeBy: sum
+
+	partition F_VENTES = m
+		mode: directQuery
+		source =
+				let
+					Source = Databricks.Catalogs("adb-123.azuredatabricks.net", "/sql/protocolv1/o/123456789012345/0101-120000-abcd1234", [])
+				in
+					Source

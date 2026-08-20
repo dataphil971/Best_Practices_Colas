@@ -20,12 +20,11 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.enums import ItemStatus
 from app.models.review import Review, ReviewItem
 from app.models.rule import RuleVersion
 from app.models.integration import ImportJob
 from app.services.excel_parser import parse_workbook
-from app.services.matching.base import RuleRef, THRESHOLD_PROBABLE
+from app.services.matching.base import RuleRef
 from app.services.matching.local import AMBIGUOUS_MIN, PREFILL_STRONG, PREFILL_MARGIN_MIN
 from app.services import integrations as integ
 from app.services.review import recompute_and_cache_score

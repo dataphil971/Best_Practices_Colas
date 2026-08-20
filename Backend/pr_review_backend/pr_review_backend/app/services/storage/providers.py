@@ -16,7 +16,6 @@ identifiants résolus au moment de la construction.
 from __future__ import annotations
 
 import base64
-import hashlib
 import uuid
 from pathlib import Path
 from typing import Protocol

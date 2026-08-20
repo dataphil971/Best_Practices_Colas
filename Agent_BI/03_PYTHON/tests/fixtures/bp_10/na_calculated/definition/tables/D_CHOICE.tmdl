@@ -1,0 +1,7 @@
+table D_CHOICE
+	lineageTag: 40000000-0000-0000-0000-000000000002
+
+	column ID
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: ID

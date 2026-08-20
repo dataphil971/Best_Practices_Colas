@@ -1,0 +1,10 @@
+{
+  "name": "v1",
+  "visual": {
+    "visualType": "barChart",
+    "query": { "queryState": { "Category": { "projections": [
+      { "field": { "Column": { "Expression": { "SourceRef": { "Entity": "D_D" } }, "Property": "Annee" } } } ] },
+      "Y": { "projections": [
+      { "field": { "Measure": { "Expression": { "SourceRef": { "Entity": "MEASURE" } }, "Property": "CA Net" } } } ] } } }
+  }
+}

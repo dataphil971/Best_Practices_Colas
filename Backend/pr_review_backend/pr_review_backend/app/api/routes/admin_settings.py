@@ -3,7 +3,7 @@ Routes admin des paramètres applicatifs et de l'audit (Lot 7, §5.7).
 """
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session

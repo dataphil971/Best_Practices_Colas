@@ -97,6 +97,18 @@ export interface ReviewDetail {
 }
 
 // --- Agent BI : contrat JSON (Agent_BI/03_PYTHON/engine/envelope.py) -------
+
+/** Où se trouve le constat dans le projet analysé, à la ligne près.
+ *  `line` est 1-indexée (comme un éditeur) ; `excerpt` porte le code réel,
+ *  seul moyen pour le frontend de montrer la preuve sans jamais accéder au
+ *  projet, qui reste sur le poste de l'utilisateur. */
+export interface AgentSourceLocation {
+  source_file: string;
+  line?: number | null;
+  end_line?: number | null;
+  excerpt?: string | null;
+}
+
 export interface AgentFinding {
   rule_id: string;
   object_type: string;
@@ -106,6 +118,27 @@ export interface AgentFinding {
   status: "OK" | "KO" | "NA";
   evidence: Record<string, unknown>;
   reason: string;
+  // Champs d'EXPLICABILITÉ (engine/models.py, Finding) : optionnels ici car
+  // toutes les règles ne les renseignent pas encore.
+  location?: AgentSourceLocation | null;
+  remediation?: string;
+  explanation?: string;
+}
+
+/** Un CANDIDAT contextuel (engine/models.py, Candidate) : une situation
+ *  détectée de façon déterministe que le moteur ne peut pas trancher seul.
+ *
+ *  Principe repris tel quel du moteur et du skill agent-bi-context-review :
+ *  `candidat != violation`. Un candidat ne fait donc JAMAIS basculer
+ *  `rule_status` en KO — une règle qui n'émet que des candidats reste `NA`
+ *  tant que la revue contextuelle n'a rien qualifié. */
+export interface AgentCandidate {
+  rule_id: string;
+  candidate_id: string;
+  candidate_type: string;
+  objects: unknown[];
+  technical_evidence: Record<string, unknown>;
+  review_context: Record<string, unknown>;
 }
 
 export interface AgentResult {
@@ -115,6 +148,9 @@ export interface AgentResult {
   execution_status: string;
   rule_status: "OK" | "KO" | "NA";
   findings: AgentFinding[];
+  // Absent tant qu'une règle n'émet pas de candidats : le moteur n'expose
+  // pas de clé vide, qui laisserait croire qu'une revue est attendue.
+  candidates?: AgentCandidate[];
   // Champs spécifiques à chaque règle (ko_details, total_columns, ...).
   [key: string]: unknown;
 }

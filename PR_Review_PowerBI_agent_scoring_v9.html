@@ -4617,6 +4617,237 @@ function agAnalyser(state, review, src, ctx) {
 }
 
 /* ==========================================================================
+   AGENT BI — MOTEUR RÉEL (agent local)
+
+   Tout ce qui précède est une SIMULATION : agModel() et agEvaluer() tirent
+   leurs chiffres d'un PRNG seedé sur « nom|taille » du fichier, dont le
+   contenu n'est jamais lu. Ce bloc branche le vrai moteur :
+
+     navigateur → pont Node local (Agent_BI/05_NODE, 127.0.0.1:27841)
+                → moteur Python (Agent_BI/03_PYTHON) → enveloppe JSON versionnée
+
+   Même protocole que frontend/src/api/agent.ts : en-têtes X-Agent-Protocol /
+   X-Agent-Token, jeton obtenu via un code à 6 chiffres affiché dans la console
+   de l'agent — jamais renvoyé par HTTP, c'est ce qui empêche une page web
+   quelconque de s'auto-appairer.
+
+   Prérequis : servir cette page en http:// (un fichier ouvert en file:// a une
+   origine « null » que le pont refuse d'appairer de façon fiable).
+   ========================================================================== */
+let AG_L_DEFAUT = "http://127.0.0.1:27841",
+AG_L_CLE_URL = "agentbi.endpoint",
+/* sessionStorage et non localStorage : le jeton d'appairage ne doit pas
+   survivre à l'onglet (même choix que Backend/pbi-agent-overlay-v2.js). */
+AG_L_CLE_TOKEN = "agentbi.token";
+
+function agLUrl() { try { return localStorage.getItem(AG_L_CLE_URL) || AG_L_DEFAUT } catch (e) { return AG_L_DEFAUT } }
+function agLSetUrl(u) { try { localStorage.setItem(AG_L_CLE_URL, u) } catch (e) {} }
+function agLToken() { try { return sessionStorage.getItem(AG_L_CLE_TOKEN) } catch (e) { return null } }
+function agLSetToken(t) { try { sessionStorage.setItem(AG_L_CLE_TOKEN, t) } catch (e) {} }
+
+function agLFetch(chemin, opts) {
+  opts = opts || {};
+  let h = { "X-Agent-Protocol": "2" };
+  /* Content-Type seulement s'il y a un corps : sur un GET il ne décrit rien et
+     fait payer un préflight CORS de plus à chaque sondage. */
+  if (void 0 !== opts.body) h["Content-Type"] = "application/json";
+  if (opts.auth) { let t = agLToken(); if (t) h["X-Agent-Token"] = t }
+  return fetch(agLUrl() + "/api/v1" + chemin, {
+    method: opts.method || "GET", headers: h,
+    body: void 0 !== opts.body ? JSON.stringify(opts.body) : void 0
+  });
+}
+
+async function agLSante(msTimeout) {
+  let ctrl = new AbortController(), tm = setTimeout(() => ctrl.abort(), msTimeout || 2500);
+  try { let r = await fetch(agLUrl() + "/api/v1/health", { signal: ctrl.signal }); return r.ok ? await r.json() : null }
+  catch (e) { return null } finally { clearTimeout(tm) }
+}
+async function agLAppairerDemande() {
+  let r = await agLFetch("/pairing/request", { method: "POST", body: { origin: window.location.origin } });
+  if (!r.ok) throw Error("L'agent local a refusé la demande d'appairage.");
+}
+async function agLAppairerConfirmer(code) {
+  let r = await agLFetch("/pairing/confirm", { method: "POST", body: { code: String(code || "") } });
+  if (!r.ok) throw Error("Code refusé ou expiré (validité 60 s).");
+  let d = await r.json(); agLSetToken(d.token); return d.token;
+}
+async function agLLancer(chemin) {
+  let r = await agLFetch("/analyses", { method: "POST", body: { project_path: chemin }, auth: !0 });
+  if (401 === r.status) throw Error("Agent non appairé : relancez la connexion.");
+  if (!r.ok) { let d = await r.json().catch(() => ({})); throw Error(d.message || "Analyse refusée par l'agent local.") }
+  return r.json();
+}
+async function agLEtat(id) {
+  let r = await agLFetch("/analyses/" + encodeURIComponent(id), { auth: !0 });
+  if (!r.ok) throw Error("Analyse introuvable côté agent.");
+  return r.json();
+}
+async function agLAttendre(id, onTick, msMax) {
+  let fin = Date.now() + (msMax || 12e4);
+  for (;;) {
+    let e = await agLEtat(id);
+    if ("RUNNING" !== e.status) return e;
+    onTick && onTick();
+    if (Date.now() > fin) throw Error("Délai d'analyse dépassé : l'agent ne rend pas la main.");
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
+
+/* ---- Correspondance « identifiant moteur Python » -> « point du prototype » --
+   Le moteur nomme ses règles BP-xx (alias SEM-xxx, cf. Agent_BI/01_ALGORITHMES/) ;
+   le prototype les nomme PQ-/MOD-/DAX-/GEN-/DSG-/BIG-.
+
+   C'EST LA SEULE TABLE À COMPLÉTER quand une règle Python est ajoutée à
+   Agent_BI/03_PYTHON/rules/registry.py. Un point absent d'ici n'est jamais
+   présumé conforme : il est explicitement déclaré « non couvert ». */
+let AG_MAP_MOTEUR = {
+  "BP-22": "MOD-02",    // Désactivation de l'autosummarization (summarizeBy = none)
+  "SEM-001": "MOD-02",  // alias du même contrôle
+  "BP-03": "MOD-04",    // Relations bidirectionnelles / many-to-many (relationships.tmdl)
+  "BP-09": "GEN-02",    // Auto Date/Time (annotation __PBI_TimeIntelligenceEnabled, model.tmdl)
+  "BP-21": "MOD-05",    // Noms d'objets (tables/colonnes/mesures/displayFolder)
+  "BP-17": "PQ-05",     // Endpoint Databricks (SQL Warehouse vs compute cluster) en DirectQuery
+  "BP-15": "BIG-01",    // Query folding (ruptures explicites, Value.NativeQuery/EnableFolding)
+  "BP-11": "PQ-02",     // Types de données / précision (preuve = conversion Power Query)
+  "BP-39": "DSG-05",    // Filtres du rapport — sous-contrôle « références » uniquement
+  "BP-07": "GEN-01",    // Colonnes visibles inutilisées (portée : le PBIP analysé)
+  "BP-32": "DAX-01",    // Mesures explicites (agrégation implicite sérialisée dans le PBIR)
+  "BP-25": "MOD-03",    // Masquer les champs techniques (clé de tri exclusive uniquement)
+  "BP-37": "DSG-03",    // Organisation visuels/signets — sous-contrôle structurel uniquement
+  "BP-38": "DSG-04"     // Interactions entre visuels — cohérence technique uniquement
+  // NB : BP-10 (clés de relation entières) n'a AUCUN point équivalent dans les
+  // 42 points du prototype — elle tourne dans le moteur et figure dans
+  // l'enveloppe, mais reste sans cible ici. Ne pas la rattacher de force à
+  // PQ-02, qui porte sur la précision décimale (= BP-11), pas sur les clés.
+};
+
+let AG_STATUT_MOTEUR = { OK: "ok", KO: "ko", NA: "na" };
+
+/* Le contrat garantit un finding par objet, OK compris ; seuls les constats
+   non conformes constituent une preuve à corriger. */
+function agPreuvesDepuisFindings(res) {
+  return (res.findings || []).filter(f => "KO" === f.status).slice(0, 5).map(f => {
+    let ev = f.evidence || {};
+    // `actual`/`expected` sont du texte libre défini par CHAQUE règle Python
+    // (cf. Agent_BI/03_PYTHON/rules/*.py) : contrairement à une version
+    // antérieure de cette fonction, on ne préfixe plus par "summarizeBy = "
+    // (propre à BP-22 seul) — un préfixe générique en dehors de cette seule
+    // règle affichait un texte absurde ("summarizeBy = BOTH_DIRECTIONS" pour
+    // une relation bidirectionnelle, par exemple).
+    // Localisation à la ligne près quand le moteur a su la produire ; on
+    // retombe sur le seul nom de fichier sinon — jamais de ligne inventée.
+    let loc = f.location || {},
+      fichier = loc.source_file || ev.source_file || "",
+      court = fichier ? String(fichier).split(/[\/]/).pop() : "",
+      emplacement = court
+        ? (loc.line ? court + ", ligne " + loc.line : court)
+        : (f.object_type || "objet");
+    return {
+      objet: f.object || "—",
+      emplacement: emplacement,
+      observe: null == f.actual ? (f.reason || "non conforme") : String(f.actual),
+      attendu: f.expected || "conforme",
+      // Champs d'explicabilité : vides tant qu'une règle ne les renseigne pas.
+      extrait: loc.excerpt || "",
+      explication: f.explanation || "",
+      remediation: f.remediation || "",
+      cheminComplet: fichier ? String(fichier) : "",
+      ligne: loc.line || null
+    };
+  });
+}
+
+/* Enveloppe réelle -> points d'aperçu, dans la MÊME forme que agAnalyser() :
+   tout l'écran d'aperçu, les verdicts et l'application sont réutilisés tels quels. */
+function agAnalyserLocal(state, review, env, ctx, src) {
+  let parId = {};
+  (env.results || []).forEach(r => {
+    let cible = AG_MAP_MOTEUR[r.rule_id] || (r.alias ? AG_MAP_MOTEUR[r.alias] : null);
+    if (cible) parId[cible] = r;
+  });
+
+  let points = [];
+  review.items.forEach(it => {
+    let v = em(state, it.ruleVersionId), r = v ? agRuleFor(v.text) : null;
+    if (!r) { points.push({ item: it, texte: v ? v.text : "—", horsPerimetre: !0 }); return }
+
+    let res = parId[r.id];
+    if (!res) {
+      /* Aucune implémentation Python pour ce point. « Non vérifié » n'est pas
+         « conforme » : on ne propose aucun statut. */
+      points.push({
+        item: it, texte: v.text, rule: r, nonCouvert: !0, reel: !0,
+        finding: { rule: r, conf: 0, preuves: [], den: 0, num: 0, fautes: 0, rho: null },
+        decision: {
+          statut: "unset", remplissage: "pre_diagnostic", zone: "ind",
+          raison: "Aucun contrôle déterministe pour ce point dans le moteur local (rules/registry.py) : il reste à évaluer manuellement."
+        },
+        conflit: !1
+      });
+      return;
+    }
+
+    let den = null != res.total_columns ? res.total_columns : 0,
+      num = null != res.conforming_columns ? res.conforming_columns : 0,
+      preuves = agPreuvesDepuisFindings(res),
+      statut = AG_STATUT_MOTEUR[res.rule_status] || "unset",
+      f = {
+        rule: r, preuves: preuves, den: den, num: num,
+        fautes: null != res.nonconforming_columns ? res.nonconforming_columns : preuves.length,
+        rho: den ? num / den : null,
+        /* Confiance 1 et non une estimation : le contrôle lit la propriété dans
+           le TMDL, il n'y a rien à estimer. */
+        conf: 1
+      };
+
+    if ("ko" === statut && !preuves.length) {
+      /* Garde-fou repris du parcours simulé : jamais de KO sans preuve. */
+      points.push({
+        item: it, texte: v.text, rule: r, finding: f, reel: !0, conflit: !1,
+        decision: { statut: "unset", remplissage: "pre_diagnostic", zone: "ko",
+          raison: "Le moteur signale un écart sans preuve exploitable : aucun statut n'est proposé." }
+      });
+      return;
+    }
+
+    points.push({
+      item: it, texte: v.text, rule: r, finding: f, reel: !0,
+      decision: {
+        statut: statut, remplissage: "auto", zone: "ok" === statut ? "ok" : statut,
+        raison: "na" === statut
+          ? (res.reason || "Le moteur n'a pas pu statuer sur ce point (" + (res.execution_status || "NA") + ").")
+          : ""
+      },
+      conflit: "unset" !== it.status && "unset" !== statut && it.status !== statut
+    });
+  });
+
+  let pr = env.project || {};
+  return {
+    id: ed("an").toUpperCase(), at: Date.now(), src: src, ctx: ctx, reel: !0,
+    agentVersion: (env.engine_version || "?") + " (moteur local)",
+    ruleset: "schéma " + (env.schema_version || "?"),
+    model: {
+      fingerprint: pr.fingerprint || "—", nom: pr.name || "—",
+      chemin: pr.semantic_model_path || pr.project_path || "—",
+      tailleMo: null, tab: null, col: null, mes: null, rel: null, req: null,
+      pag: null, vis: null, gros: !1
+    },
+    points: points
+  };
+}
+
+/* Couverture RÉELLE : nombre de points effectivement branchés sur un contrôle
+   Python. Annoncer la couverture simulée ici serait mentir sur ce qui est
+   vérifié. Même unité de comptage que agCouverture() (règle + sous-règles). */
+function agCouvertureLocale() {
+  let cibles = new Set(Object.keys(AG_MAP_MOTEUR).map(k => AG_MAP_MOTEUR[k])), tot = 0, ok = 0;
+  AGENT_RULES.forEach(r => { let n = 1 + (r.subs ? r.subs.length : 0); tot += n; if (cibles.has(r.id)) ok += n });
+  return { total: tot, lisibles: ok };
+}
+
+/* ==========================================================================
    AGENT BI — parcours « Utiliser l'agent BI »
    INACTIF → CHOIX_SOURCE → QUESTIONS_CONTEXTE → EXTRACTION → ANALYSE
            → APERÇU (dry-run obligatoire) → APPLIQUÉ
@@ -4648,17 +4879,71 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
     [filtre, setFiltre] = en.useState("all"),
     [ouvert, setOuvert] = en.useState({}),
     [bilan, setBilan] = en.useState(null),
+    /* Mode « agent local » : configuration, appairage et erreurs du vrai moteur. */
+    [loc, setLoc] = en.useState({ phase: agLToken() ? "pret" : "idle", url: agLUrl(), chemin: "", code: "", err: null, sante: null }),
+    reelAnnule = en.useRef(!1),
     fileRef = en.useRef(null);
 
   let detecter = f => {
     let n = f.name.toLowerCase(), mode = n.endsWith(".pbix") ? "pbix" : "pbip";
     setSrc({ kind: "fichier", nom: f.name, mode: mode, sizeMo: f.size / 1048576, key: f.name + "|" + f.size });
   };
-  let couv = src ? agCouverture(src.mode) : null;
+  let couvLoc = agCouvertureLocale();
+  let couv = src ? ("local" === src.kind ? couvLoc : agCouverture(src.mode)) : null;
+
+  /* ---- Mode local : détection, appairage, lancement ---- */
+  let locConnecter = async () => {
+    setLoc(l => ({ ...l, err: null, phase: "checking" }));
+    let s = await agLSante();
+    if (!s) { setLoc(l => ({ ...l, phase: "absent" })); return }
+    if (agLToken()) { setLoc(l => ({ ...l, phase: "pret", sante: s })); return }
+    try { await agLAppairerDemande(); setLoc(l => ({ ...l, phase: "code", sante: s })) }
+    catch (e) { setLoc(l => ({ ...l, phase: "absent", err: e.message })) }
+  };
+  let locConfirmer = async () => {
+    try { await agLAppairerConfirmer(loc.code); setLoc(l => ({ ...l, phase: "pret", code: "", err: null })) }
+    catch (e) { setLoc(l => ({ ...l, err: e.message })) }
+  };
+  let locAnalyser = () => {
+    let c = (loc.chemin || "").trim();
+    if (!c) return;
+    setLoc(l => ({ ...l, err: null }));
+    setSrc({ kind: "local", nom: c, mode: "pbip", sizeMo: null, key: c, chemin: c });
+    setEtape("analyse");
+  };
 
   /* ---- Étapes 4 et 5 : extraction puis analyse, progression réelle par catégorie ---- */
   en.useEffect(() => {
     if ("analyse" !== etape || !src) return;
+
+    /* Mode réel : la progression suit les vraies étapes HTTP, pas un minuteur
+       décoratif. Le moteur Python peut prendre plusieurs secondes. */
+    if ("local" === src.kind) {
+      reelAnnule.current = !1;
+      (async () => {
+        try {
+          setProg({ pct: 8, txt: "Transmission du chemin au pont local…" });
+          let d = await agLLancer(src.chemin);
+          if (reelAnnule.current) return;
+          setProg({ pct: 25, txt: "Le moteur Python analyse le projet PBIP…" });
+          let n = 0, e = await agLAttendre(d.analysis_id, () => {
+            n++; if (!reelAnnule.current) setProg({ pct: Math.min(92, 25 + 6 * n), txt: "Analyse en cours…" });
+          });
+          if (reelAnnule.current) return;
+          if ("FAILED" === e.status || !e.result) throw Error(e.error || "Le moteur a échoué sans produire de résultat.");
+          setProg({ pct: 100, txt: "Analyse terminée" });
+          let __an = agAnalyserLocal(st, rev, e.result, ctx, src), __v = {};
+          __an.points.forEach(p => { if (!p.horsPerimetre && !p.nonCouvert && "unset" !== p.decision.statut && !p.conflit) __v[p.item.id] = "accept" });
+          setAn(__an); setVerdicts(__v); setEtape("apercu");
+        } catch (err) {
+          if (reelAnnule.current) return;
+          setLoc(l => ({ ...l, err: err && err.message ? err.message : String(err) }));
+          setEtape("source");
+        }
+      })();
+      return () => { reelAnnule.current = !0 };
+    }
+
     let cats = ["Extraction des artefacts", "Normalisation du MIR", "Indexation (usage, AST DAX, AST M, relations, lignées)", "Power Query", "Modèle", "DAX", "Général", "Mise en page & Design", "Modèle de données conséquent", "Décision et garde-fous"],
       i = 0, t = setInterval(() => {
         i++;
@@ -4677,10 +4962,13 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
 
   let stats = en.useMemo(() => {
     if (!an) return null;
-    let s = { total: 0, ok: 0, ko: 0, na: 0, vide: 0, auto: 0, conf: 0, pre: 0, conflits: 0, hors: 0, proposables: 0, acceptes: 0, rejetes: 0, enAttente: 0 };
+    let s = { total: 0, ok: 0, ko: 0, na: 0, vide: 0, auto: 0, conf: 0, pre: 0, conflits: 0, hors: 0, nonCouv: 0, proposables: 0, acceptes: 0, rejetes: 0, enAttente: 0 };
     let v = verdicts || {};
     an.points.forEach(p => {
       if (p.horsPerimetre) { s.hors++; return }
+      /* Non couvert = aucun contrôle Python : ni proposé, ni compté comme
+         « laissé vide » par manque de confiance. Catégorie à part. */
+      if (p.nonCouvert) { s.nonCouv++; return }
       s.total++;
       let d = p.decision;
       "ok" === d.statut ? s.ok++ : "ko" === d.statut ? s.ko++ : "na" === d.statut ? s.na++ : s.vide++;
@@ -4699,6 +4987,7 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
     let v = verdicts || {};
     return an.points.filter(p => {
       if (p.horsPerimetre) return "hors" === filtre;
+      if (p.nonCouvert) return "all" === filtre || "noncouv" === filtre;
       if ("all" === filtre) return !0;
       if ("conflits" === filtre) return p.conflit;
       let proposable = !p.horsPerimetre && "unset" !== p.decision.statut && "unset" === p.item.status && !p.conflit;
@@ -4754,6 +5043,45 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
         agH("p", { className: "text-xs text-slate-500 dark:text-slate-400" }, "Agent ", AGENT_VERSION, " · jeu de règles ", AGENT_RULESET, " · ", rev.reportName))),
     agH("button", { onClick: close, className: "rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" }, agH(eI, { className: "h-5 w-5" })));
 
+  /* ---- Carte « agent local » : le seul chemin réellement branché sur le
+     moteur. Le pont lit un DOSSIER sur le disque (project_path) : un
+     <input type=file> ne donne aucun chemin au navigateur, d'où la saisie
+     explicite du chemin plutôt qu'un sélecteur de fichier. ---- */
+  let carteLocale = agH("div", { className: AG_CARD + " border-brand-blue/50" },
+    agH("div", { className: "mb-2 flex flex-wrap items-center gap-2" },
+      agH(AG_ICON_PLUG, { className: "h-5 w-5 text-brand-blue" }),
+      agH("p", { className: "text-sm font-semibold text-slate-800 dark:text-slate-100" }, "Agent local — moteur réel"),
+      agPill("Réel", "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300")),
+    agH("p", { className: "mb-3 text-xs text-slate-500 dark:text-slate-400" },
+      "Le projet PBIP est lu sur le disque de cette machine par le moteur Python : rien n'est téléversé. ",
+      agH("span", { className: "font-semibold text-amber-700 dark:text-amber-300" },
+        couvLoc.lisibles, " point(s) sur ", couvLoc.total, " sont aujourd'hui couverts par un contrôle déterministe"),
+      " — les autres seront déclarés « non couverts », jamais présumés conformes."),
+
+    "idle" === loc.phase && agH("button", { onClick: locConnecter, className: AG_BTN + " bg-brand-espresso text-white hover:bg-brand-ink" }, "Connecter l'agent local"),
+    "checking" === loc.phase && agH("p", { className: "text-sm text-slate-500" }, "Recherche de l'agent sur ", loc.url, "…"),
+
+    "absent" === loc.phase && agH("div", { className: "space-y-2" },
+      agH("p", { className: "text-xs text-rose-600 dark:text-rose-400" },
+        "Aucun agent détecté sur ", loc.url, ". Démarrez-le avec ", agH("code", { className: "rounded bg-slate-100 px-1 dark:bg-white/10" }, "node server.js"),
+        " dans ", agH("code", { className: "rounded bg-slate-100 px-1 dark:bg-white/10" }, "Agent_BI/05_NODE/"), ", puis réessayez."),
+      agH("input", { value: loc.url, onChange: e => setLoc({ ...loc, url: e.target.value }), placeholder: AG_L_DEFAUT, className: AG_FLD }),
+      agH("button", { onClick: () => { agLSetUrl(loc.url.trim() || AG_L_DEFAUT); locConnecter() }, className: AG_BTN + " bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" }, "Réessayer")),
+
+    "code" === loc.phase && agH("div", { className: "space-y-2" },
+      agH("p", { className: "text-xs text-slate-600 dark:text-slate-300" }, "Un code à 6 chiffres vient d'être affiché dans la console de l'agent (valable 60 s). Recopiez-le ici."),
+      agH("input", { value: loc.code, maxLength: 6, inputMode: "numeric", placeholder: "••••••",
+        onChange: e => setLoc({ ...loc, code: e.target.value }), className: AG_FLD }),
+      agH("button", { disabled: 6 !== (loc.code || "").length, onClick: locConfirmer, className: AG_BTN + " bg-brand-espresso text-white hover:bg-brand-ink disabled:opacity-40" }, "Confirmer l'appairage")),
+
+    "pret" === loc.phase && agH("div", { className: "space-y-2" },
+      agH("label", { className: "block text-xs font-semibold text-slate-600 dark:text-slate-300" }, "Chemin du projet PBIP (dossier contenant *.SemanticModel)"),
+      agH("input", { value: loc.chemin, onChange: e => setLoc({ ...loc, chemin: e.target.value }),
+        placeholder: "C:\\Projets\\MonRapport", className: AG_FLD }),
+      agH("button", { disabled: !(loc.chemin || "").trim(), onClick: locAnalyser, className: AG_BTN + " bg-brand-espresso text-white hover:bg-brand-ink disabled:opacity-40" }, "Analyser ce projet")),
+
+    loc.err && agH("p", { className: "mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400" }, loc.err));
+
   let vueSource = agH("div", { className: "space-y-4" },
     agH("p", { className: "text-sm text-slate-600 dark:text-slate-300" }, "L'agent lit le livrable, en construit une représentation normalisée (MIR) puis exécute 59 points de contrôle. Il ne modifie jamais votre rapport et n'écrase jamais un statut déjà saisi."),
     agH("div", { className: "grid gap-3 sm:grid-cols-2" },
@@ -4778,8 +5106,9 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
       "pbix" === src.mode && agH("p", { className: "mt-1 text-xs text-amber-700 dark:text-amber-300" }, "Le DataModel du .pbix est compressé : les règles de modèle et de DAX resteront non renseignées plutôt que d'être présumées conformes."),
       "xmla" === src.mode && agH("p", { className: "mt-1 text-xs text-amber-700 dark:text-amber-300" }, "XMLA donne le modèle sémantique mais pas le rapport : les règles de mise en page resteront non renseignées."),
       null != src.sizeMo && src.sizeMo > AGENT_CFG.TAILLE_MAX_FICHIER_MO && agH("p", { className: "mt-1 text-xs font-semibold text-rose-600" }, "Fichier au-delà de TAILLE_MAX_FICHIER_MO (", AGENT_CFG.TAILLE_MAX_FICHIER_MO, " Mo) — analyse refusée.")),
+    carteLocale,
     agH("div", { className: "flex justify-end" },
-      agH("button", { disabled: !src || null != src.sizeMo && src.sizeMo > AGENT_CFG.TAILLE_MAX_FICHIER_MO, onClick: () => setEtape("contexte"), className: AG_BTN + " bg-brand-espresso text-white hover:bg-brand-ink disabled:opacity-40" }, "Continuer")));
+      agH("button", { disabled: !src || "local" === src.kind || null != src.sizeMo && src.sizeMo > AGENT_CFG.TAILLE_MAX_FICHIER_MO, onClick: () => setEtape("contexte"), className: AG_BTN + " bg-brand-espresso text-white hover:bg-brand-ink disabled:opacity-40" }, "Continuer")));
 
   let q = (titre, pourquoi, options, val, set) => agH("div", { className: AG_CARD },
     agH("p", { className: "text-sm font-semibold text-slate-800 dark:text-slate-100" }, titre),
@@ -4813,6 +5142,12 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
 
   let ligne = p => {
     if (p.horsPerimetre) return agH("div", { key: p.item.id, className: "rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-400 dark:border-white/10" }, "Hors périmètre de l'agent : ", p.texte);
+    if (p.nonCouvert) return agH("div", { key: p.item.id, className: "rounded-xl border border-dashed border-slate-300 p-3 dark:border-white/10" },
+      agH("div", { className: "flex flex-wrap items-center gap-2" },
+        agPill(p.rule.id, "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-white/10 dark:text-slate-300"),
+        agPill("Non couvert", "bg-slate-100 text-slate-500 ring-slate-200 dark:bg-white/10 dark:text-slate-400")),
+      agH("p", { className: "mt-2 text-sm text-slate-600 dark:text-slate-300" }, p.texte),
+      agH("p", { className: "mt-1 text-[11px] italic text-slate-400" }, p.decision.raison));
     let d = p.decision, f = p.finding, o = ouvert[p.item.id], v = (verdicts || {})[p.item.id],
       proposable = "unset" !== d.statut && "unset" === p.item.status && !p.conflit,
       accepte = "accept" === v, rejete = "reject" === v;
@@ -4843,10 +5178,7 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
       o && agH("div", { className: "mt-3 space-y-3 rounded-lg bg-slate-50 p-3 dark:bg-white/5" },
         f.preuves.length > 0 && agH("div", null,
           agH("p", { className: "mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-400" }, "Preuves (", f.fautes, " occurrence", f.fautes > 1 ? "s" : "", f.fautes > 5 ? ", 5 affichées" : "", ")"),
-          agH("div", { className: "space-y-1.5" }, f.preuves.map((pv, i) => agH("div", { key: i, className: "rounded-md bg-white p-2 text-[11px] dark:bg-[#1c1812]" },
-            agH("p", { className: "font-semibold text-slate-700 dark:text-slate-200" }, pv.objet),
-            agH("p", { className: "text-slate-400" }, pv.emplacement),
-            agH("p", { className: "mt-0.5 text-slate-600 dark:text-slate-300" }, "observé : ", agH("span", { className: "font-semibold text-rose-600" }, pv.observe), " — attendu : ", agH("span", { className: "font-semibold text-emerald-600" }, pv.attendu)))))),
+          agH("div", { className: "space-y-1.5" }, f.preuves.map(agRendrePreuve))),
         agH("div", null, agH("p", { className: "mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400" }, "Métrique"), agH("p", { className: "text-[11px] text-slate-600 dark:text-slate-300" }, p.rule.rho || "—")),
         agH("div", null, agH("p", { className: "mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400" }, "Algorithme exécuté"), agH("pre", { className: "whitespace-pre-wrap break-words font-sans text-[11px] leading-snug text-slate-600 dark:text-slate-300" }, p.rule.algo || "—")),
         p.rule.subs && p.rule.subs.length > 0 && agH("div", null, agH("p", { className: "mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400" }, "Sous-règles évaluées (justificatif, hors score)"),
@@ -4855,17 +5187,26 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
         p.rule.rem && agH("div", null, agH("p", { className: "mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-400" }, "Remédiation proposée"), agH("p", { className: "text-[11px] text-slate-600 dark:text-slate-300" }, p.rule.rem))));
   };
 
-  let onglets = [["all", "Tous"], ["attente", "En attente"], ["accept", "Acceptés"], ["reject", "Rejetés"], ["auto", "Automatique"], ["a_confirmer", "À confirmer"], ["pre", "Pré-diagnostic"], ["na", "Non applicable"], ["conflits", "Écarts"], ["hors", "Hors périmètre"]];
+  let onglets = [["all", "Tous"], ["attente", "En attente"], ["accept", "Acceptés"], ["reject", "Rejetés"], ["auto", "Automatique"], ["a_confirmer", "À confirmer"], ["pre", "Pré-diagnostic"], ["na", "Non applicable"], ["conflits", "Écarts"], ["noncouv", "Non couvert"], ["hors", "Hors périmètre"]];
   let vueApercu = an && agH("div", { className: "space-y-4" },
     agH("div", { className: "rounded-xl border border-brand-lavender/60 bg-brand-lavender/10 p-4" },
       agH("p", { className: "text-sm font-bold text-brand-slate" }, "Aperçu — validez chaque proposition, rien n'est écrit tant que vous ne confirmez pas"),
-      agH("p", { className: "mt-1 text-xs text-slate-600 dark:text-slate-300" },
-        "Analyse ", an.id, " · empreinte ", an.model.fingerprint.slice(0, 12), " · modèle ", an.model.tailleMo, " Mo · ",
-        an.model.tab, " tables, ", an.model.col, " colonnes, ", an.model.mes, " mesures, ", an.model.rel, " relations, ", an.model.req, " requêtes M, ", an.model.pag, " pages, ", an.model.vis, " visuels."),
-      !an.model.gros && agH("p", { className: "mt-1 text-xs text-slate-500 dark:text-slate-400" }, "BIG-00 : modèle sous le seuil de 1 Go — la catégorie « Modèle de données conséquent » est marquée non applicable sans être exécutée.")),
+      an.reel
+        ? agH("p", { className: "mt-1 text-xs text-slate-600 dark:text-slate-300" },
+            "Analyse ", an.id, " · moteur ", an.agentVersion, " · ", an.ruleset,
+            " · empreinte ", String(an.model.fingerprint).slice(0, 12), " · projet ", an.model.nom,
+            agH("span", { className: "block truncate text-slate-400" }, an.model.chemin))
+        : agH("p", { className: "mt-1 text-xs text-slate-600 dark:text-slate-300" },
+            "Analyse ", an.id, " · empreinte ", an.model.fingerprint.slice(0, 12), " · modèle ", an.model.tailleMo, " Mo · ",
+            an.model.tab, " tables, ", an.model.col, " colonnes, ", an.model.mes, " mesures, ", an.model.rel, " relations, ", an.model.req, " requêtes M, ", an.model.pag, " pages, ", an.model.vis, " visuels."),
+      an.reel
+        ? agH("p", { className: "mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300" },
+            couvLoc.lisibles, " point(s) sur ", couvLoc.total, " sont couverts par un contrôle déterministe du moteur local ; les ", stats.nonCouv, " autre(s) restent à évaluer manuellement.")
+        : !an.model.gros && agH("p", { className: "mt-1 text-xs text-slate-500 dark:text-slate-400" }, "BIG-00 : modèle sous le seuil de 1 Go — la catégorie « Modèle de données conséquent » est marquée non applicable sans être exécutée.")),
     agH("div", { className: "grid grid-cols-3 gap-2 sm:grid-cols-6" },
       carte("Proposés", stats.proposables), carte("Acceptés", stats.acceptes, "text-emerald-600"), carte("Rejetés", stats.rejetes, "text-rose-600"),
-      carte("En attente", stats.enAttente, "text-amber-600"), carte("Non applicable", stats.na, "text-slate-500"), carte("Écarts", stats.conflits, "text-amber-700")),
+      carte("En attente", stats.enAttente, "text-amber-600"), carte("Non applicable", stats.na, "text-slate-500"),
+      an.reel ? carte("Non couvert", stats.nonCouv, "text-slate-400") : carte("Écarts", stats.conflits, "text-amber-700")),
     stats.proposables > 0 && agH("div", { className: "flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/5" },
       agH("span", { className: "text-xs font-semibold text-slate-500 dark:text-slate-400" }, "Décision groupée :"),
       agH("button", { onClick: () => setVerdictAll("accept"), className: "rounded-md bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300" }, "Tout accepter"),
@@ -4902,6 +5243,26 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
       "apercu" === etape ? piedApercu : null));
 }
 
+/* Rendu d'une preuve enrichie : localisation à la ligne près, extrait du code
+   réel et conseil de correction quand le moteur les a produits. Les champs
+   restent facultatifs — une règle qui ne sait pas situer son constat n'affiche
+   que ce qu'elle sait, jamais une ligne inventée. */
+function agRendrePreuve(pv, i) {
+  return agH("div", { key: i, className: "rounded-md bg-white p-2 text-[11px] dark:bg-[#1c1812]" },
+    agH("p", { className: "font-semibold text-slate-700 dark:text-slate-200" }, pv.objet),
+    agH("p", { className: "text-slate-400", title: pv.cheminComplet || "" }, pv.emplacement),
+    agH("p", { className: "mt-0.5 text-slate-600 dark:text-slate-300" },
+      "observé : ", agH("span", { className: "font-semibold text-rose-600" }, pv.observe),
+      " — attendu : ", agH("span", { className: "font-semibold text-emerald-600" }, pv.attendu)),
+    pv.extrait && agH("pre", {
+      className: "mt-1.5 overflow-x-auto rounded bg-slate-900 p-2 text-[10px] leading-relaxed text-slate-100"
+    }, pv.extrait),
+    pv.explication && agH("p", { className: "mt-1.5 text-slate-600 dark:text-slate-300" },
+      agH("span", { className: "font-semibold" }, "Pourquoi : "), pv.explication),
+    pv.remediation && agH("p", { className: "mt-1 rounded bg-emerald-50 p-1.5 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" },
+      agH("span", { className: "font-semibold" }, "Correction : "), pv.remediation));
+}
+
 /* ---- Bandeau agent sur une carte de bonne pratique ---- */
 function prAgentBadge({ meta: m }) {
   let [o, so] = en.useState(!1);
@@ -4915,10 +5276,7 @@ function prAgentBadge({ meta: m }) {
       agH("div", { className: "flex-1" }),
       agH("button", { onClick: () => so(!o), className: "text-[11px] font-semibold text-brand-blue hover:underline" }, o ? "Masquer" : m.preuves && m.preuves.length ? "Voir les " + m.preuves.length + " preuve(s)" : "Détail")),
     o && agH("div", { className: "mt-2 space-y-1.5" },
-      (m.preuves || []).map((pv, i) => agH("div", { key: i, className: "rounded-md bg-white p-2 text-[11px] dark:bg-[#1c1812]" },
-        agH("p", { className: "font-semibold text-slate-700 dark:text-slate-200" }, pv.objet),
-        agH("p", { className: "text-slate-400" }, pv.emplacement),
-        agH("p", { className: "mt-0.5 text-slate-600 dark:text-slate-300" }, "observé : ", agH("span", { className: "font-semibold text-rose-600" }, pv.observe), " — attendu : ", agH("span", { className: "font-semibold text-emerald-600" }, pv.attendu)))),
+      (m.preuves || []).map(agRendrePreuve),
       m.remediation && agH("p", { className: "rounded-md bg-white p-2 text-[11px] text-slate-600 dark:bg-[#1c1812] dark:text-slate-300" }, agH("span", { className: "font-semibold" }, "Remédiation : "), m.remediation),
       agH("p", { className: "text-[10px] text-slate-400" }, "Analyse ", m.analyse, " · agent ", m.version, " · jeu de règles ", m.ruleset)));
 }

@@ -35,8 +35,8 @@ def get_current_user(
 
     try:
         user_id = uuid.UUID(payload["sub"])
-    except (KeyError, ValueError):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton malformé")
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Jeton malformé") from exc
 
     user = db.get(User, user_id)
     if user is None or not user.is_active:

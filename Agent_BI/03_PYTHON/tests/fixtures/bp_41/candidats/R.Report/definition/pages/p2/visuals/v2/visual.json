@@ -1,0 +1,1 @@
+{"name":"v2","visual":{"visualType":"cardVisual","query":{"queryState":{"Values":{"projections":[{"field":{"Measure":{"Expression":{"SourceRef":{"Entity":"MEASURE"}},"Property":"Nb_Total"}}}]}}}}}

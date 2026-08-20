@@ -11,7 +11,6 @@ Gère les entrées de `app_settings`, notamment :
 import uuid
 from typing import Any
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.audit import AppSetting

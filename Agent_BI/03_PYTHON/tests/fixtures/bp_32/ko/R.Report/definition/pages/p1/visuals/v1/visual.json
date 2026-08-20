@@ -1,0 +1,10 @@
+{
+  "name": "v1",
+  "visual": {
+    "visualType": "barChart",
+    "query": { "queryState": { "Y": { "projections": [
+      { "field": { "Aggregation": { "Expression": { "Column": {
+          "Expression": { "SourceRef": { "Entity": "F_V" } }, "Property": "MONTANT" } },
+        "Function": 0 } } } ] } } }
+  }
+}

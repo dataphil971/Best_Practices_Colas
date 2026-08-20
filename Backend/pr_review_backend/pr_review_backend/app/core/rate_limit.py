@@ -30,7 +30,22 @@ class SlidingWindowLimiter:
         if len(q) >= self.max:
             return False
         q.append(now)
+        self._evict_idle(now)
         return True
+
+    def _evict_idle(self, now: float) -> None:
+        """Oublie les clés dont tous les hits sont sortis de la fenêtre.
+
+        Sans cela, `_hits` conserve une deque vide par IP vue depuis le
+        démarrage : la mémoire du processus croît indéfiniment avec le nombre
+        d'IP distinctes, ce qu'un balayage d'adresses suffit à provoquer.
+        """
+        stale = [
+            k for k, hits in self._hits.items()
+            if not hits or now - hits[-1] > self.window
+        ]
+        for k in stale:
+            del self._hits[k]
 
     def retry_after(self, key: str) -> int:
         q = self._hits.get(key)

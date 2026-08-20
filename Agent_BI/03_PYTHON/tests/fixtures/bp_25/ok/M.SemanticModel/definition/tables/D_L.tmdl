@@ -1,0 +1,12 @@
+table D_L
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column LIBELLE
+		dataType: string
+		summarizeBy: none
+		sortByColumn: ORDRE
+
+	column ORDRE
+		dataType: int64
+		isHidden
+		summarizeBy: none

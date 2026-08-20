@@ -1,0 +1,15 @@
+table F_X
+	lineageTag: 30000000-0000-0000-0000-000000000001
+
+	column TOTAL_AMOUNT
+		dataType: double
+		summarizeBy: sum
+		sourceColumn: TOTAL_AMOUNT
+
+	partition F_X = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("s", "d")
+				in
+				    Source

@@ -52,7 +52,7 @@ def import_agent_results(
     try:
         result = apply_agent_envelope(db, review=review, envelope=envelope)
     except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc))
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
 
     db.commit()
     return result

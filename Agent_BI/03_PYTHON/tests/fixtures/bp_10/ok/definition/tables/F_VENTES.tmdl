@@ -1,0 +1,7 @@
+table F_VENTES
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column CLIENT_KEY
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: CLIENT_KEY

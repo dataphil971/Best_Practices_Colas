@@ -1,0 +1,4 @@
+relationship 33333333-3333-3333-3333-333333333333
+	fromColumn: F_VENTES.CODE_PRODUIT
+	toColumn: D_PRODUIT.CODE_PRODUIT
+	crossFilteringBehavior: bothDirections

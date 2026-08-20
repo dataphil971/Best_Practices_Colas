@@ -25,6 +25,21 @@ export class ApiError extends Error {
   }
 }
 
+// FastAPI renvoie `detail` sous deux formes : une chaîne pour les HTTPException
+// applicatives, mais un TABLEAU d'objets {loc, msg, type} pour les erreurs de
+// validation Pydantic (422). Traiter les deux pareil affichait « [object
+// Object] » à l'utilisateur sur toute 422.
+function formatDetail(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((d) => (d && typeof d === "object" && "msg" in d ? String(d.msg) : null))
+      .filter((m): m is string => m !== null);
+    return messages.length > 0 ? messages.join(" ; ") : null;
+  }
+  return null;
+}
+
 async function doRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -63,7 +78,12 @@ export async function apiFetch<T>(
   options: RequestOptions = {},
   _retried = false,
 ): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {};
+  // Uniquement quand il y a un corps : sur un GET, cet en-tête ne décrit rien
+  // et déclenche un préflight CORS inutile à chaque requête.
+  if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
   if (accessToken && !options.skipAuth) {
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
@@ -85,8 +105,8 @@ export async function apiFetch<T>(
   if (!res.ok) {
     let message = res.statusText;
     try {
-      const data = (await res.json()) as { detail?: string };
-      message = data.detail ?? message;
+      const data = (await res.json()) as { detail?: unknown };
+      message = formatDetail(data.detail) ?? message;
     } catch {
       // réponse non-JSON : on garde statusText.
     }

@@ -1,0 +1,7 @@
+table CAMPAIGNS
+	lineageTag: 20000000-0000-0000-0000-000000000003
+
+	column CAMPAIGN_ID
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CAMPAIGN_ID

@@ -1,0 +1,21 @@
+table D_CAMPAIGNS
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column CAMPAIGN_LABEL
+		dataType: string
+		summarizeBy: none
+		sourceColumn: CAMPAIGN_LABEL
+
+	column SAMPLE_SIZE
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: SAMPLE_SIZE
+
+	partition D_CAMPAIGNS = m
+		mode: import
+		source =
+				let
+				    Source = Sql.Database("s", "d"),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"CAMPAIGN_LABEL", type text}, {"SAMPLE_SIZE", Int64.Type}})
+				in
+				    #"Changed Type"

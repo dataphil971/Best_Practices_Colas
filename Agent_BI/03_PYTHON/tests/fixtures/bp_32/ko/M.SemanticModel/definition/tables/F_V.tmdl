@@ -1,0 +1,6 @@
+table F_V
+	lineageTag: 10000000-0000-0000-0000-000000000001
+
+	column MONTANT
+		dataType: double
+		summarizeBy: none

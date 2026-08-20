@@ -1,0 +1,11 @@
+table P_PARAM
+	lineageTag: 40000000-0000-0000-0000-000000000001
+
+	column 'P_ORDER Value'
+		isHidden
+		summarizeBy: none
+		sourceColumn: [Value3]
+
+	partition P_PARAM = calculated
+		mode: import
+		source = {1,2,3}

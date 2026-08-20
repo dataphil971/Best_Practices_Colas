@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError
 from jose import jwt, JWTError
 
 from app.core.config import settings
@@ -23,9 +23,13 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
+    # VerificationError couvre VerifyMismatchError ; InvalidHashError se produit
+    # quand le hachage stocké n'est pas un hachage Argon2 lisible (compte migré
+    # depuis un autre système, valeur tronquée en base). Dans les deux cas c'est
+    # un échec d'authentification — jamais une erreur 500.
     try:
         return _ph.verify(password_hash, password)
-    except VerifyMismatchError:
+    except (VerificationError, InvalidHashError):
         return False
 
 

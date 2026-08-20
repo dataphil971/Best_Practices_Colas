@@ -27,6 +27,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Cache mémoire minimal des états OIDC en cours (à remplacer par Redis en prod).
 _pending_states: dict[str, str] = {}   # state -> nonce
 
+# Le cookie n'est envoyé qu'aux routes d'auth. Dérivé du préfixe configuré :
+# codé en dur, un changement d'API_V1_PREFIX rendrait le cookie inatteignable
+# et casserait silencieusement le renouvellement de session.
+_REFRESH_COOKIE_PATH = f"{settings.API_V1_PREFIX}/auth"
+
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
     response.set_cookie(
@@ -36,7 +41,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         secure=settings.ENVIRONMENT == "production",
         samesite="strict",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path="/api/v1/auth",
+        path=_REFRESH_COOKIE_PATH,
     )
 
 
@@ -118,8 +123,10 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token invalide.")
     try:
         user = db.get(User, uuid.UUID(payload["sub"]))
-    except (KeyError, ValueError):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token malformé.")
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "Refresh token malformé."
+        ) from exc
     if not user or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Compte introuvable.")
 
@@ -131,5 +138,5 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("refresh_token", path="/api/v1/auth")
+    response.delete_cookie("refresh_token", path=_REFRESH_COOKIE_PATH)
     return {"detail": "Déconnecté."}

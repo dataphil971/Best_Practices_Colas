@@ -4,7 +4,13 @@
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    // Un projet référencé ne peut pas désactiver l'émission (TS6310). On l'envoie
+    // donc hors des sources : émis à côté de vite.config.ts, le vite.config.js
+    // produit masquerait vite.config.ts, que Vite résout en second — c'est
+    // l'artefact périmé qui serait chargé au lieu de la vraie config.
+    "outDir": "./node_modules/.tmp/tsconfig-node",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }

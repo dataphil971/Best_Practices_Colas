@@ -33,10 +33,12 @@ async function agentFetch(
   path: string,
   options: { method?: string; body?: unknown; auth?: boolean } = {},
 ): Promise<Response> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "X-Agent-Protocol": "2",
-  };
+  const headers: Record<string, string> = { "X-Agent-Protocol": "2" };
+  // Seulement quand il y a un corps : sinon chaque sondage GET d'analyse paie un
+  // préflight CORS de plus, toutes les 500 ms.
+  if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
   if (options.auth) {
     const token = getAgentToken();
     if (token) headers["X-Agent-Token"] = token;

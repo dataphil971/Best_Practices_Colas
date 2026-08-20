@@ -1,0 +1,7 @@
+table P_EVOLUTION_LEGEND_TOP
+	lineageTag: 20000000-0000-0000-0000-000000000002
+
+	column 'P_LEGEND Order'
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: "P_LEGEND Order"
