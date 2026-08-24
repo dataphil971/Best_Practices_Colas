@@ -217,6 +217,9 @@ Actual
 Evidence
 Status
 Reason
+Location      (fichier + ligne + extrait)
+Explanation   (pourquoi c'est un problème)
+Remediation   (quoi changer)
 ```
 
 ---
@@ -303,6 +306,85 @@ Si une propriété nécessaire n'est pas accessible ou ne peut pas être interpr
 
 ---
 
+## Règles implémentées
+
+Le moteur exécute actuellement **15 bonnes pratiques**, sur le modèle sémantique comme sur le rapport.
+
+| Règle | Bonne pratique | Périmètre |
+|---|---|---|
+| `BP-03` | Éviter les relations bidirectionnelles et many-to-many | Modèle |
+| `BP-07` | Éliminer les colonnes visibles et inutilisées du modèle | Modèle + Rapport |
+| `BP-09` | Désactiver l'option Auto Date/Time | Modèle |
+| `BP-10` | Utiliser des clés de relation entières | Modèle |
+| `BP-11` | Vérifier les types de données et la précision numérique | Modèle |
+| `BP-15` | Maximiser le query folding vers la source | Power Query |
+| `BP-17` | Utiliser un SQL Warehouse pour Databricks en DirectQuery | Power Query |
+| `BP-21` | Noms d'objets concis, cohérents et conformes à la convention | Modèle |
+| `BP-22` | Désactivation de l'autosummarization | Modèle |
+| `BP-25` | Masquer les champs techniques démontrés | Modèle |
+| `BP-32` | Utiliser des mesures explicites plutôt que des agrégations implicites | DAX + Rapport |
+| `BP-37` | Organiser les visuels et les signets | Rapport |
+| `BP-38` | Éliminer les interactions croisées inutiles | Rapport |
+| `BP-39` | Configurer et tester les filtres du rapport | Rapport |
+| `BP-41` | Détection des visuels redondants ou dupliqués | Rapport (candidats) |
+
+### Portées partielles assumées
+
+Cinq de ces règles couvrent volontairement une partie seulement de leur algorithme, documentée en tête du fichier Python correspondant. Elles ne doivent pas être « complétées » par une heuristique : ce qui manque exige une information que le projet PBIP ne contient pas.
+
+```text
+BP-15   branches statiques seules  (aucune preuve runtime dans un PBIP)
+BP-25   voie « clé de tri exclusive » seule
+BP-37   sous-contrôle structurel seul
+BP-38   cohérence technique des références seule
+BP-39   validation des références de filtres seule
+```
+
+### Le plafond n'est pas un manque de parseur
+
+Les bonnes pratiques restantes ne sont pas bloquées par les parseurs, mais par l'absence d'une **source de règles d'entreprise versionnée** : seuils de volumétrie, glossaire des champs ambigus, conventions de nommage attendues, contrats de notification.
+
+```text
+Parseur supplémentaire
+    -> ne débloque presque rien
+
+Référentiel de policy versionné
+    -> débloquerait une dizaine de règles
+```
+
+C'est donc une décision de gouvernance, pas un sujet technique.
+
+---
+
+## Candidats : quand le déterministe s'arrête
+
+Certaines bonnes pratiques ne peuvent pas être tranchées par du code seul sans produire de faux positifs. Répéter un même KPI sur plusieurs pages, par exemple, est très souvent légitime.
+
+Pour ces cas, le moteur produit des **candidats** plutôt qu'un verdict :
+
+```text
+Détection déterministe
+        |
+        v
+    Candidat
+        |
+        v
+Revue contextuelle (skill / humain)
+        |
+        v
+JUSTIFIE | NON_CONFORME_CONFIRME | NON_RESOLU
+```
+
+Le principe est strict :
+
+```text
+candidat ≠ violation
+```
+
+Une règle qui n'émet que des candidats reste donc `NA` et ne fait jamais chuter le score tant que la revue contextuelle n'a rien qualifié. `BP-41` est la première règle construite sur ce modèle.
+
+---
+
 ## Architecture fonctionnelle
 
 ```text
@@ -353,8 +435,9 @@ L'algorithme décrit **ce que la règle doit faire**, indépendamment du langage
 Le moteur Python prend en charge :
 
 - la découverte du projet PBIP ;
-- la lecture du modèle sémantique ;
-- le parsing TMDL ;
+- la lecture du modèle sémantique et du rapport ;
+- le parsing TMDL, PBIR, Power Query (M) et DAX ;
+- l'indexation des usages d'un champ dans le rapport ;
 - la construction d'un contexte partagé ;
 - l'exécution des règles ;
 - la génération des résultats ;
@@ -368,11 +451,22 @@ Architecture :
 |
 ├── main.py
 ├── engine/
+│   ├── context.py       lecture unique du projet
+│   ├── models.py        Finding / Candidate / RuleResult
+│   ├── runner.py        exécution des règles
+│   ├── envelope.py      contrat JSON versionné
+│   └── usage_index.py   où chaque champ est réellement utilisé
 ├── powerbi/
+│   ├── tmdl_parser.py   modèle sémantique (TMDL)
+│   ├── pbir_parser.py   rapport (PBIR / JSON)
+│   ├── m_lang.py        Power Query (code M)
+│   └── dax_lang.py      expressions DAX
 ├── rules/
 ├── fixes/
 └── tests/
 ```
+
+Les parseurs sont volontairement séparés des règles : une règle décrit une décision métier, jamais la façon de lire un fichier.
 
 ### Lecture unique du projet
 
@@ -399,7 +493,7 @@ Cette architecture évite de multiplier les lectures disque lorsque le nombre de
 
 ## Règle de référence : BP-22
 
-Une première règle déterministe sert de référence d'implémentation.
+`BP-22` reste la règle de référence du moteur : c'est celle sur laquelle la convention d'implémentation a été fixée, et celle à lire en premier avant d'en écrire une nouvelle.
 
 ### Désactivation de l'autosummarization
 
@@ -441,6 +535,22 @@ reste informative et ne pilote pas la décision de cette règle.
 
 ---
 
+## Explicabilité d'un constat
+
+Un statut ne suffit pas : un écart doit pouvoir être compris et corrigé sans jamais rouvrir le projet Power BI.
+
+Chaque constat porte donc, en plus de la preuve technique :
+
+```text
+location      fichier + ligne exacte + extrait du code fautif
+explanation   pourquoi c'est un problème
+remediation   quoi changer, concrètement
+```
+
+C'est ce qui permet au frontend d'afficher une preuve lisible alors que le projet PBIP ne quitte jamais le poste de l'utilisateur.
+
+---
+
 ## Exemple de résultat
 
 ```json
@@ -457,14 +567,31 @@ reste informative et ne pilote pas la décision de cette règle.
   "results": [
     {
       "rule_id": "BP-22",
-      "rule_status": "OK",
+      "rule_name": "Désactivation de l'autosummarization",
+      "execution_status": "SUCCESS",
+      "rule_status": "KO",
       "findings": [
         {
+          "rule_id": "BP-22",
           "object_type": "column",
-          "object": "D_CAMPAIGNS.CAMPAIGN_ID",
+          "object": "D_CAMPAIGNS.CAMPAIGN_SHORT_LABEL",
           "expected": "summarizeBy = none",
-          "actual": "none",
-          "status": "OK"
+          "actual": "count",
+          "status": "KO",
+          "evidence": {
+            "table": "D_CAMPAIGNS",
+            "column": "CAMPAIGN_SHORT_LABEL",
+            "source_file": "...\\definition\\tables\\D_CAMPAIGNS.tmdl"
+          },
+          "reason": "Valeur différente de none",
+          "location": {
+            "source_file": "...\\definition\\tables\\D_CAMPAIGNS.tmdl",
+            "line": 37,
+            "end_line": 37,
+            "excerpt": "\t\tsummarizeBy: count"
+          },
+          "explanation": "Power BI agrège automatiquement cette colonne dès qu'elle est glissée dans un visuel. Le calcul n'est écrit nulle part : il ne peut être ni relu, ni réutilisé, ni corrigé de façon centralisée.",
+          "remediation": "Remplacer `summarizeBy: count` par `summarizeBy: none` (ligne 37). Si l'agrégation est réellement voulue, créer une mesure DAX explicite."
         }
       ]
     }
@@ -473,6 +600,36 @@ reste informative et ne pilote pas la décision de cette règle.
 ```
 
 Un `KO` est un résultat métier valide et non une erreur d'exécution.
+
+Une règle qui produit des candidats ajoute une clé `candidates`, absente partout ailleurs — une clé vide laisserait croire qu'une revue contextuelle est attendue :
+
+```json
+{
+  "rule_id": "BP-41",
+  "rule_status": "NA",
+  "candidates": [
+    {
+      "rule_id": "BP-41",
+      "candidate_id": "DUP-00b8b90a",
+      "candidate_type": "DUPLICATE_VISUAL",
+      "objects": [
+        { "page_id": "...", "visual_id": "...", "is_hidden": true, "parent_group": "..." }
+      ],
+      "technical_evidence": {
+        "visual_type": "slicer",
+        "field_references": ["Column:D_USERS[USER_AREA]"],
+        "occurrence_count": 6
+      },
+      "review_context": {
+        "same_page": false,
+        "distinct_page_count": 6,
+        "all_hidden": false,
+        "question": "Cette répétition est-elle un rappel volontaire (volet de navigation, KPI de synthèse) ou une duplication à supprimer ?"
+      }
+    }
+  ]
+}
+```
 
 ---
 
@@ -501,6 +658,8 @@ Déterministe
 Contextuel / interprétatif
     -> Skill
 ```
+
+Le passage de l'un à l'autre est explicite dans le contrat JSON : le moteur émet des `candidates`, que le skill `agent-bi-context-review` qualifie. Le skill reçoit la preuve technique comme un **fait acquis** — il arbitre le contexte, il ne rejoue pas la détection.
 
 ---
 
@@ -647,6 +806,31 @@ Le frontend a vocation à devenir l'interface principale réunissant progressive
 - remédiations ;
 - validation.
 
+## Parcours Agent BI depuis l'interface
+
+Le composant `AgentConnectPanel`, affiché sur une revue Power BI, relie l'interface au moteur local :
+
+```text
+Détection de l'agent sur 127.0.0.1
+        |
+        v
+Appairage par code à 6 chiffres
+        |
+        v
+Saisie du chemin du projet PBIP
+        |
+        v
+Analyse (Node -> Python) + polling
+        |
+        v
+Aperçu des statuts par règle
+        |
+        v
+« Appliquer à la revue » -> backend
+```
+
+Le projet Power BI n'est jamais téléversé : seuls les résultats et leurs preuves remontent au backend.
+
 ---
 
 # Backend
@@ -724,6 +908,26 @@ Les correspondances ambiguës doivent rester visibles pour validation humaine.
 
 ---
 
+## Application des résultats Agent BI
+
+Contrairement à l'import Excel, le rapprochement règle ↔ item est ici **déterministe** (via le code de la règle) : pas de fichier stocké, pas de matching flou, traitement synchrone.
+
+Trois invariants protègent la revue :
+
+```text
+1. Un statut saisi par un humain n'est jamais écrasé
+   -> il est signalé comme conflit
+
+2. Réappliquer le même résultat sur le même état de projet
+   -> no-op, pas une réécriture
+
+3. Le score est recalculé une seule fois, après le lot complet
+```
+
+L'empreinte du projet (`fingerprint`) est conservée avec chaque item : c'est elle qui permet de savoir si un résultat correspond toujours à l'état analysé.
+
+---
+
 # Stack technique
 
 | Domaine | Technologies |
@@ -769,10 +973,22 @@ Best_Practices_Colas/
 │   ├── 02_SKILLS/
 │   ├── 03_PYTHON/
 │   │   ├── engine/
+│   │   │   ├── context.py
+│   │   │   ├── models.py
+│   │   │   ├── runner.py
+│   │   │   ├── envelope.py
+│   │   │   └── usage_index.py
 │   │   ├── fixes/
 │   │   ├── powerbi/
+│   │   │   ├── tmdl_parser.py
+│   │   │   ├── pbir_parser.py
+│   │   │   ├── m_lang.py
+│   │   │   └── dax_lang.py
 │   │   ├── rules/
+│   │   │   ├── registry.py
+│   │   │   └── bp_*.py
 │   │   ├── tests/
+│   │   │   └── fixtures/
 │   │   ├── main.py
 │   │   └── requirements.txt
 │   ├── 05_NODE/
@@ -801,6 +1017,11 @@ Best_Practices_Colas/
 │
 ├── frontend/
 │   ├── src/
+│   │   ├── api/
+│   │   ├── auth/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── types.ts
 │   ├── .env.example
 │   ├── index.html
 │   ├── package.json
@@ -953,6 +1174,8 @@ Port local par défaut :
 
 # Tests
 
+Chaque brique possède sa propre suite. Les règles Agent BI sont testées sur des fixtures TMDL / PBIR minimales, et le moteur est régulièrement rejoué sur un projet Power BI réel — c'est ce qui a permis de détecter les écarts que des fixtures écrites à la main ne révèlent jamais.
+
 ## Backend
 
 ```bash
@@ -978,8 +1201,18 @@ npm test
 
 ```bash
 cd frontend
+npx tsc --noEmit
 npm run build
 ```
+
+État des suites au dernier passage :
+
+| Suite | Résultat |
+|---|---|
+| Agent BI (pytest) | 125 tests |
+| Backend (pytest) | 50 tests |
+| Bridge Node (node:test) | 5 tests |
+| Frontend (typecheck + build) | OK |
 
 ---
 
@@ -1057,17 +1290,24 @@ Le projet a dépassé le stade de simple maquette mais reste en phase d'industri
 | Agent BI — architecture | ✅ |
 | Agent BI — moteur Python | ✅ |
 | Agent BI — AnalysisContext | ✅ |
-| Parsing TMDL initial | ✅ |
+| Parsing TMDL | ✅ |
+| Parsing PBIR (rapport) | ✅ |
+| Parsing Power Query (M) et DAX | ✅ |
+| Index d'usage des champs | ✅ |
 | Contrat JSON | ✅ |
-| BP-22 | ✅ |
-| Tests BP-22 | ✅ |
+| Explicabilité (fichier, ligne, extrait, remédiation) | ✅ |
+| 15 bonnes pratiques implémentées | ✅ |
+| Règles à candidats (revue contextuelle) | ✅ |
+| Tests des règles + fixtures | ✅ |
+| Validation sur projet Power BI réel | ✅ |
 | Bridge Node local | ✅ |
 | Skills Agent BI | ✅ |
-| Analyse complète PBIR | ⏳ |
-| Toutes les bonnes pratiques | ⏳ |
+| Application des résultats à une revue | ✅ |
+| Frontend ↔ Node ↔ Python | ✅ |
+| Référentiel de policy d'entreprise | ⏳ |
+| Bonnes pratiques dépendant d'une policy | ⏳ |
+| Qualification automatisée des candidats | ⏳ |
 | Auto-fix généralisé | ⏳ |
-| Intégration frontend ↔ backend complète | ⏳ |
-| Intégration frontend ↔ Agent BI complète | ⏳ |
 | CI/CD | ⏳ |
 | Déploiement cloud | ⏳ |
 
@@ -1101,9 +1341,12 @@ Le projet a dépassé le stade de simple maquette mais reste en phase d'industri
 - [x] Initialisation React / TypeScript
 - [x] Vite
 - [x] React Query
+- [x] Écrans revues / détail / connexion
+- [x] Panneau de connexion à l'Agent BI
 - [ ] Brancher tous les écrans au backend
 - [ ] Consolider la gestion d'état
 - [ ] Ajouter la gestion complète de l'authentification
+- [ ] Afficher les candidats et leur qualification
 
 ## Phase 4 — Agent BI
 
@@ -1111,23 +1354,29 @@ Le projet a dépassé le stade de simple maquette mais reste en phase d'industri
 - [x] Convention des règles
 - [x] Moteur Python
 - [x] AnalyseContext
-- [x] TMDL initial
-- [x] BP-22
+- [x] TMDL
+- [x] PBIR
+- [x] Parseurs Power Query (M) et DAX
+- [x] Index d'usage des champs
+- [x] BP-22 puis 14 autres bonnes pratiques
+- [x] Explicabilité des constats
+- [x] Règles à candidats
 - [x] Tests / fixtures
+- [x] Validation sur projet Power BI réel
 - [x] Bridge Node
-- [ ] Industrialiser les autres bonnes pratiques
-- [ ] Étendre les parseurs
-- [ ] Ajouter PBIR
+- [ ] Formaliser un référentiel de policy versionné
+- [ ] Implémenter les règles qui en dépendent
 - [ ] Construire les fixes
 - [ ] Ajouter dry-run / rollback
 
 ## Phase 5 — Intégration
 
-- [ ] Frontend ↔ Backend
-- [ ] Frontend ↔ Node
-- [ ] Node ↔ Python
-- [ ] Python ↔ Backend
-- [ ] Publication automatique des résultats dans une revue
+- [x] Frontend ↔ Node
+- [x] Node ↔ Python
+- [x] Publication des résultats dans une revue
+- [x] Préservation des statuts saisis par un humain
+- [ ] Brancher l'ensemble des écrans au backend
+- [ ] Historiser les analyses successives d'un même projet
 
 ## Phase 6 — Industrialisation
 
