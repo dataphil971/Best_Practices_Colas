@@ -1,5 +1,7 @@
 # BP-37 — Organiser les visuels et les signets
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_37.py`](../03_PYTHON/rules/bp_37.py), tests : `03_PYTHON/tests/test_bp_37.py`.
+
 ## 1. Objectif
 
 Vérifier que l'organisation des visuels et des signets respecte une politique de maintenabilité explicite, sans transformer des choix de conception en non-conformités automatiques.

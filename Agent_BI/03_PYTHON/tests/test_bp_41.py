@@ -13,7 +13,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_41
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_41"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_41"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -35,7 +35,7 @@ def test_the_candidate_carries_the_contract_expected_by_the_review_skill():
     result = bp_41.check(_context_for("candidats"))
     candidate = result.candidates[0].to_dict()
 
-    # Contrat d'entrée de `.github/skills/agent-bi-context-review`.
+    # Contrat d'entrée de `.claude/skills/agent-bi-context-review`.
     assert candidate["rule_id"] == "BP-41"
     assert candidate["candidate_id"].startswith("DUP-")
     assert candidate["candidate_type"] == "DUPLICATE_VISUAL"
@@ -72,9 +72,7 @@ def test_decorative_visuals_are_out_of_scope():
 
 
 def test_na_when_no_report_is_available():
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "candidats" / "M.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "candidats" / "M.SemanticModel")
     result = bp_41.check(context)
 
     assert result.rule_status == "NA"
@@ -95,9 +93,7 @@ def test_a_purely_deterministic_rule_exposes_no_candidates_key():
     from rules import bp_22
 
     result = bp_22.check(
-        AnalysisContext.from_semantic_model_path(
-            Path(__file__).parent / "fixtures" / "bp_22" / "ko"
-        )
+        AnalysisContext.from_semantic_model_path(Path(__file__).parent / "fixtures" / "bp_22" / "ko")
     ).to_dict()
 
     assert "candidates" not in result

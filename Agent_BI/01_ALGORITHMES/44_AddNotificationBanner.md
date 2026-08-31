@@ -1,5 +1,7 @@
 # BP-44 — Bandeau de notification piloté par configuration
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier la cohérence d'un mécanisme de notification utilisateur **lorsque ce mécanisme fait partie du contrat de gouvernance du projet**.

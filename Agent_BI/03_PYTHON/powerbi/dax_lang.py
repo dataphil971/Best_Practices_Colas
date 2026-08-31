@@ -26,12 +26,9 @@ permissive.
 """
 
 import re
-from typing import List, Set, Tuple
 
 # `Table[Colonne]` ou `'Nom de table'[Colonne]`.
-_QUALIFIED_REFERENCE = re.compile(
-    r"(?:'([^']+)'|([A-Za-z_][A-Za-z0-9_]*))\[([^\]]+)\]"
-)
+_QUALIFIED_REFERENCE = re.compile(r"(?:'([^']+)'|([A-Za-z_][A-Za-z0-9_]*))\[([^\]]+)\]")
 
 # `[Nom]` non précédé d'un identifiant de table ni d'un `]` (ce qui
 # exclut la partie `[Colonne]` d'une référence qualifiée déjà captée).
@@ -46,7 +43,7 @@ def strip_dax_comments_and_strings(text: str) -> str:
     commentaire bloc). Sans ce nettoyage, un nom de colonne cité dans un
     commentaire ou dans une chaîne compterait comme un usage réel.
     """
-    out: List[str] = []
+    out: list[str] = []
     i = 0
     n = len(text)
     while i < n:
@@ -66,14 +63,14 @@ def strip_dax_comments_and_strings(text: str) -> str:
             i = j
             continue
 
-        if text[i:i + 2] in ("//", "--"):
+        if text[i : i + 2] in ("//", "--"):
             j = text.find("\n", i)
             j = n if j == -1 else j
             out.append(" " * (j - i))
             i = j
             continue
 
-        if text[i:i + 2] == "/*":
+        if text[i : i + 2] == "/*":
             end = text.find("*/", i + 2)
             j = n if end == -1 else end + 2
             out.append("".join("\n" if c == "\n" else " " for c in text[i:j]))
@@ -86,7 +83,7 @@ def strip_dax_comments_and_strings(text: str) -> str:
     return "".join(out)
 
 
-def extract_column_references(dax: str) -> Tuple[Set[Tuple[str, str]], Set[str]]:
+def extract_column_references(dax: str) -> tuple[set[tuple[str, str]], set[str]]:
     """Retourne (références qualifiées, noms non qualifiés).
 
     - qualifiées : ensemble de (table, colonne) — usages PROUVÉS ;
@@ -98,13 +95,11 @@ def extract_column_references(dax: str) -> Tuple[Set[Tuple[str, str]], Set[str]]
 
     cleaned = strip_dax_comments_and_strings(dax)
 
-    qualified: Set[Tuple[str, str]] = set()
+    qualified: set[tuple[str, str]] = set()
     for match in _QUALIFIED_REFERENCE.finditer(cleaned):
         table = match.group(1) or match.group(2)
         qualified.add((table, match.group(3)))
 
-    unqualified: Set[str] = {
-        match.group(1) for match in _UNQUALIFIED_REFERENCE.finditer(cleaned)
-    }
+    unqualified: set[str] = {match.group(1) for match in _UNQUALIFIED_REFERENCE.finditer(cleaned)}
 
     return qualified, unqualified

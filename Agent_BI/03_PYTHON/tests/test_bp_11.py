@@ -10,7 +10,7 @@ from engine.context import AnalysisContext
 from powerbi.m_lang import parse_type_transform_list
 from rules import bp_11
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_11"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_11"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -90,9 +90,7 @@ def test_na_when_datatype_is_absent(tmp_path):
 
 
 def test_parse_type_transform_list_handles_real_world_forms():
-    pairs = parse_type_transform_list(
-        '{{"CAMPAIGN_ID", type text}, {"SAMPLE_SIZE", Int64.Type}}'
-    )
+    pairs = parse_type_transform_list('{{"CAMPAIGN_ID", type text}, {"SAMPLE_SIZE", Int64.Type}}')
     assert pairs == [("CAMPAIGN_ID", "type text"), ("SAMPLE_SIZE", "Int64.Type")]
 
     # Nom de colonne contenant une virgule et des guillemets échappés : ne

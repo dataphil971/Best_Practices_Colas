@@ -1,5 +1,7 @@
 # BP-14 — Désactiver le chargement des requêtes strictement intermédiaires
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier qu'une requête dont le rôle **strictement intermédiaire** est démontré n'est pas chargée inutilement comme table du modèle.

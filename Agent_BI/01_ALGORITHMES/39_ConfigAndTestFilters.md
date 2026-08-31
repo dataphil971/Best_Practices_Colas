@@ -1,5 +1,7 @@
 # BP-39 — Configurer et tester les filtres du rapport
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_39.py`](../03_PYTHON/rules/bp_39.py), tests : `03_PYTHON/tests/test_bp_39.py`.
+
 ## 1. Objectif
 
 Vérifier que les filtres déclarés dans le rapport :

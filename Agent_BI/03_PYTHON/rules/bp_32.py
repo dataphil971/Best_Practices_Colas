@@ -27,10 +27,14 @@ def check(context: AnalysisContext) -> RuleResult:
         # si la couverture de parsing est complète. Sans rapport, rien n'a
         # été parcouru — NA, jamais OK.
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="PARTIAL", rule_status="NA",
-            summary={"reason": "Aucun dossier <Nom>.Report/ trouvé : couverture PBIR nulle",
-                     "implicit_aggregation_count": 0},
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="PARTIAL",
+            rule_status="NA",
+            summary={
+                "reason": "Aucun dossier <Nom>.Report/ trouvé : couverture PBIR nulle",
+                "implicit_aggregation_count": 0,
+            },
         )
 
     aggregations = context.report_implicit_aggregations
@@ -43,24 +47,34 @@ def check(context: AnalysisContext) -> RuleResult:
         if item["table"] and item["column"]:
             object_name += f"::{item['table']}[{item['column']}]"
             resolved.append(item)
-            findings.append(Finding(
-                rule_id=RULE_ID, object_type="visual_field", object=object_name,
-                expected="mesure explicite",
-                actual=f"agrégation implicite (Function={item['aggregation_function_raw']})",
-                status="KO",
-                reason="Agrégation appliquée à une colonne dans le rapport",
-                evidence=item,
-            ))
+            findings.append(
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="visual_field",
+                    object=object_name,
+                    expected="mesure explicite",
+                    actual=f"agrégation implicite (Function={item['aggregation_function_raw']})",
+                    status="KO",
+                    reason="Agrégation appliquée à une colonne dans le rapport",
+                    evidence=item,
+                )
+            )
         else:
             # §6 : `UNKNOWN_AGGREGATION` — agrégation dont la cible n'est pas
             # une colonne résolue. Ne prouve rien, empêche de conclure OK.
             unresolved.append(item)
-            findings.append(Finding(
-                rule_id=RULE_ID, object_type="visual_field", object=object_name,
-                expected="mesure explicite", actual=None, status="NA",
-                reason="Agrégation dont la cible n'est pas une colonne résolue",
-                evidence=item,
-            ))
+            findings.append(
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="visual_field",
+                    object=object_name,
+                    expected="mesure explicite",
+                    actual=None,
+                    status="NA",
+                    reason="Agrégation dont la cible n'est pas une colonne résolue",
+                    evidence=item,
+                )
+            )
 
     if resolved:
         rule_status = "KO"
@@ -70,8 +84,10 @@ def check(context: AnalysisContext) -> RuleResult:
         rule_status = "OK"
 
     return RuleResult(
-        rule_id=RULE_ID, rule_name=RULE_NAME,
-        execution_status="SUCCESS", rule_status=rule_status,
+        rule_id=RULE_ID,
+        rule_name=RULE_NAME,
+        execution_status="SUCCESS",
+        rule_status=rule_status,
         findings=findings,
         summary={
             "implicit_aggregation_count": len(resolved),

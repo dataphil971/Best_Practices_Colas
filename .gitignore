@@ -1,5 +1,39 @@
+# Python — octets compilés
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Python — environnements virtuels
+.venv/
+venv/
+ENV/
+env/
+
+# Python — artefacts de build
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Tests, couverture et caches d'outillage
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Node
 node_modules/
 npm-debug.log*
+
+# Secrets et configuration locale — ne jamais versionner
+.env
+.env.local
+*.local.json
+
+# Système
+.DS_Store
+Thumbs.db

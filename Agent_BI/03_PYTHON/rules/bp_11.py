@@ -63,7 +63,7 @@ def _build_m_type_index(context: AnalysisContext) -> "dict[str, set[str]]":
     (deux requêtes typent différemment une colonne homonyme) : le §4 exige
     une conversion « explicite et RÉSOLUE », donc ce cas donne NA.
     """
-    index: "dict[str, set[str]]" = {}
+    index: dict[str, set[str]] = {}
     m_sources = [p.m_source for table in context.tables for p in table.partitions]
     m_sources += [expr.m_source for expr in context.expressions]
 
@@ -83,24 +83,37 @@ def _evaluate_column(table, column, m_type_index) -> "tuple[Finding, bool]":
     raw_type = column.get_property("dataType")
     actual = str(raw_type) if raw_type is not None else None
 
-    evidence = {"table": table.name, "column": column.raw_name,
-                "source_file": column.source_file, "actual_type": actual}
+    evidence = {
+        "table": table.name,
+        "column": column.raw_name,
+        "source_file": column.source_file,
+        "actual_type": actual,
+    }
 
     if actual is None:
         # §9.5 : dataType absent ou illisible -> NA (et non hors périmètre :
         # on ne peut pas affirmer que la colonne n'est pas numérique).
         return Finding(
-            rule_id=RULE_ID, object_type="column", object=object_name,
+            rule_id=RULE_ID,
+            object_type="column",
+            object=object_name,
             expected="type modèle conforme à l'intention de type démontrée",
-            actual=None, status="NA",
-            reason="dataType absent ou illisible", evidence=evidence,
+            actual=None,
+            status="NA",
+            reason="dataType absent ou illisible",
+            evidence=evidence,
         ), False
 
     if actual not in NUMERIC_TYPES:
         return Finding(
-            rule_id=RULE_ID, object_type="column", object=object_name,
-            expected="colonne numérique", actual=actual, status="NA",
-            reason="Colonne hors périmètre numérique", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="column",
+            object=object_name,
+            expected="colonne numérique",
+            actual=actual,
+            status="NA",
+            reason="Colonne hors périmètre numérique",
+            evidence=evidence,
         ), True
 
     # §5 : la conversion M porte sur le nom de la colonne SOURCE, qui peut
@@ -119,18 +132,24 @@ def _evaluate_column(table, column, m_type_index) -> "tuple[Finding, bool]":
 
     if not candidates:
         return Finding(
-            rule_id=RULE_ID, object_type="column", object=object_name,
+            rule_id=RULE_ID,
+            object_type="column",
+            object=object_name,
             expected="type modèle conforme à l'intention de type démontrée",
-            actual=actual, status="NA",
+            actual=actual,
+            status="NA",
             reason="Type métier attendu non démontrable (aucune conversion Power Query résolue)",
             evidence=evidence,
         ), False
 
     if len(candidates) > 1:
         return Finding(
-            rule_id=RULE_ID, object_type="column", object=object_name,
+            rule_id=RULE_ID,
+            object_type="column",
+            object=object_name,
             expected="type modèle conforme à l'intention de type démontrée",
-            actual=actual, status="NA",
+            actual=actual,
+            status="NA",
             reason="Conversions Power Query contradictoires pour ce nom de colonne",
             evidence={**evidence, "m_types": sorted(candidates)},
         ), False
@@ -141,22 +160,34 @@ def _evaluate_column(table, column, m_type_index) -> "tuple[Finding, bool]":
 
     if expected is None:
         return Finding(
-            rule_id=RULE_ID, object_type="column", object=object_name,
+            rule_id=RULE_ID,
+            object_type="column",
+            object=object_name,
             expected="type modèle conforme à l'intention de type démontrée",
-            actual=actual, status="NA",
+            actual=actual,
+            status="NA",
             reason="Type Power Query non convertible vers le contrat TMDL",
             evidence=evidence,
         ), False
 
     if expected == actual:
         return Finding(
-            rule_id=RULE_ID, object_type="column", object=object_name,
-            expected=expected, actual=actual, status="OK", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="column",
+            object=object_name,
+            expected=expected,
+            actual=actual,
+            status="OK",
+            evidence=evidence,
         ), False
 
     return Finding(
-        rule_id=RULE_ID, object_type="column", object=object_name,
-        expected=expected, actual=actual, status="KO",
+        rule_id=RULE_ID,
+        object_type="column",
+        object=object_name,
+        expected=expected,
+        actual=actual,
+        status="KO",
         reason="Type du modèle différent du type déclaré dans Power Query",
         evidence=evidence,
         location=column.locate("dataType", context_lines=1),

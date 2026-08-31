@@ -1,5 +1,7 @@
 # BP-40 — Synchronisation des slicers entre pages
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier la synchronisation des slicers multi-pages lorsque cette synchronisation est **attendue par la politique du rapport ou confirmée par le contexte**.

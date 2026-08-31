@@ -9,7 +9,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_09
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_09"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_09"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -52,10 +52,7 @@ def test_na_when_annotation_value_is_not_a_recognized_flag(tmp_path):
     semantic_model = tmp_path / "T.SemanticModel"
     (semantic_model / "definition" / "tables").mkdir(parents=True)
     (semantic_model / "definition" / "model.tmdl").write_text(
-        "model Model\n"
-        "\tculture: fr-FR\n"
-        "\n"
-        "annotation __PBI_TimeIntelligenceEnabled = true\n",
+        "model Model\n\tculture: fr-FR\n\nannotation __PBI_TimeIntelligenceEnabled = true\n",
         encoding="utf-8",
     )
 

@@ -1,5 +1,7 @@
 # BP-30 — Formatage standardisé du code DAX
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier que le code DAX respecte le **profil de formatage explicitement retenu par l'entreprise ou le projet**.

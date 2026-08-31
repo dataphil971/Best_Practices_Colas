@@ -1,5 +1,7 @@
 # BP-11 — Vérifier les types de données et la précision numérique
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_11.py`](../03_PYTHON/rules/bp_11.py), tests : `03_PYTHON/tests/test_bp_11.py`.
+
 ## 1. Objectif
 
 Vérifier qu'un type numérique déclaré dans le modèle est cohérent avec une **intention de type démontrable**.

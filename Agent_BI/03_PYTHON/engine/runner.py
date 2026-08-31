@@ -6,7 +6,7 @@ contexte partagé. Rien n'empêche une parallélisation future, les règles
 n'ayant pas d'effet de bord ni de dépendance entre elles.
 """
 
-from typing import Callable, List
+from collections.abc import Callable
 
 from engine.context import AnalysisContext
 from engine.models import RuleResult
@@ -14,5 +14,5 @@ from engine.models import RuleResult
 Rule = Callable[[AnalysisContext], RuleResult]
 
 
-def run_rules(context: AnalysisContext, rules: List[Rule]) -> List[RuleResult]:
+def run_rules(context: AnalysisContext, rules: list[Rule]) -> list[RuleResult]:
     return [rule(context) for rule in rules]

@@ -38,7 +38,7 @@ def _build_column_type_index(context: AnalysisContext) -> "dict[tuple[str, str],
     est inféré de l'expression DAX) : c'est un cas réel et fréquent, qui doit
     donner NA (§7 « dataType absent / illisible »), jamais un KO par défaut.
     """
-    index: "dict[tuple[str, str], str | None]" = {}
+    index: dict[tuple[str, str], str | None] = {}
     for table in context.tables:
         for column in table.columns:
             value = column.get_property("dataType")
@@ -65,8 +65,12 @@ def _evaluate_relationship(rel, column_types) -> Finding:
         # La colonne référencée n'existe dans aucun fichier de table lu :
         # couverture incomplète, pas une non-conformité de type (§7).
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="deux clés de type int64", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="deux clés de type int64",
+            actual=None,
+            status="NA",
             reason="Colonnes de relation non résolues dans les tables lues",
             evidence=evidence,
         )
@@ -77,17 +81,25 @@ def _evaluate_relationship(rel, column_types) -> Finding:
 
     if from_type is None or to_type is None:
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="deux clés de type int64", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="deux clés de type int64",
+            actual=None,
+            status="NA",
             reason="dataType non disponible pour au moins une clé (colonne de table calculée)",
             evidence=evidence,
         )
 
     if from_type in ACCEPTED_TYPES and to_type in ACCEPTED_TYPES:
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="deux clés de type int64", actual=f"{from_type} / {to_type}",
-            status="OK", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="deux clés de type int64",
+            actual=f"{from_type} / {to_type}",
+            status="OK",
+            evidence=evidence,
         )
 
     # §5 : un écart de type entre les deux extrémités est un diagnostic
@@ -95,9 +107,13 @@ def _evaluate_relationship(rel, column_types) -> Finding:
     diagnostics = ["TYPE_MISMATCH"] if from_type != to_type else []
 
     return Finding(
-        rule_id=RULE_ID, object_type="relationship", object=object_name,
-        expected="deux clés de type int64", actual=f"{from_type} / {to_type}",
-        status="KO", reason="Clé de relation non entière",
+        rule_id=RULE_ID,
+        object_type="relationship",
+        object=object_name,
+        expected="deux clés de type int64",
+        actual=f"{from_type} / {to_type}",
+        status="KO",
+        reason="Clé de relation non entière",
         evidence={**evidence, "diagnostics": diagnostics},
         location=rel.locate("fromColumn", context_lines=2),
         explanation=(
@@ -105,8 +121,12 @@ def _evaluate_relationship(rel, column_types) -> Finding:
             "Une jointure sur du texte occupe beaucoup plus de mémoire qu'un entier "
             "(le dictionnaire VertiPaq stocke chaque valeur distincte) et ralentit "
             "chaque filtre traversant la relation."
-            + (" De plus, les deux extrémités n'ont pas le même type, ce qui force une "
-               "conversion à chaque évaluation." if "TYPE_MISMATCH" in diagnostics else "")
+            + (
+                " De plus, les deux extrémités n'ont pas le même type, ce qui force une "
+                "conversion à chaque évaluation."
+                if "TYPE_MISMATCH" in diagnostics
+                else ""
+            )
         ),
         remediation=(
             f"Introduire une clé de substitution entière partagée par {from_qualified} et "
@@ -123,8 +143,10 @@ def check(context: AnalysisContext) -> RuleResult:
             rule_name=RULE_NAME,
             execution_status="SUCCESS",
             rule_status="NA",
-            summary={"reason": "Aucune relation trouvée dans relationships.tmdl",
-                     "total_relationships": 0},
+            summary={
+                "reason": "Aucune relation trouvée dans relationships.tmdl",
+                "total_relationships": 0,
+            },
         )
 
     column_types = _build_column_type_index(context)

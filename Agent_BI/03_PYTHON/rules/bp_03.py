@@ -68,24 +68,38 @@ def _evaluate_relationship(rel) -> Finding:
     shape = _cardinality_shape(rel)
     if shape is None:
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="ONE_TO_MANY / MANY_TO_ONE", actual=None, status="NA",
-            reason="Cardinalité non résolue", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="ONE_TO_MANY / MANY_TO_ONE",
+            actual=None,
+            status="NA",
+            reason="Cardinalité non résolue",
+            evidence=evidence,
         )
 
     if shape == "MANY_TO_MANY":
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="ONE_TO_MANY / MANY_TO_ONE", actual="MANY_TO_MANY", status="KO",
-            reason="Relation many-to-many directe", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="ONE_TO_MANY / MANY_TO_ONE",
+            actual="MANY_TO_MANY",
+            status="KO",
+            reason="Relation many-to-many directe",
+            evidence=evidence,
         )
 
     if shape == "ONE_TO_ONE":
         # §9 : Power BI filtre dans les deux sens sur une relation 1:1,
         # indépendamment de ce qu'affiche crossFilteringBehavior.
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="ONE_TO_MANY / MANY_TO_ONE", actual="ONE_TO_ONE", status="KO",
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="ONE_TO_MANY / MANY_TO_ONE",
+            actual="ONE_TO_ONE",
+            status="KO",
             reason="Relation 1:1 incompatible avec l'interdiction du filtrage bidirectionnel",
             evidence=evidence,
         )
@@ -93,15 +107,24 @@ def _evaluate_relationship(rel) -> Finding:
     cross = (rel.cross_filtering_behavior or DEFAULT_CROSS_FILTER).strip().lower()
     if cross not in KNOWN_CROSS_FILTERS:
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="ONE_DIRECTION", actual=rel.cross_filtering_behavior, status="NA",
-            reason="crossFilteringBehavior non résolu", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="ONE_DIRECTION",
+            actual=rel.cross_filtering_behavior,
+            status="NA",
+            reason="crossFilteringBehavior non résolu",
+            evidence=evidence,
         )
 
     if cross == "bothdirections":
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="ONE_DIRECTION", actual="BOTH_DIRECTIONS", status="KO",
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="ONE_DIRECTION",
+            actual="BOTH_DIRECTIONS",
+            status="KO",
             evidence=evidence,
         )
 
@@ -109,14 +132,23 @@ def _evaluate_relationship(rel) -> Finding:
         # §8 : le comportement effectif d'AUTOMATIC dépend du moteur au
         # runtime (mode DirectQuery/composite) — jamais résolu statiquement.
         return Finding(
-            rule_id=RULE_ID, object_type="relationship", object=object_name,
-            expected="ONE_DIRECTION", actual="AUTOMATIC", status="NA",
-            reason="Comportement AUTOMATIC non déterminable statiquement", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="relationship",
+            object=object_name,
+            expected="ONE_DIRECTION",
+            actual="AUTOMATIC",
+            status="NA",
+            reason="Comportement AUTOMATIC non déterminable statiquement",
+            evidence=evidence,
         )
 
     return Finding(
-        rule_id=RULE_ID, object_type="relationship", object=object_name,
-        expected="ONE_DIRECTION", actual="ONE_DIRECTION", status="OK",
+        rule_id=RULE_ID,
+        object_type="relationship",
+        object=object_name,
+        expected="ONE_DIRECTION",
+        actual="ONE_DIRECTION",
+        status="OK",
         evidence=evidence,
     )
 
@@ -128,7 +160,10 @@ def check(context: AnalysisContext) -> RuleResult:
             rule_name=RULE_NAME,
             execution_status="SUCCESS",
             rule_status="NA",
-            summary={"reason": "Aucune relation trouvée dans relationships.tmdl", "total_relationships": 0},
+            summary={
+                "reason": "Aucune relation trouvée dans relationships.tmdl",
+                "total_relationships": 0,
+            },
         )
 
     findings = [_evaluate_relationship(rel) for rel in context.relationships]

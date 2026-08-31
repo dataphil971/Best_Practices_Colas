@@ -1,5 +1,7 @@
 # BP-28 — Détecter les mesures potentiellement redondantes
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Détecter les mesures qui semblent dupliquées ou agir comme des alias, sans confondre :

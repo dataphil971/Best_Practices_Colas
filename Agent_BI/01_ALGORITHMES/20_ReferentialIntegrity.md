@@ -1,5 +1,7 @@
 # BP-20 — Intégrité référentielle des relations
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier que les valeurs non nulles du côté référencé comme clé étrangère d'une relation possèdent une correspondance du côté référentiel.

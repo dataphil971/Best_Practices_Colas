@@ -1,0 +1,13 @@
+table D_CHOICE
+
+	column 'ID '
+		dataType: string
+		summarizeBy: none
+
+	column LABEL
+		dataType: string
+		summarizeBy: none
+
+	partition D_CHOICE = m
+		mode: import
+		source = Sql.Database("srv", "db")

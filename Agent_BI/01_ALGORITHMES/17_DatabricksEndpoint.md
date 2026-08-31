@@ -1,5 +1,7 @@
 # BP-17 — Utiliser un SQL Warehouse pour Databricks en DirectQuery
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_17.py`](../03_PYTHON/rules/bp_17.py), tests : `03_PYTHON/tests/test_bp_17.py`.
+
 ## 1. Objectif
 
 Vérifier que les partitions Power BI utilisant Databricks en mode `directQuery` s'appuient sur un **Databricks SQL Warehouse** plutôt que sur un compute cluster interactif.

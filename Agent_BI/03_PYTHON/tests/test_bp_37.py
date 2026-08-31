@@ -10,7 +10,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_37
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_37"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_37"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -42,9 +42,7 @@ def test_ko_when_bookmarks_metadata_references_a_missing_bookmark():
 
 
 def test_na_when_no_report_is_available():
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "ok" / "M.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "ok" / "M.SemanticModel")
     result = bp_37.check(context)
 
     assert result.rule_status == "NA"
@@ -72,9 +70,7 @@ def test_na_when_bookmark_files_exist_without_metadata(tmp_path):
     (tmp_path / "M.SemanticModel" / "definition" / "tables").mkdir(parents=True)
     bookmarks = tmp_path / "R.Report" / "definition" / "bookmarks"
     bookmarks.mkdir(parents=True)
-    (bookmarks / "bk1.bookmark.json").write_text(
-        '{"name":"bk1","displayName":"S1"}', encoding="utf-8"
-    )
+    (bookmarks / "bk1.bookmark.json").write_text('{"name":"bk1","displayName":"S1"}', encoding="utf-8")
 
     result = bp_37.check(AnalysisContext.load(tmp_path))
 

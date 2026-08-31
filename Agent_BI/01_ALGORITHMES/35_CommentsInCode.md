@@ -1,5 +1,7 @@
 # BP-35 — Commentaires utiles dans le code complexe
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier la présence et, lorsque le contexte le permet, l'utilité des commentaires dans du code DAX ou M identifié comme nécessitant une documentation interne.

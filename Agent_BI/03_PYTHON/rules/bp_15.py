@@ -36,13 +36,16 @@ RULE_NAME = "Maximiser le query folding vers la source"
 # transformations (SQL généré côté source). Liste non exhaustive : un
 # connecteur absent reste UNKNOWN, jamais présumé FOLDABLE.
 FOLDABLE_CONNECTORS = [
-    "Sql.Database", "Sql.Databases",
-    "Databricks.Catalogs", "Databricks.Query",
+    "Sql.Database",
+    "Sql.Databases",
+    "Databricks.Catalogs",
+    "Databricks.Query",
     "PostgreSQL.Database",
     "MySQL.Database",
     "Oracle.Database",
     "Snowflake.Databases",
-    "AnalysisServices.Database", "AnalysisServices.Databases",
+    "AnalysisServices.Database",
+    "AnalysisServices.Databases",
     "GoogleBigQuery.Database",
 ]
 
@@ -53,8 +56,11 @@ NON_FOLDABLE_CONNECTORS = [
     "Excel.Workbook",
     "Json.Document",
     "Xml.Document",
-    "Folder.Files", "Folder.Contents",
-    "SharePoint.Files", "SharePoint.Contents", "SharePoint.Tables",
+    "Folder.Files",
+    "Folder.Contents",
+    "SharePoint.Files",
+    "SharePoint.Contents",
+    "SharePoint.Tables",
     "Web.Contents",
     "Text.Document",
     "Parquet.Document",
@@ -79,10 +85,11 @@ def _find_explicit_break(steps):
     for index, step in enumerate(steps):
         for fn in FOLD_BREAKING_FUNCTIONS:
             if find_function_calls(step.expression, fn):
-                later = steps[index + 1:]
+                later = steps[index + 1 :]
                 if later:
                     return {
-                        "step": step.name, "function": fn,
+                        "step": step.name,
+                        "function": fn,
                         "subsequent_steps": [s.name for s in later],
                         "line_offset": step.line_offset,
                     }
@@ -98,8 +105,12 @@ def _find_native_query(steps):
 
 
 def _evaluate_query(
-    object_type: str, object_name: str, m_source: "str | None", source_file: str,
+    object_type: str,
+    object_name: str,
+    m_source: "str | None",
+    source_file: str,
     m_source_line: "int | None" = None,
+    source_kind: "str | None" = None,
 ) -> "tuple[Finding, bool]":
     """Retourne (constat, hors_perimetre) — `hors_perimetre` = source connue
     non repliable (NOT_APPLICABLE, §4/§11 du document), qui ne doit jamais
@@ -110,18 +121,44 @@ def _evaluate_query(
     code M lui-même, jamais du fait que la requête soit directement chargée
     dans une table ou seulement référencée par une autre requête.
     """
+    # Une partition dont la source n'est pas du Power Query (`= calculated`
+    # pour une table DAX, `= entity` pour un flux de données) ne peut pas
+    # replier de requête : il n'y a pas de source à interroger. Elle est HORS
+    # PÉRIMÈTRE, pas indéterminable — la classer NA laisserait croire qu'un
+    # contrôle a échoué faute d'information, alors qu'il n'y avait rien à
+    # contrôler. Sur un modèle réel (Cockpit), 42 partitions sur 92 sont dans
+    # ce cas : les compter en NA suffisait à rendre la règle entière NA.
+    if source_kind is not None and source_kind != "m":
+        return Finding(
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding maximisé",
+            actual=source_kind,
+            status="NA",
+            reason=f"Source `{source_kind}` : pas de requête Power Query à replier",
+        ), True
+
     if not m_source:
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
-            expected="folding maximisé", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding maximisé",
+            actual=None,
+            status="NA",
             reason="Code M absent ou illisible",
         ), False
 
     steps = parse_let_steps(m_source)
     if not steps:
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
-            expected="folding maximisé", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding maximisé",
+            actual=None,
+            status="NA",
             reason="Code M non interprétable (aucune étape identifiée)",
         ), False
 
@@ -130,23 +167,27 @@ def _evaluate_query(
 
     if root_capability == "NON_FOLDABLE":
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
-            expected="folding maximisé", actual="NON_FOLDABLE", status="NA",
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding maximisé",
+            actual="NON_FOLDABLE",
+            status="NA",
             reason="Source non repliable : le folding n'a pas de sens pour ce connecteur",
             evidence=evidence_base,
         ), True
 
     explicit_break = _find_explicit_break(steps)
     if explicit_break is not None:
-        step_line = (
-            m_source_line + explicit_break["line_offset"]
-            if m_source_line is not None else None
-        )
+        step_line = m_source_line + explicit_break["line_offset"] if m_source_line is not None else None
         downstream = ", ".join(explicit_break["subsequent_steps"])
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
             expected="aucune rupture de folding avant la fin de la requête",
-            actual=explicit_break["function"], status="KO",
+            actual=explicit_break["function"],
+            status="KO",
             reason="Rupture explicite du folding avant des étapes ultérieures",
             evidence={**evidence_base, **explicit_break},
             location=SourceLocation.from_file(source_file, step_line, context_lines=1),
@@ -160,27 +201,38 @@ def _evaluate_query(
             remediation=(
                 f"Déplacer `{explicit_break['function']}` à la FIN de la requête "
                 f"(après {downstream}), ou le supprimer s'il n'est pas nécessaire"
-                + (f" — étape « {explicit_break['step']} », ligne {step_line} de {source_file}."
-                   if step_line else ".")
+                + (
+                    f" — étape « {explicit_break['step']} », ligne {step_line} de {source_file}."
+                    if step_line
+                    else "."
+                )
             ),
         ), False
 
     native_index, native_call = _find_native_query(steps)
     if native_call is not None:
-        later_steps = steps[native_index + 1:]
+        later_steps = steps[native_index + 1 :]
 
         if not later_steps:
             return Finding(
-                rule_id=RULE_ID, object_type=object_type, object=object_name,
-                expected="folding maximisé", actual="Value.NativeQuery", status="OK",
+                rule_id=RULE_ID,
+                object_type=object_type,
+                object=object_name,
+                expected="folding maximisé",
+                actual="Value.NativeQuery",
+                status="OK",
                 reason="Aucune étape ultérieure à replier après Value.NativeQuery",
                 evidence=evidence_base,
             ), False
 
         if root_capability != "FOLDABLE":
             return Finding(
-                rule_id=RULE_ID, object_type=object_type, object=object_name,
-                expected="folding maximisé", actual=None, status="NA",
+                rule_id=RULE_ID,
+                object_type=object_type,
+                object=object_name,
+                expected="folding maximisé",
+                actual=None,
+                status="NA",
                 reason="Capacité de folding sur requête native non démontrée pour ce connecteur",
                 evidence=evidence_base,
             ), False
@@ -188,38 +240,58 @@ def _evaluate_query(
         enable_arg = native_call.raw_arguments[3] if len(native_call.raw_arguments) > 3 else ""
         if not _ENABLE_FOLDING_TRUE.search(enable_arg):
             return Finding(
-                rule_id=RULE_ID, object_type=object_type, object=object_name,
-                expected="EnableFolding=true", actual=enable_arg or None, status="KO",
+                rule_id=RULE_ID,
+                object_type=object_type,
+                object=object_name,
+                expected="EnableFolding=true",
+                actual=enable_arg or None,
+                status="KO",
                 reason="Étapes après Value.NativeQuery sans EnableFolding=true",
                 evidence={**evidence_base, "subsequent_steps": [s.name for s in later_steps]},
             ), False
 
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
-            expected="folding réel observé", actual="EnableFolding=true", status="NA",
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding réel observé",
+            actual="EnableFolding=true",
+            status="NA",
             reason="EnableFolding activé mais folding réel des étapes suivantes non observable statiquement",
             evidence=evidence_base,
         ), False
 
     if root_capability != "FOLDABLE":
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
-            expected="folding maximisé", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding maximisé",
+            actual=None,
+            status="NA",
             reason="Capacité de folding de la source non déterminée",
             evidence=evidence_base,
         ), False
 
     if len(steps) == 1:
         return Finding(
-            rule_id=RULE_ID, object_type=object_type, object=object_name,
-            expected="folding maximisé", actual="aucune transformation", status="OK",
+            rule_id=RULE_ID,
+            object_type=object_type,
+            object=object_name,
+            expected="folding maximisé",
+            actual="aucune transformation",
+            status="OK",
             reason="Aucune transformation après la navigation source",
             evidence=evidence_base,
         ), False
 
     return Finding(
-        rule_id=RULE_ID, object_type=object_type, object=object_name,
-        expected="folding maximisé", actual=None, status="NA",
+        rule_id=RULE_ID,
+        object_type=object_type,
+        object=object_name,
+        expected="folding maximisé",
+        actual=None,
+        status="NA",
         reason="Folding réel non démontré statiquement",
         evidence={**evidence_base, "steps": [s.name for s in steps]},
     ), False
@@ -235,14 +307,22 @@ def check(context: AnalysisContext) -> RuleResult:
     # 2026-08-19).
     results = [
         _evaluate_query(
-            "partition", f"{table.name}/{partition.name}", partition.m_source,
-            partition.source_file, partition.m_source_line,
+            "partition",
+            f"{table.name}/{partition.name}",
+            partition.m_source,
+            partition.source_file,
+            partition.m_source_line,
+            partition.source_kind,
         )
         for table in context.tables
         for partition in table.partitions
     ] + [
         _evaluate_query(
-            "expression", expr.name, expr.m_source, expr.source_file, expr.m_source_line,
+            "expression",
+            expr.name,
+            expr.m_source,
+            expr.source_file,
+            expr.m_source_line,
         )
         for expr in context.expressions
     ]

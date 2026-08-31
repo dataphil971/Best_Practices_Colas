@@ -14,7 +14,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_17
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_17"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_17"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -62,7 +62,7 @@ def test_na_when_partition_is_directquery_but_not_databricks(tmp_path):
         "\t\tmode: directQuery\n"
         "\t\tsource =\n"
         "\t\t\t\tlet\n"
-        "\t\t\t\t\tSource = Sql.Database(\"server\", \"db\")\n"
+        '\t\t\t\t\tSource = Sql.Database("server", "db")\n'
         "\t\t\t\tin\n"
         "\t\t\t\t\tSource\n",
         encoding="utf-8",
@@ -104,7 +104,7 @@ def test_unquotes_the_http_path_before_classification(tmp_path):
         "\t\tmode: directQuery\n"
         "\t\tsource =\n"
         "\t\t\t\tlet\n"
-        "\t\t\t\t\tSource = Databricks.Catalogs(\"host\", \"/sql/1.0/warehouses/XYZ\", [])\n"
+        '\t\t\t\t\tSource = Databricks.Catalogs("host", "/sql/1.0/warehouses/XYZ", [])\n'
         "\t\t\t\tin\n"
         "\t\t\t\t\tSource\n",
         encoding="utf-8",

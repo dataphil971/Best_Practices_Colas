@@ -1,5 +1,7 @@
 # BP-41 — Détection des visuels redondants ou dupliqués
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_41.py`](../03_PYTHON/rules/bp_41.py), tests : `03_PYTHON/tests/test_bp_41.py`.
+
 ## 1. Objectif
 
 Détecter de manière déterministe les **candidats** à la redondance visuelle, puis séparer cette détection technique du jugement portant sur leur utilité réelle.

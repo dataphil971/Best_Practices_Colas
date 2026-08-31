@@ -1,5 +1,7 @@
 # BP-32 — Utiliser des mesures explicites plutôt que des agrégations implicites
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_32.py`](../03_PYTHON/rules/bp_32.py), tests : `03_PYTHON/tests/test_bp_32.py`.
+
 ## 1. Objectif
 
 Détecter dans le rapport les **agrégations implicites explicitement sérialisées** dans le PBIR.

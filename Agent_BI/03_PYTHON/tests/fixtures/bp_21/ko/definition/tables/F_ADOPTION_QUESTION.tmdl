@@ -1,0 +1,7 @@
+table F_ADOPTION_QUESTION
+	lineageTag: 20000000-0000-0000-0000-000000000004
+
+	column 'USAGE LABEL'
+		dataType: string
+		summarizeBy: none
+		sourceColumn: "USAGE LABEL"

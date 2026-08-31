@@ -9,7 +9,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_03
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_03"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_03"
 
 
 def _context_for(scenario: str) -> AnalysisContext:

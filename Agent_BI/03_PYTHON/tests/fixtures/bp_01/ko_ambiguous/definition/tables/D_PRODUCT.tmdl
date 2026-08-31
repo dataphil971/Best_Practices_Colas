@@ -1,0 +1,13 @@
+table D_PRODUCT
+
+	column PRODUCT_KEY
+		dataType: string
+		summarizeBy: none
+
+	column LABEL
+		dataType: string
+		summarizeBy: none
+
+	partition D_PRODUCT = m
+		mode: import
+		source = Sql.Database("srv", "db")

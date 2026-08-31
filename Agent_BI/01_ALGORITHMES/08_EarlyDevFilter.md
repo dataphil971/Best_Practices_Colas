@@ -1,5 +1,7 @@
 # BP-08 — Filtrer tôt le volume de données en phase de développement
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Évaluer, avec les preuves disponibles dans le projet, si un mécanisme de réduction de volume de données est prévu pour la phase de développement et s'il est appliqué suffisamment tôt pour éviter de traiter inutilement le volume complet.

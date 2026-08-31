@@ -1,5 +1,7 @@
 # BP-10 — Utiliser des clés de relation entières
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_10.py`](../03_PYTHON/rules/bp_10.py), tests : `03_PYTHON/tests/test_bp_10.py`.
+
 ## 1. Objectif
 
 Appliquer la bonne pratique d'entreprise consistant à utiliser des clés entières pour porter les relations analytiques du modèle.

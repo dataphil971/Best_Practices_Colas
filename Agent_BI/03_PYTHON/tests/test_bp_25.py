@@ -11,7 +11,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_25
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_25"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_25"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -88,9 +88,7 @@ def test_a_column_used_in_the_report_is_never_declared_technical(tmp_path):
 
 def test_na_when_the_report_is_absent_from_the_scope():
     # Sans rapport, l'absence d'usage utilisateur n'est pas démontrable.
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "ko" / "M.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "ko" / "M.SemanticModel")
     result = bp_25.check(context)
 
     assert result.rule_status == "NA"

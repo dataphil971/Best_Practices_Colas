@@ -1,5 +1,7 @@
 # BP-12 — Paramétrer les valeurs littérales répétées dans Power Query
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Détecter les valeurs de configuration répétées dans plusieurs requêtes M et vérifier qu'elles sont centralisées dans un paramètre lorsque la politique du projet l'exige.

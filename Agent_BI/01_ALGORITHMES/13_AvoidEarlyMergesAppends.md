@@ -1,5 +1,7 @@
 # BP-13 — Positionner les merges/appends après les réductions de volume pertinentes
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier que les opérations de fusion ou de concaténation Power Query ne sont pas exécutées avant des réductions de volume qui pourraient **être déplacées en amont sans changer le résultat**.

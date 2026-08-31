@@ -9,7 +9,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_32
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_32"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_32"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -39,9 +39,7 @@ def test_ok_when_only_measures_and_bare_columns_are_projected():
 
 def test_na_when_no_report_is_available():
     # §9 : OK n'est permis que si la couverture de parsing est complète.
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "ok" / "M.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "ok" / "M.SemanticModel")
     result = bp_32.check(context)
 
     assert result.rule_status == "NA"

@@ -1,0 +1,17 @@
+table F_BUDGET
+
+	column PRODUCT_KEY
+		dataType: string
+		summarizeBy: none
+
+	column DATE_KEY
+		dataType: string
+		summarizeBy: none
+
+	column TARGET
+		dataType: string
+		summarizeBy: none
+
+	partition F_BUDGET = m
+		mode: import
+		source = Sql.Database("srv", "db")

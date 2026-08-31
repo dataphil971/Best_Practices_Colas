@@ -158,6 +158,10 @@ export interface AgentResult {
 export interface AgentEnvelope {
   schema_version: string;
   engine_version: string;
+  // Ajoutés par le schéma 1.1. Optionnels côté type : une enveloppe 1.0
+  // produite par un moteur plus ancien reste lisible par ce client.
+  generated_at?: string;
+  summary?: AgentSummary;
   project: {
     name: string | null;
     format: string | null;
@@ -166,6 +170,15 @@ export interface AgentEnvelope {
     fingerprint: string | null;
   };
   results: AgentResult[];
+}
+
+export interface AgentSummary {
+  // Consolidation des statuts de règle : un seul KO suffit à faire KO ;
+  // sinon un seul NA suffit à faire NA ; OK exige que toutes concluent OK.
+  overall_status: "OK" | "KO" | "NA";
+  rules_evaluated: number;
+  rules_by_status: Record<"OK" | "KO" | "NA", number>;
+  findings_by_status: Record<"OK" | "KO" | "NA", number>;
 }
 
 // --- Agent BI : résumé d'import (Backend app/schemas/agent_results.py) ----
