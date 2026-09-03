@@ -1,5 +1,7 @@
 # BP-22 (alias SEM-001) — Désactivation de l'autosummarization des colonnes
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_22.py`](../03_PYTHON/rules/bp_22.py), tests : `03_PYTHON/tests/test_bp_22.py`.
+
 ## 1. Objectif de la bonne pratique
 
 L'objectif de cette règle est de vérifier que toutes les colonnes du modèle sémantique Power BI sont configurées avec la propriété suivante :

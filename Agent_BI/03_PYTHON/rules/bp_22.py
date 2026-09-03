@@ -3,7 +3,7 @@
 Implémente l'algorithme documenté dans
 Agent_BI/01_ALGORITHMES/22_DisableSummarization.md. Toute évolution de la
 logique OK/KO/NA doit d'abord être répercutée dans ce document (cf.
-`agent-bi-rule-review` dans .github/skills/) — ce fichier ne doit jamais
+`agent-bi-rule-review` dans .claude/skills/) — ce fichier ne doit jamais
 diverger silencieusement de sa spécification fonctionnelle.
 """
 
@@ -20,7 +20,13 @@ CONFORMING_VALUE = "none"
 # Une valeur absente de cet ensemble et différente de "none" est traitée
 # comme illisible/inconnue -> NA, jamais comme un KO implicite.
 KNOWN_NONCONFORMING_VALUES = {
-    "sum", "average", "count", "distinctcount", "min", "max", "default",
+    "sum",
+    "average",
+    "count",
+    "distinctcount",
+    "min",
+    "max",
+    "default",
 }
 
 
@@ -53,77 +59,114 @@ def check(context: AnalysisContext) -> RuleResult:
             }
 
             if raw_value is None:
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="summarizeBy = none", actual=None, status="NA",
-                    reason="Propriété summarizeBy absente", evidence=evidence,
-                    location=column.locate(context_lines=1),
-                    explanation=(
-                        "La propriété summarizeBy n'est pas écrite dans le TMDL pour cette "
-                        "colonne : son comportement d'agrégation dépend alors du défaut "
-                        "appliqué par Power BI, que ce fichier ne permet pas de connaître."
-                    ),
-                    remediation=(
-                        f"Ouvrir {column.source_file} au bloc `column {column.raw_name}` et "
-                        "ajouter explicitement `summarizeBy: none` pour lever l'ambiguïté."
-                    ),
-                ))
-                na_details.append({
-                    "table": table.name, "column": column.raw_name,
-                    "summarizeBy": None, "reason": "Propriété summarizeBy absente",
-                })
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="summarizeBy = none",
+                        actual=None,
+                        status="NA",
+                        reason="Propriété summarizeBy absente",
+                        evidence=evidence,
+                        location=column.locate(context_lines=1),
+                        explanation=(
+                            "La propriété summarizeBy n'est pas écrite dans le TMDL pour cette "
+                            "colonne : son comportement d'agrégation dépend alors du défaut "
+                            "appliqué par Power BI, que ce fichier ne permet pas de connaître."
+                        ),
+                        remediation=(
+                            f"Ouvrir {column.source_file} au bloc `column {column.raw_name}` et "
+                            "ajouter explicitement `summarizeBy: none` pour lever l'ambiguïté."
+                        ),
+                    )
+                )
+                na_details.append(
+                    {
+                        "table": table.name,
+                        "column": column.raw_name,
+                        "summarizeBy": None,
+                        "reason": "Propriété summarizeBy absente",
+                    }
+                )
                 continue
 
             normalized = str(raw_value).strip().lower()
 
             if normalized == CONFORMING_VALUE:
                 conforming += 1
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="summarizeBy = none", actual=normalized, status="OK",
-                    evidence=evidence,
-                    location=column.locate("summarizeBy"),
-                    explanation=(
-                        "Aucune agrégation automatique n'est appliquée à cette colonne : "
-                        "elle ne génère donc pas de mesure implicite."
-                    ),
-                ))
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="summarizeBy = none",
+                        actual=normalized,
+                        status="OK",
+                        evidence=evidence,
+                        location=column.locate("summarizeBy"),
+                        explanation=(
+                            "Aucune agrégation automatique n'est appliquée à cette colonne : "
+                            "elle ne génère donc pas de mesure implicite."
+                        ),
+                    )
+                )
             elif normalized in KNOWN_NONCONFORMING_VALUES:
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="summarizeBy = none", actual=normalized, status="KO",
-                    reason="Valeur différente de none", evidence=evidence,
-                    location=column.locate("summarizeBy", context_lines=1),
-                    explanation=(
-                        f"Power BI agrège automatiquement cette colonne avec `{normalized}` "
-                        "dès qu'un utilisateur la glisse dans un visuel. Cela crée une mesure "
-                        "IMPLICITE : le calcul n'est écrit nulle part, il ne peut être ni relu, "
-                        "ni réutilisé, ni corrigé de façon centralisée — et deux visuels peuvent "
-                        "silencieusement agréger différemment."
-                    ),
-                    remediation=(
-                        f"Remplacer `summarizeBy: {normalized}` par `summarizeBy: none` "
-                        f"(ligne {column.property_lines.get('summarizeBy', '?')} de "
-                        f"{column.source_file}). Si l'agrégation est réellement voulue, "
-                        f"créer une mesure DAX explicite, par exemple "
-                        f"`{normalized.upper()}({table.name}[{column.name}])`."
-                    ),
-                ))
-                ko_details.append({
-                    "table": table.name, "column": column.raw_name,
-                    "summarizeBy": normalized,
-                })
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="summarizeBy = none",
+                        actual=normalized,
+                        status="KO",
+                        reason="Valeur différente de none",
+                        evidence=evidence,
+                        location=column.locate("summarizeBy", context_lines=1),
+                        explanation=(
+                            f"Power BI agrège automatiquement cette colonne avec `{normalized}` "
+                            "dès qu'un utilisateur la glisse dans un visuel. Cela crée une mesure "
+                            "IMPLICITE : le calcul n'est écrit nulle part, il ne peut être ni relu, "
+                            "ni réutilisé, ni corrigé de façon centralisée — et deux visuels peuvent "
+                            "silencieusement agréger différemment."
+                        ),
+                        remediation=(
+                            f"Remplacer `summarizeBy: {normalized}` par `summarizeBy: none` "
+                            f"(ligne {column.property_lines.get('summarizeBy', '?')} de "
+                            f"{column.source_file}). Si l'agrégation est réellement voulue, "
+                            f"créer une mesure DAX explicite, par exemple "
+                            f"`{normalized.upper()}({table.name}[{column.name}])`."
+                        ),
+                    )
+                )
+                ko_details.append(
+                    {
+                        "table": table.name,
+                        "column": column.raw_name,
+                        "summarizeBy": normalized,
+                    }
+                )
             else:
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="summarizeBy = none", actual=raw_value, status="NA",
-                    reason="Valeur summarizeBy inconnue ou illisible", evidence=evidence,
-                ))
-                na_details.append({
-                    "table": table.name, "column": column.raw_name,
-                    "summarizeBy": raw_value,
-                    "reason": "Valeur summarizeBy inconnue ou illisible",
-                })
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="summarizeBy = none",
+                        actual=raw_value,
+                        status="NA",
+                        reason="Valeur summarizeBy inconnue ou illisible",
+                        evidence=evidence,
+                    )
+                )
+                na_details.append(
+                    {
+                        "table": table.name,
+                        "column": column.raw_name,
+                        "summarizeBy": raw_value,
+                        "reason": "Valeur summarizeBy inconnue ou illisible",
+                    }
+                )
 
     if ko_details:
         rule_status = "KO"

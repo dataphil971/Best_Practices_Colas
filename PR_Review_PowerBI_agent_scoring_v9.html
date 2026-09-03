@@ -4871,7 +4871,6 @@ function agPill(txt, cls, key) { return agH("span", { key: key, className: "inli
 function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }) {
   let [etape, setEtape] = en.useState("source"),
     [src, setSrc] = en.useState(null),
-    [xmla, setXmla] = en.useState(""),
     [ctx, setCtx] = en.useState({ typeLivrable: { powerbi: "Power BI", appbi: "App BI", build: "Build" }[rev.checklistType] || "Power BI", templateCds: true, datasetPartage: false }),
     [prog, setProg] = en.useState({ pct: 0, txt: "" }),
     [an, setAn] = en.useState(null),
@@ -4881,13 +4880,8 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
     [bilan, setBilan] = en.useState(null),
     /* Mode « agent local » : configuration, appairage et erreurs du vrai moteur. */
     [loc, setLoc] = en.useState({ phase: agLToken() ? "pret" : "idle", url: agLUrl(), chemin: "", code: "", err: null, sante: null }),
-    reelAnnule = en.useRef(!1),
-    fileRef = en.useRef(null);
+    reelAnnule = en.useRef(!1);
 
-  let detecter = f => {
-    let n = f.name.toLowerCase(), mode = n.endsWith(".pbix") ? "pbix" : "pbip";
-    setSrc({ kind: "fichier", nom: f.name, mode: mode, sizeMo: f.size / 1048576, key: f.name + "|" + f.size });
-  };
   let couvLoc = agCouvertureLocale();
   let couv = src ? ("local" === src.kind ? couvLoc : agCouverture(src.mode)) : null;
 
@@ -5084,31 +5078,8 @@ function prAgentModal({ state: st, review: rev, onClose: close, onApply: apply }
 
   let vueSource = agH("div", { className: "space-y-4" },
     agH("p", { className: "text-sm text-slate-600 dark:text-slate-300" }, "L'agent lit le livrable, en construit une représentation normalisée (MIR) puis exécute 59 points de contrôle. Il ne modifie jamais votre rapport et n'écrase jamais un statut déjà saisi."),
-    agH("div", { className: "grid gap-3 sm:grid-cols-2" },
-      agH("button", { onClick: () => fileRef.current && fileRef.current.click(), className: AG_CARD + " text-left transition-colors hover:border-brand-blue" },
-        agH(AG_ICON_FILE, { className: "mb-2 h-6 w-6 text-brand-blue" }),
-        agH("p", { className: "text-sm font-semibold text-slate-800 dark:text-slate-100" }, "Déposer un fichier"),
-        agH("p", { className: "mt-1 text-xs text-slate-500 dark:text-slate-400" }, "Projet PBIP (archive) — couverture maximale. Fichier .pbix accepté en mode dégradé.")),
-      agH("div", { className: AG_CARD },
-        agH(AG_ICON_PLUG, { className: "mb-2 h-6 w-6 text-brand-blue" }),
-        agH("p", { className: "text-sm font-semibold text-slate-800 dark:text-slate-100" }, "Point de terminaison XMLA"),
-        agH("p", { className: "mb-2 mt-1 text-xs text-slate-500 dark:text-slate-400" }, "Lecture seule, aucune copie du livrable ne transite."),
-        agH("input", { value: xmla, onChange: e => setXmla(e.target.value), placeholder: "powerbi://api.powerbi.com/v1.0/myorg/Espace", className: AG_FLD }),
-        agH("button", {
-          disabled: !xmla.trim(), onClick: () => setSrc({ kind: "xmla", nom: xmla.trim(), mode: "xmla", sizeMo: null, key: xmla.trim() }),
-          className: "mt-2 w-full rounded-md bg-slate-100 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10 dark:text-slate-300"
-        }, "Utiliser cette connexion"))),
-    agH("input", { ref: fileRef, type: "file", accept: ".pbip,.pbix,.zip", className: "hidden", onChange: e => { let f = e.target.files && e.target.files[0]; f && detecter(f); e.target.value = "" } }),
-    src && agH("div", { className: "rounded-xl border border-brand-lavender/60 bg-brand-lavender/10 p-4" },
-      agH("p", { className: "text-sm font-semibold text-brand-slate" }, "Mode détecté : ", "pbip" === src.mode ? "Projet PBIP" : "pbix" === src.mode ? "Fichier .pbix" : "XMLA (lecture seule)"),
-      agH("p", { className: "mt-1 text-xs text-slate-600 dark:text-slate-300" }, src.nom, null != src.sizeMo ? " · " + src.sizeMo.toFixed(1) + " Mo" : ""),
-      agH("p", { className: "mt-2 text-sm font-bold text-brand-ink dark:text-slate-100" }, "Couverture attendue : ", couv.lisibles, " points sur ", couv.total),
-      "pbix" === src.mode && agH("p", { className: "mt-1 text-xs text-amber-700 dark:text-amber-300" }, "Le DataModel du .pbix est compressé : les règles de modèle et de DAX resteront non renseignées plutôt que d'être présumées conformes."),
-      "xmla" === src.mode && agH("p", { className: "mt-1 text-xs text-amber-700 dark:text-amber-300" }, "XMLA donne le modèle sémantique mais pas le rapport : les règles de mise en page resteront non renseignées."),
-      null != src.sizeMo && src.sizeMo > AGENT_CFG.TAILLE_MAX_FICHIER_MO && agH("p", { className: "mt-1 text-xs font-semibold text-rose-600" }, "Fichier au-delà de TAILLE_MAX_FICHIER_MO (", AGENT_CFG.TAILLE_MAX_FICHIER_MO, " Mo) — analyse refusée.")),
-    carteLocale,
-    agH("div", { className: "flex justify-end" },
-      agH("button", { disabled: !src || "local" === src.kind || null != src.sizeMo && src.sizeMo > AGENT_CFG.TAILLE_MAX_FICHIER_MO, onClick: () => setEtape("contexte"), className: AG_BTN + " bg-brand-espresso text-white hover:bg-brand-ink disabled:opacity-40" }, "Continuer")));
+    carteLocale);
+
 
   let q = (titre, pourquoi, options, val, set) => agH("div", { className: AG_CARD },
     agH("p", { className: "text-sm font-semibold text-slate-800 dark:text-slate-100" }, titre),

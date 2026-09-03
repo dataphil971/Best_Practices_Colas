@@ -113,7 +113,7 @@ test("appairage puis analyse de bout en bout sur un vrai projet PBIP", async () 
     } while (job.status === "RUNNING" && Date.now() < deadline);
 
     assert.equal(job.status, "SUCCEEDED", job.error || "");
-    assert.equal(job.result.schema_version, "1.0");
+    assert.equal(job.result.schema_version, "1.1");
     // Plusieurs règles tournent désormais (cf. rules/registry.py) : on ne
     // suppose pas d'ordre dans `results`, seulement que BP-22 y figure.
     const bp22 = job.result.results.find((r) => r.rule_id === "BP-22");

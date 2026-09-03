@@ -1,5 +1,7 @@
 # BP-21 — Noms d'objets concis, cohérents et conformes à la convention du modèle
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_21.py`](../03_PYTHON/rules/bp_21.py), tests : `03_PYTHON/tests/test_bp_21.py`.
+
 ## 1. Objectif de la bonne pratique
 
 Les noms des objets d'un modèle sémantique (tables, colonnes, mesures, dossiers d'affichage) constituent la première interface entre le modèle et les utilisateurs métier qui construisent des rapports (volet des champs, info-bulles, recherche). Un nommage incohérent — espaces superflus, caractères ambigus, préfixes non respectés, casse variable — nuit à la lisibilité, complique la maintenance et peut provoquer des erreurs silencieuses (deux noms visuellement identiques mais techniquement différents à cause d'un espace final, par exemple).
@@ -63,6 +65,15 @@ Deux anomalies de nommage bien réelles apparaissent dans cet extrait, mises en 
 - `D_CHOICE.'ID '` : la colonne s'appelle littéralement `ID ` avec un **espace final** — violation directe de la convention « pas d'espace superflu » ;
 - `P_EVOLUTION_LEGEND_TOP.'P_LEGEND Order'` : le nom `P_LEGEND Order` contient un **espace interne**, rompant la convention `UPPER_SNAKE_CASE` avec séparateur `_` respectée par la quasi-totalité des autres colonnes du modèle (`CAMPAIGN_ID`, `USER_JOB`, `USAGE_FREQUENCY_LEVELS`...).
 
+> **Ces deux colonnes sont `isHidden`.** Elles illustrent donc la *forme* de
+> l'anomalie, mais la règle les classe `NA` et non `KO` (cf. §4.1) : elles
+> n'apparaissent dans aucun volet de champs. L'anomalie de même forme sur une
+> colonne réellement **visible** du modèle est `F_ADOPTION_QUESTION.'USAGE LABEL'`
+> — c'est celle-là qui vaut un `KO`.
+>
+> Le fait qu'un nom doive être encadré de guillemets simples en TMDL reste le
+> signal de détection ; il ne dit rien de la visibilité de l'objet.
+
 ### 3.3 Regex de validation
 
 ```python
@@ -86,8 +97,38 @@ INTERNAL_WHITESPACE = re.compile(r"\s")
 
 ## 4. Règle(s) d'évaluation
 
+### 4.1 Périmètre — la colonne masquée en est exclue
+
+Une colonne portant `isHidden` **n'est pas jugée** : elle rend `NA`, avec le
+motif « Colonne masquée : hors périmètre de la règle ». C'est le même motif, mot
+pour mot, que `BP-07` — les deux règles doivent répondre la même chose à la même
+question, sous peine d'être deux dialectes dans un même dépôt.
+
+Trois raisons, dans cet ordre :
+
+1. **Le nom d'une colonne masquée n'est vu de personne.** Le coût que la §1
+   invoque — « un nom hors convention se voit dans le volet des champs de tous
+   les utilisateurs » — n'existe pas pour un objet que le volet des champs
+   n'affiche pas.
+2. **La convention n'est pas appliquée là.** Relevé sur `AI_BAROMETER_BI-CDS` :
+   **36 colonnes visibles sur 37** respectent `UPPER_SNAKE_CASE`, contre
+   **17 masquées sur 32**. Exiger sur les masquées une convention que le modèle
+   n'y applique pas produirait des `KO` fondés sur une règle que personne ne
+   suit (cf. `04_DOCS/COMPANY_POLICY.md`, §1.2).
+3. **Une partie de ces noms est imposée par Power BI.** Sur les 15 colonnes
+   masquées non conformes du même modèle, **10** sont les colonnes `… Fields` et
+   `… Order` générées par la fonctionnalité *paramètre de champs*. Les signaler
+   demanderait à l'auteur de se battre contre l'outil.
+
+Ce périmètre ne s'applique **qu'aux colonnes**. Les tables et les mesures
+restent jugées en toutes circonstances : le nom d'une table masquée reste lu
+dans `relationships.tmdl` et dans chaque formule DAX qui la référence.
+
+### 4.2 Table de décision
+
 | Situation détectée | Statut | Interprétation |
 |---|---|---|
+| Colonne portant `isHidden` | `NA` | Hors périmètre : le nom n'est vu de personne, et la convention n'y est pas appliquée. |
 | Nom de table conforme au motif préfixe + `UPPER_SNAKE_CASE`, ou nom `MEASURE` (exemption connue) | `OK` | Convention respectée. |
 | Nom de table sans préfixe reconnu (`D_`/`F_`/`T_`/`P_`) et différent de `MEASURE` | `KO` | Rupture de la convention de préfixage du projet. |
 | Nom d'objet (table, colonne, mesure ou `displayFolder`) avec espace en début ou fin de chaîne | `KO` | Espace superflu, source d'erreurs de correspondance silencieuses. |
@@ -102,8 +143,9 @@ Exemple issu du modèle audité :
 |---|---|---|---|---|
 | `D_CAMPAIGNS` | table | `D_CAMPAIGNS` | aucune | `OK` |
 | `MEASURE` | table | `MEASURE` | aucune (exemption) | `OK` |
-| `D_CHOICE.'ID '` | colonne | `ID ` | espace final | `KO` |
-| `P_EVOLUTION_LEGEND_TOP.'P_LEGEND Order'` | colonne | `P_LEGEND Order` | espace interne | `KO` |
+| `F_ADOPTION_QUESTION.'USAGE LABEL'` | colonne | `USAGE LABEL` | espace interne, colonne **visible** | `KO` |
+| `D_CHOICE.'ID '` | colonne | `ID ` | espace final, mais colonne **masquée** (`isHidden`) | `NA` |
+| `P_EVOLUTION_LEGEND_TOP.'P_LEGEND Order'` | colonne | `P_LEGEND Order` | espace interne, colonne **masquée** et nom imposé par le paramètre de champs | `NA` |
 | `pct_RespondentsPerUsage` | mesure | `pct_RespondentsPerUsage` | aucune | `OK` |
 | `Nb_Responses` | mesure | `Nb_Responses` | aucune | `OK` |
 
@@ -120,10 +162,10 @@ Exemple issu du modèle audité :
 Pour chaque fichier `tables\<NOM>.tmdl`, extraire le nom réel de la table (déclaration `table <NOM>`) et appliquer `TABLE_NAME_PATTERN` (avec l'exemption `MEASURE`).
 
 ### Étape 3 — Contrôler chaque colonne et chaque mesure
-Pour chaque bloc `column` et `measure` de chaque table : extraire le nom exact (y compris les espaces et caractères éventuellement présents, sans les « nettoyer » avant contrôle) ; appliquer les motifs de la section 3.3 ; détecter séparément les espaces en début/fin et les espaces internes.
+Pour chaque bloc `column` : **d'abord** lire `isHidden`. Si la colonne est masquée, produire `NA` (« Colonne masquée : hors périmètre de la règle ») et passer à la suivante sans contrôler son nom (cf. §4.1). Sinon, et pour chaque bloc `measure` : extraire le nom exact (y compris les espaces et caractères éventuellement présents, sans les « nettoyer » avant contrôle) ; appliquer les motifs de la section 3.3 ; détecter séparément les espaces en début/fin et les espaces internes.
 
 ### Étape 4 — Contrôler chaque `displayFolder`
-Pour chaque mesure ou colonne portant un `displayFolder`, extraire sa valeur et vérifier l'absence d'espace superflu ainsi que la cohérence de casse par rapport aux autres `displayFolder` du même niveau hiérarchique dans la même table.
+Pour chaque mesure ou colonne **non masquée** portant un `displayFolder`, extraire sa valeur et vérifier l'absence d'espace superflu ainsi que la cohérence de casse par rapport aux autres `displayFolder` du même niveau hiérarchique dans la même table. Le `displayFolder` d'une colonne masquée est hors périmètre pour la même raison que son nom : il n'organise rien que l'utilisateur voie.
 
 ### Étape 5 — Ne pas s'arrêter à la première anomalie
 L'agent doit parcourir l'intégralité des tables, colonnes, mesures et dossiers d'affichage, en recensant toutes les violations, pas seulement la première.
@@ -187,7 +229,7 @@ def check_measure_name(name):
     return {"status": "OK"}
 
 
-ok_results, ko_results = [], []
+ok_results, ko_results, na_results = [], [], []
 
 table_files = find_all_tmdl_files("<SEMANTIC_MODEL_PATH>/definition/tables/")
 if not table_files:
@@ -202,6 +244,15 @@ for table_file in table_files:
     (ok_results if result["status"] == "OK" else ko_results).append(entry)
 
     for column in table.columns:
+        # §4.1 : une colonne masquée n'est vue de personne, et la convention n'y
+        # est pas appliquée. Même motif que BP-07, mot pour mot.
+        if column.get_property("isHidden"):
+            na_results.append({"object_type": "column",
+                               "object_name": f"{table.name}.{repr(column.name)}",
+                               "status": "NA",
+                               "reason": "Colonne masquée : hors périmètre de la règle"})
+            continue
+
         result = check_column_name(column.name)
         entry = {"object_type": "column", "object_name": f"{table.name}.{repr(column.name)}", **result}
         (ok_results if result["status"] == "OK" else ko_results).append(entry)
@@ -229,9 +280,15 @@ Priorité des statuts : `KO > NA > OK`.
 
 | Résultat de l'analyse | Statut global |
 |---|---|
-| Tous les noms d'objets respectent la convention | `OK` |
+| Tous les noms d'objets **en périmètre** respectent la convention | `OK` |
 | Au moins une violation (espace en tête/fin/interne, préfixe manquant, caractère spécial, casse de `displayFolder` incohérente) | `KO` |
 | Aucun fichier de table TMDL trouvé | `NA` |
+
+Les `NA` de colonnes masquées **ne font jamais basculer le statut global**, ni
+vers `KO` ni vers `NA` : ils sont hors périmètre, pas indécidables. Un modèle
+dont toutes les colonnes visibles sont conformes rend `OK` même s'il compte
+trente colonnes masquées mal nommées. C'est la même mécanique qu'en §12 de
+`07_RemoveUnusedColumns.md`.
 
 ---
 
@@ -320,6 +377,7 @@ L'agent ne doit déclarer la bonne pratique `OK` que si toutes les conditions su
 - tous les fichiers de tables ont été lus, ainsi que `relationships.tmdl` en complément ;
 - les noms d'objets ont été extraits **sans** être nettoyés (`strip()`) avant contrôle, afin de ne pas masquer un espace superflu ;
 - chaque table, chaque colonne et chaque mesure a été analysée individuellement ;
+- `isHidden` a été lu sur **chaque** colonne avant tout contrôle de son nom : un `OK` obtenu en ayant jugé les colonnes masquées serait un `OK` sur le mauvais périmètre, et un `KO` produit par elles serait un faux positif ;
 - le préfixe de chaque table a été vérifié en tête de chaîne, avec la seule exemption `MEASURE` documentée ;
 - chaque `displayFolder` a été contrôlé pour l'absence d'espace superflu et la cohérence de casse au sein d'une même table ;
 - aucune anomalie détectée dans `relationships.tmdl` (noms de colonnes entre guillemets simples) n'a été omise du croisement avec les fichiers de tables.

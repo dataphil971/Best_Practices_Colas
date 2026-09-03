@@ -1,5 +1,7 @@
 # BP-09 — Désactiver l'option Auto Date/Time
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_09.py`](../03_PYTHON/rules/bp_09.py), tests : `03_PYTHON/tests/test_bp_09.py`.
+
 ## 1. Objectif
 
 Vérifier, uniquement à partir de preuves observables dans le modèle, que l'option Power BI **Auto Date/Time** est désactivée lorsque la politique de gouvernance l'exige.

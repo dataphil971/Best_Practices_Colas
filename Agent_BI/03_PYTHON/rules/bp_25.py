@@ -43,17 +43,24 @@ _SORT_SURFACES = {"sort_by"}
 def check(context: AnalysisContext) -> RuleResult:
     if not context.tables:
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="ERROR", rule_status="NA",
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="ERROR",
+            rule_status="NA",
             summary={"reason": "Aucun fichier de table TMDL trouvé"},
         )
 
     if context.report_path is None:
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="PARTIAL", rule_status="NA",
-            summary={"reason": "Rapport absent : absence d'usage utilisateur non démontrable",
-                     "technical_columns": 0, "visible_technical_columns": 0},
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="PARTIAL",
+            rule_status="NA",
+            summary={
+                "reason": "Rapport absent : absence d'usage utilisateur non démontrable",
+                "technical_columns": 0,
+                "visible_technical_columns": 0,
+            },
         )
 
     usage, _dax_unqualified = build_usage_index(context)
@@ -71,49 +78,73 @@ def check(context: AnalysisContext) -> RuleResult:
             if not is_exclusive_sort_key:
                 # §9 : `BUSINESS_OR_USER_FACING` comme `UNKNOWN` -> NA. On ne
                 # distingue pas les deux : aucune n'est évaluable ici.
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="isHidden si techniquement démontré", actual=None, status="NA",
-                    reason="La colonne n'est pas démontrée comme purement technique",
-                    evidence={"table": table.name, "column": column.raw_name,
-                              "usages": sorted(surfaces)},
-                ))
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="isHidden si techniquement démontré",
+                        actual=None,
+                        status="NA",
+                        reason="La colonne n'est pas démontrée comme purement technique",
+                        evidence={
+                            "table": table.name,
+                            "column": column.raw_name,
+                            "usages": sorted(surfaces),
+                        },
+                    )
+                )
                 continue
 
             technical_count += 1
             hidden = bool(column.get_property("isHidden"))
             evidence = {
-                "table": table.name, "column": column.raw_name,
+                "table": table.name,
+                "column": column.raw_name,
                 "role": "TECHNICAL_CONFIRMED",
                 "role_evidence": "clé de tri exclusive (aucun autre usage détecté)",
-                "usages": sorted(surfaces), "source_file": column.source_file,
+                "usages": sorted(surfaces),
+                "source_file": column.source_file,
             }
 
             if hidden:
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="isHidden", actual="isHidden", status="OK", evidence=evidence,
-                ))
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="isHidden",
+                        actual="isHidden",
+                        status="OK",
+                        evidence=evidence,
+                    )
+                )
             else:
-                findings.append(Finding(
-                    rule_id=RULE_ID, object_type="column", object=object_name,
-                    expected="isHidden", actual="visible", status="KO",
-                    reason="Colonne purement technique (clé de tri exclusive) laissée visible",
-                    evidence=evidence,
-                    location=column.locate(context_lines=1),
-                    explanation=(
-                        "Cette colonne ne sert QUE à ordonner une autre colonne (sortByColumn) : "
-                        "elle n'a aucune signification métier. Laissée visible, elle encombre le "
-                        "volet des champs et un utilisateur peut la glisser dans un visuel par "
-                        "erreur, obtenant un axe numérique sans valeur analytique."
-                    ),
-                    remediation=(
-                        f"Ajouter `isHidden` au bloc `column {column.raw_name}` "
-                        f"(ligne {column.line} de {column.source_file}). Le tri qu'elle pilote "
-                        "continue de fonctionner : une colonne masquée reste utilisable comme "
-                        "sortByColumn."
-                    ),
-                ))
+                findings.append(
+                    Finding(
+                        rule_id=RULE_ID,
+                        object_type="column",
+                        object=object_name,
+                        expected="isHidden",
+                        actual="visible",
+                        status="KO",
+                        reason="Colonne purement technique (clé de tri exclusive) laissée visible",
+                        evidence=evidence,
+                        location=column.locate(context_lines=1),
+                        explanation=(
+                            "Cette colonne ne sert QUE à ordonner une autre colonne (sortByColumn) : "
+                            "elle n'a aucune signification métier. Laissée visible, elle encombre le "
+                            "volet des champs et un utilisateur peut la glisser dans un visuel par "
+                            "erreur, obtenant un axe numérique sans valeur analytique."
+                        ),
+                        remediation=(
+                            f"Ajouter `isHidden` au bloc `column {column.raw_name}` "
+                            f"(ligne {column.line} de {column.source_file}). Le tri qu'elle pilote "
+                            "continue de fonctionner : une colonne masquée reste utilisable comme "
+                            "sortByColumn."
+                        ),
+                    )
+                )
                 ko_details.append({"table": table.name, "column": column.raw_name})
 
     # §11 : seules les colonnes TECHNICAL_CONFIRMED sont évaluables.
@@ -125,8 +156,10 @@ def check(context: AnalysisContext) -> RuleResult:
         rule_status = "NA"
 
     return RuleResult(
-        rule_id=RULE_ID, rule_name=RULE_NAME,
-        execution_status="SUCCESS", rule_status=rule_status,
+        rule_id=RULE_ID,
+        rule_name=RULE_NAME,
+        execution_status="SUCCESS",
+        rule_status=rule_status,
         findings=findings,
         summary={
             "technical_columns": technical_count,

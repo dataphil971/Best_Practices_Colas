@@ -1,0 +1,4 @@
+relationship 81111111-0000-0000-0000-000000000001
+	fromColumn: F_SALES.PRODUCT_KEY
+	toColumn: D_PRODUCT.PRODUCT_KEY
+	toCardinality: many

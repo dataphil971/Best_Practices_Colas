@@ -1,5 +1,7 @@
 # BP-15 — Maximiser le query folding vers la source
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_15.py`](../03_PYTHON/rules/bp_15.py), tests : `03_PYTHON/tests/test_bp_15.py`.
+
 ## 1. Objectif
 
 Vérifier le query folding sans transformer une simple analyse statique du code M en preuve de comportement runtime.

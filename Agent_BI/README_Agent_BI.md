@@ -168,6 +168,21 @@ Exemple :
 
 Les fichiers sont rangés à plat dans `01_ALGORITHMES/`, sans sous-dossiers par périmètre : le périmètre (modèle sémantique ou rapport) n'est pas porté par l'identifiant ni par un dossier, mais par le contenu même de l'algorithme (voir `Convention des règles`).
 
+### Statut d'implémentation
+
+Un algorithme peut exister sans implémentation : c'est une étape normale du cycle de vie d'une bonne pratique, pas une anomalie. Chaque fichier porte donc une **bannière de statut** juste sous son titre :
+
+```text
+✅ Implémenté      la règle est codée, testée, et exécutée par le moteur
+⏳ Non implémenté  spécification seule — aucun code, donc aucun contrôle
+```
+
+`01_ALGORITHMES/README.md` en donne l'index complet. La source de vérité reste le catalogue `03_PYTHON/rules/registry.py`.
+
+Une règle ⏳ n'est pas « désactivée » au sens métier : elle n'existe simplement pas encore côté moteur, et **n'apparaît jamais dans un résultat d'analyse** — surtout pas avec un statut `NA`, qui laisserait croire qu'un contrôle a été tenté.
+
+Un test (`03_PYTHON/tests/test_registry.py`) échoue si un algorithme est ajouté sans être déclaré au catalogue, ou si une bannière contredit l'état réel du moteur.
+
 Un algorithme ne doit pas dépendre du langage utilisé pour son implémentation.
 
 Il décrit **ce que le programme doit faire**, et non uniquement comment Python doit le faire.
@@ -178,7 +193,7 @@ Il décrit **ce que le programme doit faire**, et non uniquement comment Python 
 
 Ce dossier documente la couche agentique d'Agent BI dans l'architecture fonctionnelle du projet.
 
-Les fichiers exécutables `SKILL.md` ne sont pas stockés ici : ils vivent à la racine du dépôt, dans `.github/skills/` (emplacement reconnu par GitHub Copilot — cloud agent, Copilot Code Review, CLI). `02_SKILLS/` ne contient qu'un pointeur vers cet emplacement, afin d'éviter deux sources de vérité pour un même skill.
+Les fichiers exécutables `SKILL.md` ne sont pas stockés ici : ils vivent à la racine du dépôt, dans `.claude/skills/` (emplacement lu à la fois par Claude Code et par GitHub Copilot). `02_SKILLS/` ne contient qu'un pointeur vers cet emplacement, afin d'éviter deux sources de vérité pour un même skill.
 
 Les skills n'ont pas vocation à remplacer les contrôles déterministes réalisés en Python.
 
@@ -290,8 +305,10 @@ Architecture cible :
 ### État actuel
 
 ```text
-Implémenté   : engine/ (contexte, orchestrateur), powerbi/ (parseur TMDL des tables), BP-22, tests + fixtures
-À construire : les autres BP-NN, powerbi/ (PBIR/Report), fixes/, run-agent.ps1
+Implémenté   : engine/ (contexte, orchestrateur, API, enveloppe), powerbi/ (TMDL, Power Query,
+               DAX, rapport PBIR et LEGACY), 16 règles sur 37, catalogue rules/registry.py,
+               tests + fixtures
+À construire : les 21 BP-NN restantes (cf. 01_ALGORITHMES/README.md), fixes/, run-agent.ps1
 ```
 
 `BP-22` sert de référence pour implémenter les prochaines règles : même structure (`engine`/`powerbi`/`rules`/`tests`), même correspondance stricte avec son algorithme (`01_ALGORITHMES/22_DisableSummarization.md`), mêmes trois statuts `OK`/`KO`/`NA`.
@@ -302,14 +319,21 @@ Implémenté   : engine/ (contexte, orchestrateur), powerbi/ (parseur TMDL des t
 
 ```json
 {
-  "schema_version": "1.0",
-  "engine_version": "0.1.0",
+  "schema_version": "1.1",
+  "engine_version": "1.0.0",
+  "generated_at": "2026-08-27T09:12:44.512000+00:00",
   "project": {
     "name": "AI_BAROMETER_BI-CDS",
     "format": "PBIP",
     "project_path": "C:\\...\\TEST",
     "semantic_model_path": "C:\\...\\AI_BAROMETER_BI-CDS.SemanticModel",
     "fingerprint": "sha256:..."
+  },
+  "summary": {
+    "overall_status": "KO",
+    "rules_evaluated": 16,
+    "rules_by_status": { "OK": 7, "KO": 5, "NA": 4 },
+    "findings_by_status": { "OK": 569, "KO": 30, "NA": 219 }
   },
   "results": [
     {
@@ -338,11 +362,13 @@ Implémenté   : engine/ (contexte, orchestrateur), powerbi/ (parseur TMDL des t
 
 Points de contrat :
 
-- `schema_version` change uniquement en cas d'évolution incompatible de cette forme — un consommateur externe doit s'y fier plutôt qu'à la présence/absence d'un champ.
+- `schema_version` suit `MAJEUR.MINEUR` : le MINEUR n'ajoute que des champs (un consommateur écrit pour `1.0` continue de lire une enveloppe `1.1`), le MAJEUR seul signale une évolution incompatible. Un consommateur externe doit s'y fier plutôt qu'à la présence/absence d'un champ.
+- `generated_at` est l'horodatage ISO 8601 (UTC) de l'analyse. C'est le **seul** champ qui varie entre deux analyses du même projet par le même moteur : tout le reste est reproductible à l'octet près.
+- `summary.overall_status` consolide les statuts de règle selon la même hiérarchie que les constats : un seul `KO` suffit à faire `KO` ; sinon un seul `NA` suffit à faire `NA` ; `OK` n'est prononcé que si **toutes** les règles concluent `OK`. Une analyse sans aucune règle vaut `NA`, jamais `OK` — n'avoir rien contrôlé ne démontre aucune conformité.
 - `project.semantic_model_path` vaut `null` si aucun dossier `*.SemanticModel` n'a été trouvé sous `project_path` — à distinguer d'un modèle trouvé mais sans table lisible (`semantic_model_path` renseigné, `tables` vide côté moteur).
 - `project.fingerprint` est une empreinte légère (chemin + taille + date de modification de chaque fichier de table lu, pas le contenu) : suffisante pour détecter qu'un projet a changé depuis la dernière analyse, pas une empreinte cryptographique de contenu.
 - `results[].findings` porte la preuve complète (Rule ID / Object / Expected / Actual / Evidence / Status) pour **chaque** objet analysé, y compris les `OK` — un consommateur externe ne doit jamais avoir à redériver une preuve à partir de `ko_details`/`na_details`, qui restent spécifiques à chaque règle.
-- Le code de sortie du process est `0` dès que le moteur a produit un résultat structuré, **y compris quand `rule_status = KO`** : un `KO` est un résultat métier valide, pas une erreur d'exécution. Seule une exception Python non gérée produit un code non nul.
+- Le code de sortie du process est `0` dès que le moteur a produit un résultat structuré, **y compris quand `rule_status = KO`** : un `KO` est un résultat métier valide, pas une erreur d'exécution. Le code `2` signale une analyse qui n'a **pas pu être menée** (chemin de projet inexistant, règle inconnue) ; le diagnostic part alors sur `stderr`, jamais sur `stdout`, pour que la sortie standard reste du JSON exploitable en toutes circonstances.
 
 ### Principe important
 

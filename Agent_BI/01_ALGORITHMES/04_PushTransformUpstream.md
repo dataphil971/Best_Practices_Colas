@@ -1,5 +1,7 @@
 # BP-04 (alias SEM-003) — Pousser les transformations en amont
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier que les transformations lourdes sont exécutées le plus en amont possible lorsque cela peut être **démontré techniquement**.

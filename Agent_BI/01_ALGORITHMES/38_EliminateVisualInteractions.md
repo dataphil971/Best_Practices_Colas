@@ -1,5 +1,7 @@
 # BP-38 — Éliminer les interactions croisées inutiles
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_38.py`](../03_PYTHON/rules/bp_38.py), tests : `03_PYTHON/tests/test_bp_38.py`.
+
 ## 1. Objectif
 
 Vérifier les interactions entre visuels sans supposer qu'une interaction est inutile simplement parce qu'elle existe ou parce qu'elle n'a pas été sérialisée dans `visualInteractions`.

@@ -1,5 +1,7 @@
 # BP-18 — Éviter les slicers à cardinalité excessive
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier qu'un champ utilisé dans un slicer de type liste / dropdown ne dépasse pas une limite de cardinalité **explicitement définie par la politique d'audit**.

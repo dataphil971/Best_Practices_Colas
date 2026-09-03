@@ -25,12 +25,12 @@ def _line_of(path: Path, line_number: int) -> str:
 def test_column_property_lines_point_at_the_real_property(tmp_path):
     tmdl = tmp_path / "D_X.tmdl"
     tmdl.write_text(
-        "table D_X\n"           # 1
-        "\tlineageTag: x\n"     # 2
-        "\n"                    # 3
-        "\tcolumn MONTANT\n"    # 4
-        "\t\tdataType: double\n"      # 5
-        "\t\tsummarizeBy: sum\n",     # 6
+        "table D_X\n"  # 1
+        "\tlineageTag: x\n"  # 2
+        "\n"  # 3
+        "\tcolumn MONTANT\n"  # 4
+        "\t\tdataType: double\n"  # 5
+        "\t\tsummarizeBy: sum\n",  # 6
         encoding="utf-8",
     )
 
@@ -69,18 +69,18 @@ def test_a_finding_carries_a_readable_excerpt_of_the_faulty_code():
 def test_m_step_offsets_resolve_to_the_right_absolute_line(tmp_path):
     tmdl = tmp_path / "F_A.tmdl"
     tmdl.write_text(
-        "table F_A\n"                                   # 1
-        "\tlineageTag: a\n"                             # 2
-        "\n"                                            # 3
-        "\tpartition F_A = m\n"                         # 4
-        "\t\tmode: import\n"                            # 5
-        "\t\tsource =\n"                                # 6
-        "\t\t\t\tlet\n"                                 # 7
-        "\t\t\t\t    Source = Sql.Database(\"s\",\"d\"),\n"   # 8
-        "\t\t\t\t    Buffered = Table.Buffer(Source),\n"      # 9
+        "table F_A\n"  # 1
+        "\tlineageTag: a\n"  # 2
+        "\n"  # 3
+        "\tpartition F_A = m\n"  # 4
+        "\t\tmode: import\n"  # 5
+        "\t\tsource =\n"  # 6
+        "\t\t\t\tlet\n"  # 7
+        '\t\t\t\t    Source = Sql.Database("s","d"),\n'  # 8
+        "\t\t\t\t    Buffered = Table.Buffer(Source),\n"  # 9
         "\t\t\t\t    Final = Table.SelectRows(Buffered, each [X] > 0)\n"  # 10
-        "\t\t\t\tin\n"                                  # 11
-        "\t\t\t\t    Final\n",                          # 12
+        "\t\t\t\tin\n"  # 11
+        "\t\t\t\t    Final\n",  # 12
         encoding="utf-8",
     )
 

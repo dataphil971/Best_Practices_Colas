@@ -639,7 +639,7 @@ Les skills n'ont pas vocation à remplacer les règles déterministes.
 
 Ils servent aux tâches où un modèle apporte réellement de la valeur.
 
-Les skills actuellement structurés dans `.github/skills/` couvrent notamment :
+Les skills actuellement structurés dans `.claude/skills/` couvrent notamment :
 
 - Rule Engineering ;
 - Rule Review ;
@@ -647,7 +647,9 @@ Les skills actuellement structurés dans `.github/skills/` couvrent notamment :
 - analyse contextuelle ;
 - préparation des corrections ;
 - génération de tests ;
-- création et évolution de skills.
+- création et évolution de skills ;
+- sourcing de preuve sur les formats Power BI ;
+- revue adverse d'un verdict avant qu'il ne tienne.
 
 Le principe reste :
 

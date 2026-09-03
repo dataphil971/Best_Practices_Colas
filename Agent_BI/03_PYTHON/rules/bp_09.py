@@ -11,6 +11,8 @@ n'est PAS un signal de verdict (§3 de l'algorithme — un diagnostic possible,
 qui ne doit jamais faire basculer le statut).
 """
 
+from typing import Any
+
 from engine.context import AnalysisContext
 from engine.models import Finding, RuleResult
 
@@ -44,7 +46,9 @@ def check(context: AnalysisContext) -> RuleResult:
         )
 
     raw = context.model_annotations.get(ANNOTATION_KEY)
-    evidence = {"source_file": str(model_path)}
+    # Hétérogène dès la ligne 77 (booléen, valeur brute) : annoté pour que
+    # l'inférence ne le fige pas en dict[str, str].
+    evidence: dict[str, Any] = {"source_file": str(model_path)}
 
     if raw is None:
         return RuleResult(
@@ -52,15 +56,21 @@ def check(context: AnalysisContext) -> RuleResult:
             rule_name=RULE_NAME,
             execution_status="SUCCESS",
             rule_status="NA",
-            findings=[Finding(
-                rule_id=RULE_ID, object_type="model", object="model",
-                expected=f"{ANNOTATION_KEY} = 0", actual=None, status="NA",
-                reason=(
-                    f"Annotation {ANNOTATION_KEY} absente : état du réglage "
-                    "non démontrable à partir de cette preuve"
-                ),
-                evidence={**evidence, "annotation_found": False},
-            )],
+            findings=[
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="model",
+                    object="model",
+                    expected=f"{ANNOTATION_KEY} = 0",
+                    actual=None,
+                    status="NA",
+                    reason=(
+                        f"Annotation {ANNOTATION_KEY} absente : état du réglage "
+                        "non démontrable à partir de cette preuve"
+                    ),
+                    evidence={**evidence, "annotation_found": False},
+                )
+            ],
             summary={
                 "annotation_found": False,
                 "reason": f"Annotation {ANNOTATION_KEY} absente",
@@ -76,11 +86,17 @@ def check(context: AnalysisContext) -> RuleResult:
             rule_name=RULE_NAME,
             execution_status="SUCCESS",
             rule_status="OK",
-            findings=[Finding(
-                rule_id=RULE_ID, object_type="model", object="model",
-                expected=f"{ANNOTATION_KEY} = 0", actual=raw, status="OK",
-                evidence=evidence,
-            )],
+            findings=[
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="model",
+                    object="model",
+                    expected=f"{ANNOTATION_KEY} = 0",
+                    actual=raw,
+                    status="OK",
+                    evidence=evidence,
+                )
+            ],
             summary={"annotation_found": True, "raw_value": raw},
         )
 
@@ -90,12 +106,18 @@ def check(context: AnalysisContext) -> RuleResult:
             rule_name=RULE_NAME,
             execution_status="SUCCESS",
             rule_status="KO",
-            findings=[Finding(
-                rule_id=RULE_ID, object_type="model", object="model",
-                expected=f"{ANNOTATION_KEY} = 0", actual=raw, status="KO",
-                reason="Auto Date/Time explicitement activé",
-                evidence=evidence,
-            )],
+            findings=[
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="model",
+                    object="model",
+                    expected=f"{ANNOTATION_KEY} = 0",
+                    actual=raw,
+                    status="KO",
+                    reason="Auto Date/Time explicitement activé",
+                    evidence=evidence,
+                )
+            ],
             summary={"annotation_found": True, "raw_value": raw},
         )
 
@@ -104,11 +126,17 @@ def check(context: AnalysisContext) -> RuleResult:
         rule_name=RULE_NAME,
         execution_status="SUCCESS",
         rule_status="NA",
-        findings=[Finding(
-            rule_id=RULE_ID, object_type="model", object="model",
-            expected=f"{ANNOTATION_KEY} = 0", actual=raw, status="NA",
-            reason="Valeur de l'annotation non reconnue",
-            evidence=evidence,
-        )],
+        findings=[
+            Finding(
+                rule_id=RULE_ID,
+                object_type="model",
+                object="model",
+                expected=f"{ANNOTATION_KEY} = 0",
+                actual=raw,
+                status="NA",
+                reason="Valeur de l'annotation non reconnue",
+                evidence=evidence,
+            )
+        ],
         summary={"annotation_found": True, "raw_value": raw, "reason": "Valeur non reconnue"},
     )

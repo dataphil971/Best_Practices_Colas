@@ -1,5 +1,7 @@
 # BP-42 — Utiliser un mécanisme d'application différée des slicers lorsque nécessaire
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier qu'une page utilise un mécanisme de réduction des requêtes liées aux slicers **lorsque ce mécanisme est explicitement requis** par la politique du projet ou par une preuve de performance.

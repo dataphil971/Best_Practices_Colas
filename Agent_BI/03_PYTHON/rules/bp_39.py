@@ -39,7 +39,7 @@ RULE_NAME = "Configurer et tester les filtres du rapport"
 
 def _build_model_object_index(context: AnalysisContext) -> "set[tuple[str, str, str]]":
     """(kind, table, propriété) pour chaque colonne et mesure du modèle."""
-    index: "set[tuple[str, str, str]]" = set()
+    index: set[tuple[str, str, str]] = set()
     for table in context.tables:
         for column in table.columns:
             index.add(("Column", table.name, column.name))
@@ -74,8 +74,12 @@ def _evaluate_filter(filter_def, model_index) -> Finding:
         # §4 : une construction PBIR non supportée par le parser ne doit
         # jamais être considérée comme un filtre cassé.
         return Finding(
-            rule_id=RULE_ID, object_type="filter", object=object_name,
-            expected="champ filtré résolu et existant", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type="filter",
+            object=object_name,
+            expected="champ filtré résolu et existant",
+            actual=None,
+            status="NA",
             reason="Champ filtré non résolvable (construction PBIR non supportée)",
             evidence=evidence,
         )
@@ -91,16 +95,15 @@ def _evaluate_filter(filter_def, model_index) -> Finding:
     if missing:
         cible = ", ".join(f"{m['entity']}[{m['property']}]" for m in missing)
         return Finding(
-            rule_id=RULE_ID, object_type="filter", object=object_name,
+            rule_id=RULE_ID,
+            object_type="filter",
+            object=object_name,
             expected="champ filtré existant dans le modèle",
             actual=cible,
             status="KO",
             reason="Filtre référençant un objet absent du modèle sémantique",
-            evidence={**evidence, "missing_references": missing,
-                      "model_coverage_complete": True},
-            location=SourceLocation.from_file(
-                filter_def.source_file, filter_def.line, context_lines=2
-            ),
+            evidence={**evidence, "missing_references": missing, "model_coverage_complete": True},
+            location=SourceLocation.from_file(filter_def.source_file, filter_def.line, context_lines=2),
             explanation=(
                 f"Ce filtre pointe vers {cible}, qui n'existe pas dans le modèle. "
                 "Le champ a probablement été renommé ou déplacé dans une autre table "
@@ -111,24 +114,34 @@ def _evaluate_filter(filter_def, model_index) -> Finding:
             remediation=(
                 "Rouvrir la page dans Power BI Desktop et repointer le filtre vers la "
                 "table qui porte réellement ce champ, ou le supprimer s'il est obsolète"
-                + (f" (déclaré ligne {filter_def.line} de {filter_def.source_file})."
-                   if filter_def.line else ".")
+                + (
+                    f" (déclaré ligne {filter_def.line} de {filter_def.source_file})."
+                    if filter_def.line
+                    else "."
+                )
             ),
         )
 
     if unresolved:
         return Finding(
-            rule_id=RULE_ID, object_type="filter", object=object_name,
-            expected="champ filtré résolu et existant", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type="filter",
+            object=object_name,
+            expected="champ filtré résolu et existant",
+            actual=None,
+            status="NA",
             reason="Référence de champ incomplète",
             evidence={**evidence, "unresolved_references": unresolved},
         )
 
     return Finding(
-        rule_id=RULE_ID, object_type="filter", object=object_name,
+        rule_id=RULE_ID,
+        object_type="filter",
+        object=object_name,
         expected="champ filtré existant dans le modèle",
         actual=", ".join(f"{e}[{p}]" for _k, e, p in references),
-        status="OK", evidence=evidence,
+        status="OK",
+        evidence=evidence,
     )
 
 
@@ -137,24 +150,32 @@ def check(context: AnalysisContext) -> RuleResult:
         # Sans modèle lu, l'absence d'un objet ne prouve rien (§3, couverture
         # incomplète -> NA).
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="ERROR", rule_status="NA",
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="ERROR",
+            rule_status="NA",
             summary={"reason": "Aucun fichier de table TMDL trouvé : couverture modèle incomplète"},
         )
 
     if context.report_path is None:
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="SUCCESS", rule_status="NA",
-            summary={"reason": "Aucun dossier <Nom>.Report/ trouvé : aucun filtre à analyser",
-                     "total_filters": 0},
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="SUCCESS",
+            rule_status="NA",
+            summary={
+                "reason": "Aucun dossier <Nom>.Report/ trouvé : aucun filtre à analyser",
+                "total_filters": 0,
+            },
         )
 
     if not context.report_filters:
         # §13 : aucun filtre explicite -> la règle n'a rien à tester.
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="SUCCESS", rule_status="NA",
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="SUCCESS",
+            rule_status="NA",
             summary={"reason": "Aucun filtre déclaré dans le rapport", "total_filters": 0},
         )
 
@@ -172,7 +193,8 @@ def check(context: AnalysisContext) -> RuleResult:
         rule_status = "OK"
 
     return RuleResult(
-        rule_id=RULE_ID, rule_name=RULE_NAME,
+        rule_id=RULE_ID,
+        rule_name=RULE_NAME,
         execution_status="SUCCESS" if not na else "PARTIAL",
         rule_status=rule_status,
         findings=findings,

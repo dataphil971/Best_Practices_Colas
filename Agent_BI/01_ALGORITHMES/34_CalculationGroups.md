@@ -1,5 +1,7 @@
 # BP-34 — Identifier les opportunités de Calculation Groups
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Détecter des **familles candidates** de mesures pouvant potentiellement être factorisées avec un Calculation Group, sans affirmer automatiquement qu'un groupe de calcul est la bonne architecture.

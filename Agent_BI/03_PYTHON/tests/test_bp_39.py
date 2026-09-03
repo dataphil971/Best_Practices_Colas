@@ -15,7 +15,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_39
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_39"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_39"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -46,9 +46,7 @@ def test_ko_when_a_filter_references_a_column_absent_from_the_model():
 def test_na_when_the_project_has_no_report_folder():
     # Contexte construit depuis le seul `.SemanticModel` : aucun rapport
     # atteignable — NA (« rien à analyser »), jamais OK.
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "ok" / "Modele.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "ok" / "Modele.SemanticModel")
     result = bp_39.check(context)
 
     assert result.rule_status == "NA"

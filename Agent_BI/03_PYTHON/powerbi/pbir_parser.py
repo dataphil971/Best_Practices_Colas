@@ -23,24 +23,30 @@ Une référence de champ y prend la forme :
 
 import json
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 from engine.models import ReportFilterDef
 
 # §4 de BP-41 : visuels décoratifs ou de navigation, sans contenu analytique.
 # Ils sont hors périmètre de la recherche de doublons — jamais classés KO.
 NON_ANALYTICAL_VISUAL_TYPES = {
-    "textbox", "image", "shape", "basicShape", "actionButton",
-    "visualGroup", "pageNavigator", "bookmarkNavigator",
+    "textbox",
+    "image",
+    "shape",
+    "basicShape",
+    "actionButton",
+    "visualGroup",
+    "pageNavigator",
+    "bookmarkNavigator",
 }
 
 
-def _iter_field_references(node: Any) -> "list[tuple[str, Optional[str], Optional[str]]]":
+def _iter_field_references(node: Any) -> "list[tuple[str, str | None, str | None]]":
     """Collecte récursivement les couples (kind, entity, property) d'un
     fragment JSON de champ. Récursif car un champ peut être imbriqué dans une
     agrégation, une hiérarchie ou une transformation dont la forme exacte
     varie selon la version PBIR — on ne suppose pas une profondeur fixe."""
-    found: "list[tuple[str, Optional[str], Optional[str]]]" = []
+    found: list[tuple[str, str | None, str | None]] = []
 
     if isinstance(node, dict):
         for kind in ("Column", "Measure"):
@@ -60,7 +66,7 @@ def _iter_field_references(node: Any) -> "list[tuple[str, Optional[str], Optiona
     return found
 
 
-def _find_line_of_name(raw_text: str, name: str) -> Optional[int]:
+def _find_line_of_name(raw_text: str, name: str) -> int | None:
     """Numéro de ligne (1-indexé) de la déclaration `"name": "<name>"`.
 
     Le module `json` ne conserve aucune position : sans cette recherche
@@ -78,8 +84,9 @@ def _find_line_of_name(raw_text: str, name: str) -> Optional[int]:
     return None
 
 
-def _parse_one_file(path: Path, level: str, page_id: Optional[str],
-                    visual_id: Optional[str]) -> List[ReportFilterDef]:
+def _parse_one_file(
+    path: Path, level: str, page_id: str | None, visual_id: str | None
+) -> list[ReportFilterDef]:
     try:
         raw_text = path.read_text(encoding="utf-8-sig")
         document = json.loads(raw_text)
@@ -93,26 +100,28 @@ def _parse_one_file(path: Path, level: str, page_id: Optional[str],
     if not isinstance(filter_config, dict):
         return []
 
-    filters: List[ReportFilterDef] = []
+    filters: list[ReportFilterDef] = []
     for raw_filter in filter_config.get("filters", []):
         if not isinstance(raw_filter, dict):
             continue
         references = _iter_field_references(raw_filter.get("field", {}))
         name = str(raw_filter.get("name", ""))
-        filters.append(ReportFilterDef(
-            name=name,
-            level=level,
-            page_id=page_id,
-            visual_id=visual_id,
-            filter_type=raw_filter.get("type"),
-            field_references=references,
-            source_file=str(path),
-            line=_find_line_of_name(raw_text, name),
-        ))
+        filters.append(
+            ReportFilterDef(
+                name=name,
+                level=level,
+                page_id=page_id,
+                visual_id=visual_id,
+                filter_type=raw_filter.get("type"),
+                field_references=references,
+                source_file=str(path),
+                line=_find_line_of_name(raw_text, name),
+            )
+        )
     return filters
 
 
-def _iter_definition_files(report_path: Optional[Path]) -> List[Path]:
+def _iter_definition_files(report_path: Path | None) -> list[Path]:
     """Tous les fichiers JSON de définition du rapport, quel que soit leur
     niveau. Volontairement basé sur un parcours récursif plutôt que sur une
     liste de chemins figés : le §8 de BP-07 impose de « ne pas dépendre d'un
@@ -126,7 +135,7 @@ def _iter_definition_files(report_path: Optional[Path]) -> List[Path]:
 
 
 def parse_report_field_references(
-    report_path: Optional[Path],
+    report_path: Path | None,
 ) -> "set[tuple[str, str, str]]":
     """Toutes les références de champ (kind, entity, property) trouvées dans
     le rapport, tous fichiers et toutes surfaces confondus : projections de
@@ -136,7 +145,7 @@ def parse_report_field_references(
     savoir si un champ est référencé QUELQUE PART dans le rapport. Distinguer
     les surfaces (axe / légende / filtre...) serait du parsing "au cas où".
     """
-    references: "set[tuple[str, str, str]]" = set()
+    references: set[tuple[str, str, str]] = set()
     for path in _iter_definition_files(report_path):
         try:
             document = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -148,23 +157,21 @@ def parse_report_field_references(
     return references
 
 
-def _iter_aggregation_nodes(node: Any) -> "list[tuple[Optional[str], Optional[str], Any]]":
+def _iter_aggregation_nodes(node: Any) -> "list[tuple[str | None, str | None, Any]]":
     """Collecte les nœuds `Aggregation` appliqués à une `Column`.
 
     Retourne (entity, property, fonction brute). `entity`/`property` à None
     signalent une agrégation dont la cible n'est PAS une colonne résolue —
     à traiter en NA (`UNKNOWN_AGGREGATION`, §6 de BP-32), jamais en KO.
     """
-    found: "list[tuple[Optional[str], Optional[str], Any]]" = []
+    found: list[tuple[str | None, str | None, Any]] = []
 
     if isinstance(node, dict):
         aggregation = node.get("Aggregation")
         if isinstance(aggregation, dict):
             columns = [
                 (entity, prop)
-                for kind, entity, prop in _iter_field_references(
-                    aggregation.get("Expression", {})
-                )
+                for kind, entity, prop in _iter_field_references(aggregation.get("Expression", {}))
                 if kind == "Column"
             ]
             function = aggregation.get("Function")
@@ -187,7 +194,7 @@ def _iter_aggregation_nodes(node: Any) -> "list[tuple[Optional[str], Optional[st
 
 
 def parse_report_implicit_aggregations(
-    report_path: Optional[Path],
+    report_path: Path | None,
 ) -> "list[dict]":
     """Recense les agrégations implicites sérialisées dans les visuels.
 
@@ -196,7 +203,7 @@ def parse_report_implicit_aggregations(
     `Aggregation` n'en est pas une (§5) : elle peut être un axe, un slicer,
     une ligne de tableau — elle n'est donc jamais remontée ici.
     """
-    aggregations: "list[dict]" = []
+    aggregations: list[dict] = []
     for path in _iter_definition_files(report_path):
         if path.name != "visual.json":
             continue
@@ -206,19 +213,21 @@ def parse_report_implicit_aggregations(
             continue
         visual = document.get("visual") or {}
         for entity, prop, function in _iter_aggregation_nodes(document):
-            aggregations.append({
-                "visual_id": document.get("name"),
-                "visual_type": visual.get("visualType"),
-                "page_id": path.parent.parent.parent.name,
-                "table": entity,
-                "column": prop,
-                "aggregation_function_raw": function,
-                "source_file": str(path),
-            })
+            aggregations.append(
+                {
+                    "visual_id": document.get("name"),
+                    "visual_type": visual.get("visualType"),
+                    "page_id": path.parent.parent.parent.name,
+                    "table": entity,
+                    "column": prop,
+                    "aggregation_function_raw": function,
+                    "source_file": str(path),
+                }
+            )
     return aggregations
 
 
-def parse_report_visuals(report_path: Optional[Path]) -> "list[dict]":
+def parse_report_visuals(report_path: Path | None) -> "list[dict]":
     """Inventaire des visuels avec leur SIGNATURE ANALYTIQUE canonique.
 
     La signature suit le §5/§6 de BP-41 : type de visuel + références de
@@ -232,7 +241,7 @@ def parse_report_visuals(report_path: Optional[Path]) -> "list[dict]":
     aucun champ projeté : il ne participe alors pas à la recherche de
     doublons plutôt que de créer un faux groupe de visuels « vides ».
     """
-    visuals: "list[dict]" = []
+    visuals: list[dict] = []
     for path in _iter_definition_files(report_path):
         if path.name != "visual.json":
             continue
@@ -245,32 +254,36 @@ def parse_report_visuals(report_path: Optional[Path]) -> "list[dict]":
         visual_type = visual.get("visualType")
         is_group = "visualGroup" in document
 
-        references = sorted({
-            f"{kind}:{entity}[{prop}]"
-            for kind, entity, prop in _iter_field_references(visual.get("query", {}))
-            if entity and prop
-        })
+        references = sorted(
+            {
+                f"{kind}:{entity}[{prop}]"
+                for kind, entity, prop in _iter_field_references(visual.get("query", {}))
+                if entity and prop
+            }
+        )
 
         signature = None
         if not is_group and visual_type not in NON_ANALYTICAL_VISUAL_TYPES and references:
             signature = (visual_type, tuple(references))
 
-        visuals.append({
-            "visual_id": document.get("name") or path.parent.name,
-            "page_id": path.parent.parent.parent.name,
-            "visual_type": visual_type,
-            "is_group": is_group,
-            "is_hidden": bool(document.get("isHidden")),
-            "parent_group": document.get("parentGroupName"),
-            "position": document.get("position"),
-            "field_references": references,
-            "signature": signature,
-            "source_file": str(path),
-        })
+        visuals.append(
+            {
+                "visual_id": document.get("name") or path.parent.name,
+                "page_id": path.parent.parent.parent.name,
+                "visual_type": visual_type,
+                "is_group": is_group,
+                "is_hidden": bool(document.get("isHidden")),
+                "parent_group": document.get("parentGroupName"),
+                "position": document.get("position"),
+                "field_references": references,
+                "signature": signature,
+                "source_file": str(path),
+            }
+        )
     return visuals
 
 
-def parse_report_structure(report_path: Optional[Path]) -> "dict":
+def parse_report_structure(report_path: Path | None) -> "dict":
     """Structure du rapport nécessaire aux contrôles d'intégrité (BP-37/BP-38).
 
     Retourne un dict :
@@ -287,9 +300,17 @@ def parse_report_structure(report_path: Optional[Path]) -> "dict":
     Aucune interprétation ici : les règles décident seules de ce qui
     constitue une incohérence.
     """
-    structure = {
-        "visuals": {}, "groups": {}, "parent_links": [], "interactions": [],
-        "bookmark_files": set(), "bookmark_items": [],
+    # Annotation explicite : le dictionnaire est volontairement hétérogène
+    # (dictionnaires, listes, ensembles, booléen). Sans elle, l'inférence le
+    # réduit à `dict[str, object]` et toute opération sur une valeur devient
+    # une erreur de typage.
+    structure: dict[str, Any] = {
+        "visuals": {},
+        "groups": {},
+        "parent_links": [],
+        "interactions": [],
+        "bookmark_files": set(),
+        "bookmark_items": [],
         "bookmarks_metadata_present": False,
     }
     if report_path is None or not (report_path / "definition").is_dir():
@@ -312,10 +333,14 @@ def parse_report_structure(report_path: Optional[Path]) -> "dict":
                     page = {}
                 for entry in page.get("visualInteractions", []) or []:
                     if isinstance(entry, dict):
-                        structure["interactions"].append((
-                            page_id, entry.get("source"), entry.get("target"),
-                            entry.get("type"),
-                        ))
+                        structure["interactions"].append(
+                            (
+                                page_id,
+                                entry.get("source"),
+                                entry.get("target"),
+                                entry.get("type"),
+                            )
+                        )
 
             visuals_dir = page_dir / "visuals"
             if visuals_dir.is_dir():
@@ -359,7 +384,7 @@ def parse_report_structure(report_path: Optional[Path]) -> "dict":
     return structure
 
 
-def parse_report_filters(report_path: Optional[Path]) -> List[ReportFilterDef]:
+def parse_report_filters(report_path: Path | None) -> list[ReportFilterDef]:
     """Collecte tous les filtres déclarés du rapport, tous niveaux confondus.
 
     Retourne `[]` si le dossier rapport est absent — un projet PBIP peut être
@@ -372,7 +397,7 @@ def parse_report_filters(report_path: Optional[Path]) -> List[ReportFilterDef]:
     if not definition.is_dir():
         return []
 
-    filters: List[ReportFilterDef] = []
+    filters: list[ReportFilterDef] = []
 
     report_json = definition / "report.json"
     if report_json.exists():
@@ -391,8 +416,6 @@ def parse_report_filters(report_path: Optional[Path]) -> List[ReportFilterDef]:
                 for visual_dir in sorted(v for v in visuals_dir.iterdir() if v.is_dir()):
                     visual_json = visual_dir / "visual.json"
                     if visual_json.exists():
-                        filters.extend(
-                            _parse_one_file(visual_json, "visual", page_id, visual_dir.name)
-                        )
+                        filters.extend(_parse_one_file(visual_json, "visual", page_id, visual_dir.name))
 
     return filters

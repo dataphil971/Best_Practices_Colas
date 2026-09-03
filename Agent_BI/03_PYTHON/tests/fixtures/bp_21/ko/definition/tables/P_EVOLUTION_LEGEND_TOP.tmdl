@@ -3,5 +3,7 @@ table P_EVOLUTION_LEGEND_TOP
 
 	column 'P_LEGEND Order'
 		dataType: int64
+		isHidden
 		summarizeBy: none
 		sourceColumn: "P_LEGEND Order"
+		displayFolder: technique interne 

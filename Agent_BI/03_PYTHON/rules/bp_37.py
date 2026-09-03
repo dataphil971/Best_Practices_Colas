@@ -35,12 +35,12 @@ def _detect_bookmark_cycles(items) -> "list[list[str]]":
     présent dans la pile courante ferme un cycle.
     """
     children_of = {name: list(children) for name, children in items if name}
-    cycles: "list[list[str]]" = []
-    seen_globally: "set[str]" = set()
+    cycles: list[list[str]] = []
+    seen_globally: set[str] = set()
 
     def visit(node, stack):
         if node in stack:
-            cycles.append(stack[stack.index(node):] + [node])
+            cycles.append(stack[stack.index(node) :] + [node])
             return
         if node in seen_globally or node not in children_of:
             return
@@ -56,8 +56,10 @@ def _detect_bookmark_cycles(items) -> "list[list[str]]":
 def check(context: AnalysisContext) -> RuleResult:
     if context.report_path is None:
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="PARTIAL", rule_status="NA",
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="PARTIAL",
+            rule_status="NA",
             summary={"reason": "Aucun dossier <Nom>.Report/ trouvé : structure non analysable"},
         )
 
@@ -71,19 +73,30 @@ def check(context: AnalysisContext) -> RuleResult:
         evidence = {"page": page_id, "visual": visual_name, "parentGroupName": parent}
 
         if parent in groups:
-            findings.append(Finding(
-                rule_id=RULE_ID, object_type="visual", object=object_name,
-                expected="parentGroupName vers un groupe existant de la page",
-                actual=parent, status="OK", evidence=evidence,
-            ))
+            findings.append(
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="visual",
+                    object=object_name,
+                    expected="parentGroupName vers un groupe existant de la page",
+                    actual=parent,
+                    status="OK",
+                    evidence=evidence,
+                )
+            )
         else:
-            findings.append(Finding(
-                rule_id=RULE_ID, object_type="visual", object=object_name,
-                expected="parentGroupName vers un groupe existant de la page",
-                actual=parent, status="KO",
-                reason="parentGroupName référence un groupe inexistant",
-                evidence=evidence,
-            ))
+            findings.append(
+                Finding(
+                    rule_id=RULE_ID,
+                    object_type="visual",
+                    object=object_name,
+                    expected="parentGroupName vers un groupe existant de la page",
+                    actual=parent,
+                    status="KO",
+                    reason="parentGroupName référence un groupe inexistant",
+                    evidence=evidence,
+                )
+            )
 
     # --- Hiérarchie de signets (§6, §7, §8) -----------------------------
     bookmark_files = structure.get("bookmark_files", set())
@@ -93,37 +106,60 @@ def check(context: AnalysisContext) -> RuleResult:
     if bookmark_files and not metadata_present:
         # §7 : métadonnée absente alors que des signets existent -> NA. Ne
         # jamais supposer la hiérarchie.
-        findings.append(Finding(
-            rule_id=RULE_ID, object_type="bookmarks", object="bookmarks.json",
-            expected="hiérarchie de signets lisible", actual=None, status="NA",
-            reason="bookmarks.json absent alors que des fichiers de signets existent",
-            evidence={"bookmark_file_count": len(bookmark_files)},
-        ))
+        findings.append(
+            Finding(
+                rule_id=RULE_ID,
+                object_type="bookmarks",
+                object="bookmarks.json",
+                expected="hiérarchie de signets lisible",
+                actual=None,
+                status="NA",
+                reason="bookmarks.json absent alors que des fichiers de signets existent",
+                evidence={"bookmark_file_count": len(bookmark_files)},
+            )
+        )
     elif metadata_present:
         known = set(bookmark_files) | {name for name, _c in bookmark_items if name}
-        for name, children in bookmark_items:
-            for child in children:
-                if child not in known:
-                    findings.append(Finding(
-                        rule_id=RULE_ID, object_type="bookmark", object=str(name),
-                        expected="enfant de signet existant", actual=child, status="KO",
-                        reason="bookmarks.json référence un signet inexistant",
-                        evidence={"parent": name, "missing_child": child},
-                    ))
-        for cycle in _detect_bookmark_cycles(bookmark_items):
-            findings.append(Finding(
-                rule_id=RULE_ID, object_type="bookmark", object=" -> ".join(cycle),
-                expected="hiérarchie acyclique", actual="cycle", status="KO",
+        findings.extend(
+            Finding(
+                rule_id=RULE_ID,
+                object_type="bookmark",
+                object=str(name),
+                expected="enfant de signet existant",
+                actual=child,
+                status="KO",
+                reason="bookmarks.json référence un signet inexistant",
+                evidence={"parent": name, "missing_child": child},
+            )
+            for name, children in bookmark_items
+            for child in children
+            if child not in known
+        )
+        findings.extend(
+            Finding(
+                rule_id=RULE_ID,
+                object_type="bookmark",
+                object=" -> ".join(cycle),
+                expected="hiérarchie acyclique",
+                actual="cycle",
+                status="KO",
                 reason="Cycle démontré dans la hiérarchie des signets",
                 evidence={"cycle": cycle},
-            ))
+            )
+            for cycle in _detect_bookmark_cycles(bookmark_items)
+        )
 
     if not findings:
         return RuleResult(
-            rule_id=RULE_ID, rule_name=RULE_NAME,
-            execution_status="SUCCESS", rule_status="NA",
-            summary={"reason": "Aucun groupe de visuels ni signet à contrôler",
-                     "broken_group_references": 0, "broken_bookmark_references": 0},
+            rule_id=RULE_ID,
+            rule_name=RULE_NAME,
+            execution_status="SUCCESS",
+            rule_status="NA",
+            summary={
+                "reason": "Aucun groupe de visuels ni signet à contrôler",
+                "broken_group_references": 0,
+                "broken_bookmark_references": 0,
+            },
         )
 
     ko = [f for f in findings if f.status == "KO"]
@@ -137,8 +173,10 @@ def check(context: AnalysisContext) -> RuleResult:
         rule_status = "OK"
 
     return RuleResult(
-        rule_id=RULE_ID, rule_name=RULE_NAME,
-        execution_status="SUCCESS", rule_status=rule_status,
+        rule_id=RULE_ID,
+        rule_name=RULE_NAME,
+        execution_status="SUCCESS",
+        rule_status=rule_status,
         findings=findings,
         summary={
             "checked_group_references": len(structure.get("parent_links", [])),

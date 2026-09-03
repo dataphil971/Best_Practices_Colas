@@ -2,7 +2,7 @@
 
 Scénarios alignés sur Agent_BI/01_ALGORITHMES/22_DisableSummarization.md :
 si un de ces tests doit changer, l'algorithme doit changer en premier
-(cf. `agent-bi-test-generator` et `agent-bi-rule-review` dans .github/skills/).
+(cf. `agent-bi-test-generator` et `agent-bi-rule-review` dans .claude/skills/).
 """
 
 from pathlib import Path
@@ -11,7 +11,7 @@ from engine.context import AnalysisContext
 from powerbi.tmdl_parser import parse_table_file
 from rules import bp_22
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_22"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_22"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -94,7 +94,7 @@ def test_parser_preserves_leading_and_trailing_whitespace_in_column_names(tmp_pa
         "\tcolumn 'ID '\n"
         "\t\tdataType: int64\n"
         "\t\tsummarizeBy: none\n"
-        "\t\tsourceColumn: \"ID \"\n",
+        '\t\tsourceColumn: "ID "\n',
         encoding="utf-8",
     )
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_15
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_15"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_15"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -81,7 +81,7 @@ def test_ko_status_prevails_even_with_other_out_of_scope_partitions(tmp_path):
         "\t\tmode: import\n"
         "\t\tsource =\n"
         "\t\t\t\tlet\n"
-        "\t\t\t\t\tSource = Csv.Document(File.Contents(\"x.csv\"), [])\n"
+        '\t\t\t\t\tSource = Csv.Document(File.Contents("x.csv"), [])\n'
         "\t\t\t\tin\n"
         "\t\t\t\t\tSource\n",
         encoding="utf-8",
@@ -93,7 +93,7 @@ def test_ko_status_prevails_even_with_other_out_of_scope_partitions(tmp_path):
         "\t\tmode: import\n"
         "\t\tsource =\n"
         "\t\t\t\tlet\n"
-        "\t\t\t\t\tSource = Sql.Database(\"s\", \"d\"),\n"
+        '\t\t\t\t\tSource = Sql.Database("s", "d"),\n'
         "\t\t\t\t\tStopped = Table.StopFolding(Source),\n"
         "\t\t\t\t\tFiltered = Table.SelectRows(Stopped, each [X] > 0)\n"
         "\t\t\t\tin\n"
@@ -153,7 +153,7 @@ def test_comments_before_each_step_do_not_hide_them(tmp_path):
         "\t\tsource =\n"
         "\t\t\t\tlet\n"
         "\t\t\t\t    // Charge la source\n"
-        "\t\t\t\t    Source = Sql.Database(\"s\", \"d\"),\n"
+        '\t\t\t\t    Source = Sql.Database("s", "d"),\n'
         "\t\t\t\t    /* filtre les lignes invalides */\n"
         "\t\t\t\t    Filtered = Table.SelectRows(Source, each [X] <> null),\n"
         "\t\t\t\t    Buffered = Table.Buffer(Filtered),\n"

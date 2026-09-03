@@ -1,0 +1,11 @@
+table F_SALES
+
+	column Amount
+		dataType: double
+		summarizeBy: sum
+		sourceColumn: Amount
+
+	column Region
+		dataType: string
+		summarizeBy: none
+		sourceColumn: Region

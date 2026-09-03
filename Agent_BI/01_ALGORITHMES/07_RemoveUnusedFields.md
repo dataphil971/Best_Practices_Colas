@@ -1,5 +1,7 @@
 # BP-07 — Éliminer les colonnes visibles et inutilisées du modèle
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_07.py`](../03_PYTHON/rules/bp_07.py), tests : `03_PYTHON/tests/test_bp_07.py`.
+
 ## 1. Objectif
 
 Identifier les colonnes **visibles** dont l'absence d'utilisation peut être démontrée dans le périmètre du PBIP analysé.

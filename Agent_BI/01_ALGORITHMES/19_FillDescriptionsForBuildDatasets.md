@@ -1,5 +1,7 @@
 # BP-19 — Documenter les tables et mesures des modèles réutilisables
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier que les tables et mesures d'un modèle sémantique identifié comme **réutilisable** possèdent une description TMDL.

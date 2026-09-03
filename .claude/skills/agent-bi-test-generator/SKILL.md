@@ -46,13 +46,18 @@ conditions limites
 Privilégier des fixtures minimales :
 
 ```text
-Agent_BI/03_PYTHON/tests/
-└── fixtures/
-    └── bp_xx/
-        ├── ok/
-        ├── ko/
-        ├── na/
-        └── edge/
+Agent_BI/03_PYTHON/tests/fixtures/
+└── bp_xx/
+    ├── ok/
+    ├── ko/
+    └── na/
+```
+
+Quand un statut couvre plusieurs cas distincts, nommer le dossier par le cas
+plutôt que d'empiler dans `ok/` (convention de `bp_15`) :
+
+```text
+ko_buffer/    ko_native_no_enable_folding/    na_not_applicable/
 ```
 
 Ne pas copier un rapport de production complet quand une fixture réduite suffit.

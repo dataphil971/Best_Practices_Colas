@@ -1,0 +1,13 @@
+table D_DATE
+
+	column DATE_KEY
+		dataType: string
+		summarizeBy: none
+
+	column YEAR
+		dataType: string
+		summarizeBy: none
+
+	partition D_DATE = m
+		mode: import
+		source = Sql.Database("srv", "db")

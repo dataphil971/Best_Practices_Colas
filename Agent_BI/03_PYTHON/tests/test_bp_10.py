@@ -9,7 +9,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_10
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_10"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_10"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -38,8 +38,7 @@ def test_ko_with_type_mismatch_diagnostic_when_the_two_sides_differ():
     result = bp_10.check(_context_for("ko"))
 
     mismatch = next(
-        d for d in result.summary["ko_details"]
-        if d["object"] == "33333333-3333-3333-3333-333333333333"
+        d for d in result.summary["ko_details"] if d["object"] == "33333333-3333-3333-3333-333333333333"
     )
     assert mismatch["evidence"]["diagnostics"] == ["TYPE_MISMATCH"]
     assert mismatch["actual"] == "int64 / string"
@@ -86,9 +85,7 @@ def test_int32_is_not_silently_accepted(tmp_path):
     tables_dir = semantic_model / "definition" / "tables"
     tables_dir.mkdir(parents=True)
     (semantic_model / "definition" / "relationships.tmdl").write_text(
-        "relationship bbbbbbbb-0000-0000-0000-000000000000\n"
-        "\tfromColumn: F_A.CLE\n"
-        "\ttoColumn: D_B.CLE\n",
+        "relationship bbbbbbbb-0000-0000-0000-000000000000\n\tfromColumn: F_A.CLE\n\ttoColumn: D_B.CLE\n",
         encoding="utf-8",
     )
     (tables_dir / "F_A.tmdl").write_text(

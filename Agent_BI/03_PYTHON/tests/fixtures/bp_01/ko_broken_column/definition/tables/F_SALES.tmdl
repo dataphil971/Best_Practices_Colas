@@ -1,0 +1,17 @@
+table F_SALES
+
+	column PRODUCT_KEY
+		dataType: string
+		summarizeBy: none
+
+	column DATE_KEY
+		dataType: string
+		summarizeBy: none
+
+	column AMOUNT
+		dataType: string
+		summarizeBy: none
+
+	partition F_SALES = m
+		mode: import
+		source = Sql.Database("srv", "db")

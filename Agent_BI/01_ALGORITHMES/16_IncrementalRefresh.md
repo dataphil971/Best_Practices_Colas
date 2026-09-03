@@ -1,5 +1,7 @@
 # BP-16 — Actualisation incrémentielle des tables volumineuses éligibles
 
+> **Statut d'implémentation : ⏳ Non implémenté** — spécification fonctionnelle uniquement. Aucune règle exécutable dans le moteur : cette bonne pratique n'est ni contrôlée ni comptée dans un résultat d'analyse.
+
 ## 1. Objectif
 
 Vérifier qu'une table explicitement considérée comme éligible à l'actualisation incrémentielle dispose d'une configuration cohérente.

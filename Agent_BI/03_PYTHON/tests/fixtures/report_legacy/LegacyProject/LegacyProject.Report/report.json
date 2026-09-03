@@ -1,0 +1,69 @@
+{
+  "config": "{\"version\": \"5.73\", \"activeSectionIndex\": 0, \"bookmarks\": [{\"displayName\": \"Groupe\", \"name\": \"bmGroupe\", \"children\": [{\"displayName\": \"Reset\", \"name\": \"bmReset\"}]}]}",
+  "filters": "[{\"name\": \"filtreRapport\", \"expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Entity\": \"F_SALES\"}}, \"Property\": \"Region\"}}, \"type\": \"Categorical\"}]",
+  "layoutOptimization": 0,
+  "sections": [
+    {
+      "name": "pageOne",
+      "displayName": "Page Un",
+      "ordinal": 0,
+      "config": "{\"relationships\": [{\"source\": \"visImplicit\", \"target\": \"visDupA\", \"type\": 1}]}",
+      "filters": "[{\"name\": \"filtrePage\", \"expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Entity\": \"D_DATE\"}}, \"Property\": \"Year\"}}, \"type\": \"Categorical\"}]",
+      "visualContainers": [
+        {
+          "config": "{\"name\": \"visImplicit\", \"singleVisual\": {\"visualType\": \"card\", \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"f\", \"Entity\": \"F_SALES\", \"Type\": 0}], \"Select\": [{\"Aggregation\": {\"Expression\": {\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"f\"}}, \"Property\": \"Amount\"}}, \"Function\": 0}, \"Name\": \"Sum(F_SALES.Amount)\"}]}}}",
+          "filters": "[]",
+          "x": 0,
+          "y": 0,
+          "z": 1,
+          "width": 100,
+          "height": 50
+        },
+        {
+          "config": "{\"name\": \"visDupA\", \"parentGroupName\": \"grpNav\", \"singleVisual\": {\"visualType\": \"barChart\", \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"d\", \"Entity\": \"D_DATE\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"d\"}}, \"Property\": \"Year\"}, \"Name\": \"D_DATE.Year\"}]}}}",
+          "filters": "[{\"name\": \"filtreVisuel\", \"expression\": {\"Measure\": {\"Expression\": {\"SourceRef\": {\"Entity\": \"Mesures\"}}, \"Property\": \"CA\"}}, \"type\": \"Advanced\"}]",
+          "x": 0,
+          "y": 60,
+          "z": 2,
+          "width": 200,
+          "height": 100
+        },
+        {
+          "config": "{\"name\": \"visDupB\", \"parentGroupName\": \"grpNav\", \"singleVisual\": {\"visualType\": \"barChart\", \"prototypeQuery\": {\"Version\": 2, \"From\": [{\"Name\": \"d\", \"Entity\": \"D_DATE\", \"Type\": 0}], \"Select\": [{\"Column\": {\"Expression\": {\"SourceRef\": {\"Source\": \"d\"}}, \"Property\": \"Year\"}, \"Name\": \"D_DATE.Year\"}]}}}",
+          "filters": "[]",
+          "x": 220,
+          "y": 60,
+          "z": 3,
+          "width": 200,
+          "height": 100
+        },
+        {
+          "config": "{\"name\": \"grpNav\", \"singleVisualGroup\": {\"displayName\": \"Navigation\"}}",
+          "filters": "[]",
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "width": 400,
+          "height": 200
+        },
+        {
+          "config": "{\"name\": \"visText\", \"singleVisual\": {\"visualType\": \"textbox\"}}",
+          "filters": "[]",
+          "x": 0,
+          "y": 180,
+          "z": 4,
+          "width": 100,
+          "height": 20
+        }
+      ]
+    },
+    {
+      "name": "pageTwo",
+      "displayName": "Page Deux",
+      "ordinal": 1,
+      "config": "{\"relationships\": []}",
+      "filters": "[]",
+      "visualContainers": []
+    }
+  ]
+}

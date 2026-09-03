@@ -22,6 +22,8 @@ Agent_BI/04_DOCS/COMPANY_POLICY.md (si présent)
 
 Ne jamais inventer une propriété Power BI. En cas de doute sur une propriété TMDL/PBIR, le signaler explicitement plutôt que de la supposer.
 
+Procédure de sourcing et hiérarchie d'autorité : `agent-bi-evidence-sourcing`.
+
 ## Déroulé
 
 ### 1. Comprendre la bonne pratique
@@ -67,10 +69,24 @@ Identifier les sources exactes, par exemple :
 <SEMANTIC_MODEL_PATH>/definition/tables/*.tmdl
 <SEMANTIC_MODEL_PATH>/definition/relationships.tmdl
 
+# Rapport — DEUX sérialisations, mutuellement exclusives.
+# Une BP de périmètre rapport doit traiter les deux, ou dire laquelle elle ne
+# traite pas et rendre NA — jamais un OK sur un format qu'elle n'a pas lu.
+
+# PBIR
 <REPORT_PATH>/definition/report.json
 <REPORT_PATH>/definition/pages/**/page.json
 <REPORT_PATH>/definition/pages/**/visual.json
+
+# legacy — fichier unique à la RACINE de .Report/, configs en chaînes JSON
+<REPORT_PATH>/report.json
 ```
+
+Détection, structures et pièges des deux formats :
+`Agent_BI/04_DOCS/FORMATS_PBIP.md`.
+
+Un `OK` rendu sur une sérialisation non lue est un faux `OK` — c'est le défaut
+qu'a présenté BP-32 sur les rapports legacy.
 
 Pour chaque propriété, définir :
 

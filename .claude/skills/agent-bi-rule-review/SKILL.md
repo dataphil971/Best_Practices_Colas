@@ -14,7 +14,7 @@ Valider la cohérence entre :
       ↓
 03_PYTHON/rules
       ↓
-03_PYTHON/tests
+03_PYTHON/test
 ```
 
 L'algorithme BP-XX est la référence fonctionnelle.

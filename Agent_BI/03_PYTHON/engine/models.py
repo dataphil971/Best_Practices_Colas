@@ -7,7 +7,7 @@ Agent_BI/README_Agent_BI.md (statuts OK/KO/NA, principe de preuve) : toute
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -20,16 +20,16 @@ class SourceLocation:
     0-indexée.
 
     `excerpt` est recopié depuis le fichier au moment du constat : un
-    consommateur (frontend, LLM d'explication) n'a jamais à relire le projet
+    consommateur externe (rapport, LLM d'explication) n'a jamais à relire le projet
     pour afficher le code fautif.
     """
 
     source_file: str
-    line: Optional[int] = None
-    end_line: Optional[int] = None
-    excerpt: Optional[str] = None
+    line: int | None = None
+    end_line: int | None = None
+    excerpt: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "source_file": self.source_file,
             "line": self.line,
@@ -39,8 +39,11 @@ class SourceLocation:
 
     @classmethod
     def from_file(
-        cls, source_file: str, line: Optional[int],
-        end_line: Optional[int] = None, context_lines: int = 0,
+        cls,
+        source_file: str,
+        line: int | None,
+        end_line: int | None = None,
+        context_lines: int = 0,
     ) -> "SourceLocation":
         """Construit une localisation en y recopiant l'extrait réel du fichier.
 
@@ -60,7 +63,7 @@ class SourceLocation:
         stop = min(len(lines), (end_line or line) + context_lines)
         if start > len(lines):
             return location
-        location.excerpt = "\n".join(lines[start - 1:stop])
+        location.excerpt = "\n".join(lines[start - 1 : stop])
         return location
 
 
@@ -80,16 +83,16 @@ class ColumnDef:
 
     name: str
     raw_name: str
-    properties: Dict[str, Any]
+    properties: dict[str, Any]
     source_file: str
-    line: Optional[int] = None
-    end_line: Optional[int] = None
-    property_lines: Dict[str, int] = field(default_factory=dict)
+    line: int | None = None
+    end_line: int | None = None
+    property_lines: dict[str, int] = field(default_factory=dict)
 
-    def get_property(self, key: str) -> Optional[Any]:
+    def get_property(self, key: str) -> Any | None:
         return self.properties.get(key)
 
-    def locate(self, property_name: Optional[str] = None, context_lines: int = 0) -> SourceLocation:
+    def locate(self, property_name: str | None = None, context_lines: int = 0) -> SourceLocation:
         """Localisation de la colonne, ou de l'une de ses propriétés.
 
         Retombe sur la ligne de la colonne si la propriété n'existe pas —
@@ -97,9 +100,7 @@ class ColumnDef:
         alors aucune ligne fautive, seulement l'endroit où l'ajouter.
         """
         line = self.property_lines.get(property_name) if property_name else None
-        return SourceLocation.from_file(
-            self.source_file, line or self.line, context_lines=context_lines
-        )
+        return SourceLocation.from_file(self.source_file, line or self.line, context_lines=context_lines)
 
 
 @dataclass
@@ -113,14 +114,20 @@ class PartitionDef:
     """
 
     name: str
-    mode: Optional[str]  # "import" | "directQuery" | autre, brut (non normalisé)
-    m_source: Optional[str]
+    mode: str | None  # "import" | "directQuery" | autre, brut (non normalisé)
+    # Nature de la source, telle qu'écrite après le `=` de l'en-tête :
+    # "m" (Power Query), "calculated" (table DAX), "entity", ... — brute, non
+    # normalisée. Une partition `calculated` n'a PAS de code M : la traiter
+    # comme du M illisible produirait un NA trompeur là où la bonne réponse
+    # est « hors périmètre ».
+    source_kind: str | None
+    m_source: str | None
     source_file: str
-    line: Optional[int] = None
+    line: int | None = None
     # Ligne du fichier où commence RÉELLEMENT le code M (première ligne après
     # `source =`). Permet de convertir un décalage d'étape M en numéro de
     # ligne absolu dans le TMDL — cf. `powerbi/m_lang.py`, `MStep.line_offset`.
-    m_source_line: Optional[int] = None
+    m_source_line: int | None = None
 
 
 @dataclass
@@ -136,10 +143,10 @@ class ExpressionDef:
     """
 
     name: str
-    m_source: Optional[str]
+    m_source: str | None
     source_file: str
-    line: Optional[int] = None
-    m_source_line: Optional[int] = None
+    line: int | None = None
+    m_source_line: int | None = None
 
 
 @dataclass
@@ -156,25 +163,25 @@ class ReportFilterDef:
 
     name: str
     level: str  # "report" | "page" | "visual"
-    page_id: Optional[str]
-    visual_id: Optional[str]
-    filter_type: Optional[str]
-    field_references: List[Any]  # list[tuple[str, Optional[str], Optional[str]]]
+    page_id: str | None
+    visual_id: str | None
+    filter_type: str | None
+    field_references: list[Any]  # list[tuple[str, Optional[str], Optional[str]]]
     source_file: str
-    line: Optional[int] = None
+    line: int | None = None
 
 
 @dataclass
 class TableDef:
     name: str
     source_file: str
-    line: Optional[int] = None
-    columns: List[ColumnDef] = field(default_factory=list)
+    line: int | None = None
+    columns: list[ColumnDef] = field(default_factory=list)
     # Mesures du bloc `measure` (même forme qu'une colonne : nom + propriétés
     # brutes). L'expression DAX elle-même n'est volontairement pas isolée des
     # autres propriétés du corps du bloc : aucune règle actuelle n'en a besoin.
-    measures: List[ColumnDef] = field(default_factory=list)
-    partitions: List[PartitionDef] = field(default_factory=list)
+    measures: list[ColumnDef] = field(default_factory=list)
+    partitions: list[PartitionDef] = field(default_factory=list)
 
 
 @dataclass
@@ -195,19 +202,17 @@ class RelationshipDef:
     from_column: str
     to_table: str
     to_column: str
-    from_cardinality: Optional[str]
-    to_cardinality: Optional[str]
-    cross_filtering_behavior: Optional[str]
+    from_cardinality: str | None
+    to_cardinality: str | None
+    cross_filtering_behavior: str | None
     is_active: bool
     source_file: str
-    line: Optional[int] = None
-    property_lines: Dict[str, int] = field(default_factory=dict)
+    line: int | None = None
+    property_lines: dict[str, int] = field(default_factory=dict)
 
-    def locate(self, property_name: Optional[str] = None, context_lines: int = 0) -> SourceLocation:
+    def locate(self, property_name: str | None = None, context_lines: int = 0) -> SourceLocation:
         line = self.property_lines.get(property_name) if property_name else None
-        return SourceLocation.from_file(
-            self.source_file, line or self.line, context_lines=context_lines
-        )
+        return SourceLocation.from_file(self.source_file, line or self.line, context_lines=context_lines)
 
 
 @dataclass
@@ -235,13 +240,13 @@ class Finding:
     expected: str
     actual: Any
     status: str  # OK | KO | NA
-    evidence: Dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
     reason: str = ""
-    location: Optional[SourceLocation] = None
+    location: SourceLocation | None = None
     remediation: str = ""
     explanation: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rule_id": self.rule_id,
             "object_type": self.object_type,
@@ -281,11 +286,11 @@ class Candidate:
     rule_id: str
     candidate_id: str
     candidate_type: str
-    objects: List[Any] = field(default_factory=list)
-    technical_evidence: Dict[str, Any] = field(default_factory=dict)
-    review_context: Dict[str, Any] = field(default_factory=dict)
+    objects: list[Any] = field(default_factory=list)
+    technical_evidence: dict[str, Any] = field(default_factory=dict)
+    review_context: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rule_id": self.rule_id,
             "candidate_id": self.candidate_id,
@@ -303,14 +308,14 @@ class RuleResult:
     rule_id: str
     rule_name: str
     execution_status: str  # SUCCESS | ERROR | PARTIAL
-    rule_status: str       # OK | KO | NA — jamais un autre statut
-    alias: Optional[str] = None
-    findings: List[Finding] = field(default_factory=list)
-    summary: Dict[str, Any] = field(default_factory=dict)
-    candidates: List[Candidate] = field(default_factory=list)
+    rule_status: str  # OK | KO | NA — jamais un autre statut
+    alias: str | None = None
+    findings: list[Finding] = field(default_factory=list)
+    summary: dict[str, Any] = field(default_factory=dict)
+    candidates: list[Candidate] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {"rule_id": self.rule_id}
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {"rule_id": self.rule_id}
         if self.alias:
             result["alias"] = self.alias
         result["rule_name"] = self.rule_name
@@ -321,7 +326,7 @@ class RuleResult:
         # (ex: ko_details/na_details pour BP-22). `findings` porte la preuve
         # complète (object/expected/actual/evidence) pour CHAQUE objet,
         # y compris les OK — nécessaire pour un consommateur externe
-        # (API, frontend) qui ne doit jamais avoir à redériver une preuve.
+        # (API, outil de restitution) qui ne doit jamais redériver une preuve.
         result["findings"] = [finding.to_dict() for finding in self.findings]
         # `candidates` n'apparaît que si la règle en produit : une règle
         # purement déterministe ne doit pas exposer une clé vide qui

@@ -10,7 +10,7 @@ from pathlib import Path
 from engine.context import AnalysisContext
 from rules import bp_38
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_38"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_38"
 
 
 def _context_for(scenario: str) -> AnalysisContext:
@@ -49,9 +49,7 @@ def test_na_when_no_interaction_is_serialized(tmp_path):
 
 
 def test_na_when_no_report_is_available():
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "ok" / "M.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "ok" / "M.SemanticModel")
     result = bp_38.check(context)
 
     assert result.rule_status == "NA"

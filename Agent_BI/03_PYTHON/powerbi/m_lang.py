@@ -19,7 +19,6 @@ sur 9 perdues avant correction).
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 _IDENT_CHAR = re.compile(r"[A-Za-z0-9_]")
 
@@ -29,7 +28,7 @@ class MFunctionCall:
     """Un appel `Fonction(arg1, arg2, ...)` localisé dans du texte M brut."""
 
     function_name: str
-    raw_arguments: List[str]
+    raw_arguments: list[str]
 
 
 @dataclass
@@ -66,7 +65,7 @@ def _skip_string_literal(text: str, start: int) -> int:
     return n  # chaîne non terminée : on s'arrête à la fin du texte, sans lever d'exception.
 
 
-def _split_top_level_arguments(text: str, open_paren_index: int) -> Tuple[List[str], int]:
+def _split_top_level_arguments(text: str, open_paren_index: int) -> tuple[list[str], int]:
     """`open_paren_index` pointe sur le `(` ouvrant d'un appel. Retourne
     (arguments bruts de premier niveau, index juste après le `)` fermant
     correspondant), en respectant l'imbrication des parenthèses / crochets /
@@ -75,8 +74,8 @@ def _split_top_level_arguments(text: str, open_paren_index: int) -> Tuple[List[s
     i = open_paren_index + 1
     n = len(text)
     depth = 1
-    current: List[str] = []
-    args: List[str] = []
+    current: list[str] = []
+    args: list[str] = []
 
     while i < n and depth > 0:
         ch = text[i]
@@ -116,7 +115,7 @@ def _split_top_level_arguments(text: str, open_paren_index: int) -> Tuple[List[s
     return args, i
 
 
-def find_function_calls(m_source: Optional[str], function_name: str) -> List[MFunctionCall]:
+def find_function_calls(m_source: str | None, function_name: str) -> list[MFunctionCall]:
     """Recherche tous les appels `<function_name>(...)` dans `m_source`.
 
     Ne résout pas les alias/renommages (`let f = Databricks.Catalogs in
@@ -128,7 +127,7 @@ def find_function_calls(m_source: Optional[str], function_name: str) -> List[MFu
         return []
 
     m_source = _strip_m_comments(m_source)
-    calls: List[MFunctionCall] = []
+    calls: list[MFunctionCall] = []
     marker = function_name + "("
     search_from = 0
 
@@ -158,7 +157,7 @@ def _strip_m_comments(text: str) -> str:
     espaces (et les retours à la ligne internes à un bloc préservés) plutôt
     que supprimé, pour ne jamais recoller deux tokens qui l'encadraient ni
     décaler les numéros de ligne."""
-    out: List[str] = []
+    out: list[str] = []
     i = 0
     n = len(text)
     while i < n:
@@ -170,7 +169,7 @@ def _strip_m_comments(text: str) -> str:
             i = j
             continue
 
-        if text[i:i + 2] == "//":
+        if text[i : i + 2] == "//":
             j = text.find("\n", i)
             if j == -1:
                 j = n
@@ -178,7 +177,7 @@ def _strip_m_comments(text: str) -> str:
             i = j
             continue
 
-        if text[i:i + 2] == "/*":
+        if text[i : i + 2] == "/*":
             end = text.find("*/", i + 2)
             j = n if end == -1 else end + 2
             out.append("".join("\n" if c == "\n" else " " for c in text[i:j]))
@@ -196,14 +195,14 @@ def _at_keyword(text: str, i: int, keyword: str) -> bool:
     MOT entier (pas comme sous-chaîne d'un identifiant plus long, ex. le
     "in" de "Building")."""
     n = len(keyword)
-    if text[i:i + n] != keyword:
+    if text[i : i + n] != keyword:
         return False
     before_ok = i == 0 or not _IDENT_CHAR.match(text[i - 1])
     after_ok = i + n >= len(text) or not _IDENT_CHAR.match(text[i + n])
     return before_ok and after_ok
 
 
-def _find_top_level_let_block(text: str) -> Optional[Tuple[int, int]]:
+def _find_top_level_let_block(text: str) -> tuple[int, int] | None:
     """Localise le PREMIER bloc `let ... in` de plus haut niveau.
 
     Retourne (index du 1er caractère après ce `let`, index du `in` qui lui
@@ -245,7 +244,7 @@ def _find_top_level_let_block(text: str) -> Optional[Tuple[int, int]]:
     return None
 
 
-def _split_top_level_steps(text: str, body_start: int, in_start: int) -> "List[Tuple[str, int]]":
+def _split_top_level_steps(text: str, body_start: int, in_start: int) -> "list[tuple[str, int]]":
     """Découpe `text[body_start:in_start]` (corps d'un bloc `let`, juste
     avant son `in`) en fragments bruts d'étapes séparés par une virgule de
     premier niveau — imbrication de parenthèses/crochets/accolades ET de
@@ -255,8 +254,8 @@ def _split_top_level_steps(text: str, body_start: int, in_start: int) -> "List[T
     i = body_start
     bracket_depth = 0
     let_depth = 0
-    current: List[str] = []
-    parts: "List[Tuple[str, int]]" = []
+    current: list[str] = []
+    parts: list[tuple[str, int]] = []
     fragment_start = body_start
 
     while i < in_start:
@@ -311,7 +310,7 @@ def _split_top_level_steps(text: str, body_start: int, in_start: int) -> "List[T
 _STEP_NAME_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*", re.DOTALL)
 
 
-def _split_step_name(raw_step: str) -> Optional[Tuple[str, str, str]]:
+def _split_step_name(raw_step: str) -> tuple[str, str, str] | None:
     """Sépare une étape brute en (nom réel, nom brut, expression).
 
     Le nom peut être un identifiant simple ou une forme entre guillemets
@@ -323,7 +322,7 @@ def _split_step_name(raw_step: str) -> Optional[Tuple[str, str, str]]:
         if end == -1:
             return None
         raw_name = s[: end + 1]
-        rest = s[end + 1:].lstrip()
+        rest = s[end + 1 :].lstrip()
         if not rest.startswith("="):
             return None
         return s[2:end], raw_name, rest[1:].strip()
@@ -332,10 +331,10 @@ def _split_step_name(raw_step: str) -> Optional[Tuple[str, str, str]]:
     if not m:
         return None
     name = m.group(1)
-    return name, name, s[m.end():].strip()
+    return name, name, s[m.end() :].strip()
 
 
-def parse_let_steps(m_source: Optional[str]) -> List[MStep]:
+def parse_let_steps(m_source: str | None) -> list[MStep]:
     """Découpe le PREMIER bloc `let ... in ...` de haut niveau de `m_source`
     en étapes ordonnées. Retourne `[]` si aucun bloc `let` n'est trouvé ou
     si le code n'est pas interprétable comme une suite d'étapes — jamais
@@ -356,7 +355,7 @@ def parse_let_steps(m_source: Optional[str]) -> List[MStep]:
         return []
     body_start, in_start = span
 
-    steps: List[MStep] = []
+    steps: list[MStep] = []
     for raw_step, fragment_start in _split_top_level_steps(m_source, body_start, in_start):
         if not raw_step.strip():
             continue
@@ -370,15 +369,19 @@ def parse_let_steps(m_source: Optional[str]) -> List[MStep]:
         leading = len(raw_step) - len(raw_step.lstrip())
         absolute_start = fragment_start + leading
         line_offset = m_source.count("\n", 0, absolute_start)
-        steps.append(MStep(
-            name=name, raw_name=raw_name, expression=expression,
-            line_offset=line_offset,
-        ))
+        steps.append(
+            MStep(
+                name=name,
+                raw_name=raw_name,
+                expression=expression,
+                line_offset=line_offset,
+            )
+        )
 
     return steps
 
 
-def parse_type_transform_list(raw_argument: str) -> List[Tuple[str, str]]:
+def parse_type_transform_list(raw_argument: str) -> list[tuple[str, str]]:
     """Découpe le 2e argument d'un `Table.TransformColumnTypes` en paires
     (nom de colonne, type M brut).
 
@@ -396,7 +399,7 @@ def parse_type_transform_list(raw_argument: str) -> List[Tuple[str, str]]:
         return []
 
     items, _end = _split_top_level_arguments(text, 0)
-    pairs: List[Tuple[str, str]] = []
+    pairs: list[tuple[str, str]] = []
     for item in items:
         item = item.strip()
         if not item.startswith("{"):
@@ -416,7 +419,7 @@ def parse_type_transform_list(raw_argument: str) -> List[Tuple[str, str]]:
     return pairs
 
 
-def resolve_m_string_literal(raw_argument: str) -> Optional[str]:
+def resolve_m_string_literal(raw_argument: str) -> str | None:
     """Si `raw_argument` est un littéral chaîne M (`"..."`), retourne sa
     valeur (guillemets internes `""` dépliés en `"`). Sinon (paramètre,
     expression, identifiant, concaténation...), retourne `None` : ce n'est

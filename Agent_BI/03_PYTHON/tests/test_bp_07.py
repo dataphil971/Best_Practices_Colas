@@ -14,7 +14,7 @@ from engine.context import AnalysisContext
 from powerbi.dax_lang import extract_column_references
 from rules import bp_07
 
-FIXTURES = Path(__file__).parent / "fixtures" / "bp_07"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "bp_07"
 
 
 def test_ko_only_for_a_visible_column_with_no_usage_anywhere():
@@ -49,9 +49,7 @@ def test_a_column_named_only_inside_a_dax_comment_is_not_considered_used():
 def test_na_when_the_report_is_absent_from_the_analysed_scope():
     # §9 : sans rapport lisible, l'absence d'usage n'est pas démontrable —
     # garde principale contre les faux positifs.
-    context = AnalysisContext.from_semantic_model_path(
-        FIXTURES / "ko" / "M.SemanticModel"
-    )
+    context = AnalysisContext.from_semantic_model_path(FIXTURES / "ko" / "M.SemanticModel")
     result = bp_07.check(context)
 
     assert result.rule_status == "NA"
@@ -132,10 +130,7 @@ def test_dax_extractor_separates_qualified_from_unqualified_references():
 
 def test_dax_extractor_ignores_comments_and_string_literals():
     qualified, unqualified = extract_column_references(
-        '// D_X[COMMENTAIRE]\n'
-        '/* D_X[BLOC] */\n'
-        'VAR t = "D_X[CHAINE]"\n'
-        'RETURN SUM(D_X[REEL])'
+        '// D_X[COMMENTAIRE]\n/* D_X[BLOC] */\nVAR t = "D_X[CHAINE]"\nRETURN SUM(D_X[REEL])'
     )
 
     assert qualified == {("D_X", "REEL")}

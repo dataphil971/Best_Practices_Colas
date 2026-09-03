@@ -18,14 +18,13 @@ usage : elles sont retournées à part, comme bloqueurs (§7 de BP-07).
 """
 
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
 
 from powerbi.dax_lang import extract_column_references
 
-ColumnKey = Tuple[str, str]
+ColumnKey = tuple[str, str]
 
 
-def _scan_model_dax(context) -> Tuple[Set[ColumnKey], Set[str]]:
+def _scan_model_dax(context) -> tuple[set[ColumnKey], set[str]]:
     """Balaie le TEXTE BRUT de chaque fichier de table.
 
     Volontairement plus large que « les seules expressions de mesures » : le
@@ -34,8 +33,8 @@ def _scan_model_dax(context) -> Tuple[Set[ColumnKey], Set[str]]:
     peut que faire détecter PLUS d'usages (ou plus de bloqueurs), donc
     supprimer des KO — jamais en fabriquer un faux.
     """
-    qualified: Set[ColumnKey] = set()
-    unqualified: Set[str] = set()
+    qualified: set[ColumnKey] = set()
+    unqualified: set[str] = set()
     for table in context.tables:
         try:
             raw = Path(table.source_file).read_text(encoding="utf-8-sig")
@@ -47,9 +46,9 @@ def _scan_model_dax(context) -> Tuple[Set[ColumnKey], Set[str]]:
     return qualified, unqualified
 
 
-def build_usage_index(context) -> Tuple[Dict[ColumnKey, List[str]], Set[str]]:
+def build_usage_index(context) -> tuple[dict[ColumnKey, list[str]], set[str]]:
     """Retourne ((table, colonne) -> surfaces d'usage, noms DAX ambigus)."""
-    usage: Dict[ColumnKey, List[str]] = {}
+    usage: dict[ColumnKey, list[str]] = {}
 
     def record(table_name, column_name, surface):
         if table_name and column_name:
@@ -65,8 +64,7 @@ def build_usage_index(context) -> Tuple[Dict[ColumnKey, List[str]], Set[str]]:
 
     for table in context.tables:
         for column in table.columns:
-            for prop, surface in (("sortByColumn", "sort_by"),
-                                  ("groupByColumn", "group_by")):
+            for prop, surface in (("sortByColumn", "sort_by"), ("groupByColumn", "group_by")):
                 target = column.get_property(prop)
                 if target:
                     record(table.name, str(target).strip().strip("'"), surface)

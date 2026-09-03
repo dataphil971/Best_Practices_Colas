@@ -1,5 +1,7 @@
 # BP-25 — Masquer les champs techniques démontrés
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_25.py`](../03_PYTHON/rules/bp_25.py), tests : `03_PYTHON/tests/test_bp_25.py`.
+
 ## 1. Objectif
 
 Vérifier que les colonnes dont le rôle **purement technique** est démontré sont masquées avec :

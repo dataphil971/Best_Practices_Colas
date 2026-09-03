@@ -1,5 +1,7 @@
 # BP-03 — Éviter les relations bidirectionnelles et many-to-many
 
+> **Statut d'implémentation : ✅ Implémenté** — moteur : [`03_PYTHON/rules/bp_03.py`](../03_PYTHON/rules/bp_03.py), tests : `03_PYTHON/tests/test_bp_03.py`.
+
 ## 1. Objectif
 
 Appliquer la bonne pratique :

@@ -1,0 +1,13 @@
+table P_LEGEND
+
+	column 'P_LEGEND Order'
+		dataType: string
+		summarizeBy: none
+
+	column 'P_LEGEND Fields'
+		dataType: string
+		summarizeBy: none
+
+	partition P_LEGEND = m
+		mode: import
+		source = Sql.Database("srv", "db")

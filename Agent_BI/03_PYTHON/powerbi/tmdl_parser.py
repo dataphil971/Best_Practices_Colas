@@ -28,7 +28,6 @@ format déjà confirmé — mais reste à valider sur un vrai projet.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from engine.models import ColumnDef, ExpressionDef, PartitionDef, RelationshipDef, TableDef
 
@@ -46,13 +45,13 @@ def _strip_quotes(raw_name: str) -> str:
     return raw_name
 
 
-def _parse_property_line(line: str) -> Optional[Tuple[str, object]]:
+def _parse_property_line(line: str) -> tuple[str, object] | None:
     stripped = line.strip()
     if not stripped:
         return None
 
     if stripped.startswith("annotation "):
-        rest = stripped[len("annotation "):]
+        rest = stripped[len("annotation ") :]
         if " = " in rest:
             key, _, value = rest.partition(" = ")
             return (f"annotation:{key.strip()}", value.strip())
@@ -73,7 +72,7 @@ def _parse_property_line(line: str) -> Optional[Tuple[str, object]]:
     return (stripped, True)
 
 
-def _split_name_and_inline_expression(raw: str) -> Tuple[str, Optional[str]]:
+def _split_name_and_inline_expression(raw: str) -> tuple[str, str | None]:
     """Sépare le nom brut d'une éventuelle expression DAX inline
     (`column X = SUM(...)`), ou du signe `=` isolé en fin de ligne quand
     l'expression commence sur les lignes suivantes plus indentées — forme la
@@ -91,7 +90,7 @@ def _split_name_and_inline_expression(raw: str) -> Tuple[str, Optional[str]]:
         end = raw.find("'", 1)
         if end != -1:
             name_part = raw[: end + 1]
-            rest = raw[end + 1:].strip()
+            rest = raw[end + 1 :].strip()
             if rest.startswith("="):
                 return name_part, rest[1:].strip() or None
             return name_part, None
@@ -104,8 +103,8 @@ def _split_name_and_inline_expression(raw: str) -> Tuple[str, Optional[str]]:
 
 
 def _parse_named_block(
-    lines: List[str], start: int, block_indent: int, keyword_len: int, source_file: str
-) -> Tuple[ColumnDef, int]:
+    lines: list[str], start: int, block_indent: int, keyword_len: int, source_file: str
+) -> tuple[ColumnDef, int]:
     """Parse un bloc `column`/`measure` : nom brut + propriétés du corps.
 
     `keyword_len` est la longueur du mot-clé + l'espace qui le suit
@@ -124,8 +123,8 @@ def _parse_named_block(
     raw_name, _inline_expression = _split_name_and_inline_expression(content[keyword_len:])
     name = _strip_quotes(raw_name)
 
-    properties: Dict[str, object] = {}
-    property_lines: Dict[str, int] = {}
+    properties: dict[str, object] = {}
+    property_lines: dict[str, int] = {}
     i = start + 1
     last_body_line = start
     while i < len(lines):
@@ -147,8 +146,12 @@ def _parse_named_block(
 
     return (
         ColumnDef(
-            name=name, raw_name=raw_name, properties=properties,
-            source_file=source_file, line=start + 1, end_line=last_body_line + 1,
+            name=name,
+            raw_name=raw_name,
+            properties=properties,
+            source_file=source_file,
+            line=start + 1,
+            end_line=last_body_line + 1,
             property_lines=property_lines,
         ),
         i,
@@ -156,8 +159,8 @@ def _parse_named_block(
 
 
 def _parse_partition_block(
-    lines: List[str], start: int, block_indent: int, source_file: str
-) -> Tuple[PartitionDef, int]:
+    lines: list[str], start: int, block_indent: int, source_file: str
+) -> tuple[PartitionDef, int]:
     """Parse un bloc `partition <Nom> = m` : mode + code M source brut.
 
     Les propriétés précédant `source =` (`mode:`, `queryGroup:`, ...) sont
@@ -168,14 +171,15 @@ def _parse_partition_block(
     texte M brut, jusqu'au dédent de fin de bloc.
     """
     content = lines[start].strip()
-    header = content[len("partition "):]
-    name_part, _, _kind = header.partition(" = ")
+    header = content[len("partition ") :]
+    name_part, _, kind = header.partition(" = ")
     name = _strip_quotes(name_part.strip())
+    source_kind = kind.strip() or None
 
-    mode: Optional[str] = None
-    source_lines: List[str] = []
+    mode: str | None = None
+    source_lines: list[str] = []
     in_source = False
-    m_source_line: Optional[int] = None
+    m_source_line: int | None = None
 
     i = start + 1
     while i < len(lines):
@@ -194,10 +198,10 @@ def _parse_partition_block(
 
         if not in_source:
             if stripped.startswith("mode:"):
-                mode = stripped[len("mode:"):].strip()
+                mode = stripped[len("mode:") :].strip()
             elif stripped == "source =" or stripped.startswith("source = "):
                 in_source = True
-                inline = stripped[len("source ="):].strip()
+                inline = stripped[len("source =") :].strip()
                 if inline:
                     source_lines.append(inline)
                     m_source_line = i + 1
@@ -222,12 +226,17 @@ def _parse_partition_block(
         m_source_line += leading.count("\n")
 
     return PartitionDef(
-        name=name, mode=mode, m_source=m_source, source_file=source_file,
-        line=start + 1, m_source_line=m_source_line if m_source else None,
+        name=name,
+        mode=mode,
+        source_kind=source_kind,
+        m_source=m_source,
+        source_file=source_file,
+        line=start + 1,
+        m_source_line=m_source_line if m_source else None,
     ), i
 
 
-def parse_table_file(path: Path) -> Optional[TableDef]:
+def parse_table_file(path: Path) -> TableDef | None:
     """Parse un fichier `<Table>.tmdl` et retourne son `TableDef`.
 
     Retourne None si aucune déclaration `table <Nom>` n'a pu être trouvée
@@ -236,11 +245,11 @@ def parse_table_file(path: Path) -> Optional[TableDef]:
     """
     lines = path.read_text(encoding="utf-8-sig").splitlines()
 
-    table_name: Optional[str] = None
-    table_line: Optional[int] = None
-    columns: List[ColumnDef] = []
-    measures: List[ColumnDef] = []
-    partitions: List[PartitionDef] = []
+    table_name: str | None = None
+    table_line: int | None = None
+    columns: list[ColumnDef] = []
+    measures: list[ColumnDef] = []
+    partitions: list[PartitionDef] = []
 
     i = 0
     while i < len(lines):
@@ -259,7 +268,7 @@ def parse_table_file(path: Path) -> Optional[TableDef]:
             # guillemets simples par TMDL — les retirer sans toucher à
             # l'espace interne/final qu'ils protègent, exactement comme pour
             # les colonnes et mesures.
-            table_name = _strip_quotes(content[len("table "):].strip())
+            table_name = _strip_quotes(content[len("table ") :].strip())
             table_line = i + 1
             i += 1
             continue
@@ -292,19 +301,23 @@ def parse_table_file(path: Path) -> Optional[TableDef]:
         return None
 
     return TableDef(
-        name=table_name, source_file=str(path), line=table_line,
-        columns=columns, measures=measures, partitions=partitions,
+        name=table_name,
+        source_file=str(path),
+        line=table_line,
+        columns=columns,
+        measures=measures,
+        partitions=partitions,
     )
 
 
-def _table_and_column(ref: object) -> Tuple[str, str]:
+def _table_and_column(ref: object) -> tuple[str, str]:
     # Forme attendue : "Table.Colonne" ou "Table.'Colonne avec espace'".
     text = str(ref)
     table, _, column = text.partition(".")
     return table.strip(), _strip_quotes(column.strip())
 
 
-def parse_relationships_file(path: Path) -> List[RelationshipDef]:
+def parse_relationships_file(path: Path) -> list[RelationshipDef]:
     """Parse `definition/relationships.tmdl` : un `RelationshipDef` par bloc
     `relationship <id>`.
 
@@ -317,7 +330,7 @@ def parse_relationships_file(path: Path) -> List[RelationshipDef]:
         return []
 
     lines = path.read_text(encoding="utf-8-sig").splitlines()
-    relationships: List[RelationshipDef] = []
+    relationships: list[RelationshipDef] = []
 
     i = 0
     while i < len(lines):
@@ -330,11 +343,11 @@ def parse_relationships_file(path: Path) -> List[RelationshipDef]:
         content = line.strip()
 
         if indent == 0 and content.startswith("relationship "):
-            rel_id = content[len("relationship "):].strip()
+            rel_id = content[len("relationship ") :].strip()
             rel_indent = indent
             rel_line = i + 1
-            properties: Dict[str, object] = {}
-            rel_property_lines: Dict[str, int] = {}
+            properties: dict[str, object] = {}
+            rel_property_lines: dict[str, int] = {}
             i += 1
             while i < len(lines):
                 body_line = lines[i]
@@ -355,29 +368,32 @@ def parse_relationships_file(path: Path) -> List[RelationshipDef]:
             is_active_raw = properties.get("isActive")
             is_active = True if is_active_raw is None else str(is_active_raw).strip().lower() != "false"
 
-            relationships.append(RelationshipDef(
-                id=rel_id,
-                from_table=from_table,
-                from_column=from_column,
-                to_table=to_table,
-                to_column=to_column,
-                from_cardinality=(
-                    str(properties["fromCardinality"]).strip()
-                    if "fromCardinality" in properties else None
-                ),
-                to_cardinality=(
-                    str(properties["toCardinality"]).strip()
-                    if "toCardinality" in properties else None
-                ),
-                cross_filtering_behavior=(
-                    str(properties["crossFilteringBehavior"]).strip()
-                    if "crossFilteringBehavior" in properties else None
-                ),
-                is_active=is_active,
-                source_file=str(path),
-                line=rel_line,
-                property_lines=rel_property_lines,
-            ))
+            relationships.append(
+                RelationshipDef(
+                    id=rel_id,
+                    from_table=from_table,
+                    from_column=from_column,
+                    to_table=to_table,
+                    to_column=to_column,
+                    from_cardinality=(
+                        str(properties["fromCardinality"]).strip()
+                        if "fromCardinality" in properties
+                        else None
+                    ),
+                    to_cardinality=(
+                        str(properties["toCardinality"]).strip() if "toCardinality" in properties else None
+                    ),
+                    cross_filtering_behavior=(
+                        str(properties["crossFilteringBehavior"]).strip()
+                        if "crossFilteringBehavior" in properties
+                        else None
+                    ),
+                    is_active=is_active,
+                    source_file=str(path),
+                    line=rel_line,
+                    property_lines=rel_property_lines,
+                )
+            )
             continue
 
         i += 1
@@ -385,7 +401,7 @@ def parse_relationships_file(path: Path) -> List[RelationshipDef]:
     return relationships
 
 
-def parse_model_file(path: Path) -> Dict[str, str]:
+def parse_model_file(path: Path) -> dict[str, str]:
     """Parse les annotations du modèle portées par `definition/model.tmdl`.
 
     Contrairement à l'hypothèse initiale (annotations imbriquées sous le
@@ -405,7 +421,7 @@ def parse_model_file(path: Path) -> Dict[str, str]:
         return {}
 
     lines = path.read_text(encoding="utf-8-sig").splitlines()
-    annotations: Dict[str, str] = {}
+    annotations: dict[str, str] = {}
 
     for line in lines:
         if not line.strip():
@@ -419,12 +435,12 @@ def parse_model_file(path: Path) -> Dict[str, str]:
         if parsed is not None:
             key, value = parsed
             if key.startswith("annotation:"):
-                annotations[key[len("annotation:"):]] = str(value)
+                annotations[key[len("annotation:") :]] = str(value)
 
     return annotations
 
 
-def parse_expressions_file(path: Path) -> List[ExpressionDef]:
+def parse_expressions_file(path: Path) -> list[ExpressionDef]:
     """Parse `definition/expressions.tmdl` : un `ExpressionDef` par bloc
     `expression <Nom> = ...` de profondeur 0.
 
@@ -448,7 +464,7 @@ def parse_expressions_file(path: Path) -> List[ExpressionDef]:
 
     lines = path.read_text(encoding="utf-8-sig").splitlines()
     n = len(lines)
-    expressions: List[ExpressionDef] = []
+    expressions: list[ExpressionDef] = []
     i = 0
 
     while i < n:
@@ -462,7 +478,7 @@ def parse_expressions_file(path: Path) -> List[ExpressionDef]:
             i += 1
             continue
 
-        header = content[len("expression "):]
+        header = content[len("expression ") :]
         raw_name, tail = _split_name_and_inline_expression(header)
         name = _strip_quotes(raw_name)
         expression_line = i + 1
@@ -470,7 +486,7 @@ def parse_expressions_file(path: Path) -> List[ExpressionDef]:
         i += 1
 
         if tail is not None and tail.strip() == "```":
-            body_lines: List[str] = []
+            body_lines: list[str] = []
             while i < n and lines[i].strip() != "```":
                 body_lines.append(lines[i])
                 i += 1
@@ -497,15 +513,20 @@ def parse_expressions_file(path: Path) -> List[ExpressionDef]:
             m_source = tail.strip() or None
             m_source_line = expression_line  # valeur inline : même ligne
 
-        expressions.append(ExpressionDef(
-            name=name, m_source=m_source, source_file=str(path),
-            line=expression_line, m_source_line=m_source_line if m_source else None,
-        ))
+        expressions.append(
+            ExpressionDef(
+                name=name,
+                m_source=m_source,
+                source_file=str(path),
+                line=expression_line,
+                m_source_line=m_source_line if m_source else None,
+            )
+        )
 
     return expressions
 
 
-def parse_tables_directory(tables_dir: Path) -> List[TableDef]:
+def parse_tables_directory(tables_dir: Path) -> list[TableDef]:
     """Parse tous les fichiers `*.tmdl` d'un dossier `definition/tables/`.
 
     Retourne une liste vide si le dossier n'existe pas — c'est au contexte

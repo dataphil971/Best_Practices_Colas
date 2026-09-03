@@ -58,8 +58,12 @@ def _evaluate_partition(table_name: str, partition: PartitionDef) -> "tuple[Find
 
     if mode != "directquery":
         return Finding(
-            rule_id=RULE_ID, object_type="partition", object=object_name,
-            expected="OK/KO uniquement pour DirectQuery", actual=partition.mode, status="NA",
+            rule_id=RULE_ID,
+            object_type="partition",
+            object=object_name,
+            expected="OK/KO uniquement pour DirectQuery",
+            actual=partition.mode,
+            status="NA",
             reason="Partition hors périmètre DirectQuery",
             evidence={"mode": partition.mode},
         ), True
@@ -67,8 +71,12 @@ def _evaluate_partition(table_name: str, partition: PartitionDef) -> "tuple[Find
     calls = find_function_calls(partition.m_source, DATABRICKS_CONNECTOR_FUNCTION)
     if not calls:
         return Finding(
-            rule_id=RULE_ID, object_type="partition", object=object_name,
-            expected="connecteur Databricks", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type="partition",
+            object=object_name,
+            expected="connecteur Databricks",
+            actual=None,
+            status="NA",
             reason="Partition DirectQuery non Databricks",
             evidence={"mode": partition.mode},
         ), True
@@ -76,8 +84,12 @@ def _evaluate_partition(table_name: str, partition: PartitionDef) -> "tuple[Find
     call = calls[0]
     if len(call.raw_arguments) < 2:
         return Finding(
-            rule_id=RULE_ID, object_type="partition", object=object_name,
-            expected="Databricks.Catalogs(hôte, httpPath, ...)", actual=None, status="NA",
+            rule_id=RULE_ID,
+            object_type="partition",
+            object=object_name,
+            expected="Databricks.Catalogs(hôte, httpPath, ...)",
+            actual=None,
+            status="NA",
             reason="Appel Databricks.Catalogs sans second argument (httpPath)",
             evidence={"raw_arguments": call.raw_arguments},
         ), False
@@ -85,9 +97,12 @@ def _evaluate_partition(table_name: str, partition: PartitionDef) -> "tuple[Find
     http_path = resolve_m_string_literal(call.raw_arguments[1])
     if http_path is None:
         return Finding(
-            rule_id=RULE_ID, object_type="partition", object=object_name,
+            rule_id=RULE_ID,
+            object_type="partition",
+            object=object_name,
             expected="httpPath résolvable statiquement",
-            actual=call.raw_arguments[1], status="NA",
+            actual=call.raw_arguments[1],
+            status="NA",
             reason="httpPath Databricks non résolvable (paramètre ou expression dynamique)",
             evidence={"raw_argument": call.raw_arguments[1]},
         ), False
@@ -97,21 +112,34 @@ def _evaluate_partition(table_name: str, partition: PartitionDef) -> "tuple[Find
 
     if endpoint == "SQL_WAREHOUSE":
         return Finding(
-            rule_id=RULE_ID, object_type="partition", object=object_name,
-            expected="SQL_WAREHOUSE", actual=endpoint, status="OK", evidence=evidence,
+            rule_id=RULE_ID,
+            object_type="partition",
+            object=object_name,
+            expected="SQL_WAREHOUSE",
+            actual=endpoint,
+            status="OK",
+            evidence=evidence,
         ), False
 
     if endpoint == "COMPUTE_CLUSTER":
         return Finding(
-            rule_id=RULE_ID, object_type="partition", object=object_name,
-            expected="SQL_WAREHOUSE", actual=endpoint, status="KO",
+            rule_id=RULE_ID,
+            object_type="partition",
+            object=object_name,
+            expected="SQL_WAREHOUSE",
+            actual=endpoint,
+            status="KO",
             reason="Endpoint Databricks de type compute cluster interactif",
             evidence=evidence,
         ), False
 
     return Finding(
-        rule_id=RULE_ID, object_type="partition", object=object_name,
-        expected="SQL_WAREHOUSE", actual=None, status="NA",
+        rule_id=RULE_ID,
+        object_type="partition",
+        object=object_name,
+        expected="SQL_WAREHOUSE",
+        actual=None,
+        status="NA",
         reason="Type d'endpoint Databricks non déterminable",
         evidence=evidence,
     ), False
